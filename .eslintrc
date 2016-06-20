@@ -1,0 +1,62 @@
+{
+    "env": {
+        "es6": true,
+        "node": true,
+        "mocha": true
+    },
+    "extends": "eslint:recommended",
+    "parser": "babel-eslint",
+    "parserOptions": {
+        "ecmaFeatures": {
+            "jsx": true,
+            "impliedStrict": true,
+            "modules": true
+        },
+        "sourceType": "module"
+    },
+    "rules": {
+        "indent": [
+            2,
+            4
+        ],
+        "linebreak-style": [
+            2,
+            "unix"
+        ],
+        "quotes": [
+            2,
+            "single",
+            {
+                "avoidEscape": true,
+                "allowTemplateLiterals": true
+            }
+        ],
+        "semi": [
+            2,
+            "always"
+        ],
+        "no-unused-vars": [
+            2,
+            {
+                "args": "none"
+            }
+        ],
+        "no-eval": 2,
+        "no-implied-eval": 2,
+        "security/detect-unsafe-regex": 2,
+        "security/detect-buffer-noassert": 2,
+        "security/detect-child-process": 2,
+        "security/detect-disable-mustache-escape": 2,
+        "security/detect-eval-with-expression": 2,
+        "security/detect-no-csrf-before-method-override": 2,
+        "security/detect-non-literal-fs-filename": 2,
+        "security/detect-non-literal-regexp": 2,
+        "security/detect-non-literal-require": 2,
+        "security/detect-object-injection": 0,
+        "security/detect-possible-timing-attacks": 2,
+        "security/detect-pseudoRandomBytes": 2
+    },
+    "plugins": [
+        "security"
+    ]
+}

@@ -1,0 +1,100 @@
+{
+  "name": "komapi",
+  "version": "0.0.0",
+  "description": "Komapi.js is an opinionated Node.js framework built on top of Koa 2.0",
+  "author": "ersims",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/komapijs/komapi.git"
+  },
+  "keywords": [
+    "komapi",
+    "koa",
+    "opinionated",
+    "framework",
+    "rest",
+    "app",
+    "api",
+    "restful",
+    "api",
+    "app"
+  ],
+  "license": "MIT",
+  "readmeFilename": "README.md",
+  "bugs": {
+    "url": "https://github.com/komapijs/komapi/issues"
+  },
+  "homepage": "https://github.com/komapijs/komapi#README.md",
+  "engines": {
+    "node": ">= 4.4.5",
+    "npm": ">= 2.15.5"
+  },
+  "main": "index.js",
+  "scripts": {
+    "build": "babel -q -D ./src/ --out-dir ./dist/",
+    "clean": "rm -rf ./dist ./coverage ./.nyc_output",
+    "coverage": "nyc report --reporter=text --reporter=text-summary && nyc check-coverage --lines 100 --functions 100 --branches 100",
+    "dev-build": "babel -q -D -s true ./src/ --out-dir ./dist/",
+    "lint": "eslint index.js src/",
+    "pretest": "npm run clean --silent && npm run lint --silent",
+    "test": "nyc --include src --reporter=lcov ava --require babel-core/register --timeout 180s --concurrency=25",
+    "posttest": "npm run coverage --silent",
+    "prepublish": "npm run clean && npm run build",
+    "watch": "ava --require babel-core/register --watch --serial --verbose"
+  },
+  "dependencies": {
+    "babel-runtime": "^6.9.0",
+    "bluebird": "^3.4.0",
+    "bookshelf": "^0.9.5",
+    "bookshelf-soft-delete": "^4.0.0",
+    "boom": "^3.2.0",
+    "bunyan": "^1.8.1",
+    "delegates": "^1.0.0",
+    "helmet": "^2.1.0",
+    "joi": "^8.1.0",
+    "kcors": "^2.1.1",
+    "knex": "^0.11.3",
+    "koa": "^2.0.0",
+    "koa-bodyparser": "^3.1.0",
+    "koa-compose": "^3.1.0",
+    "koa-compress": "^2.0.0",
+    "koa-conditional-get": "^2.0.0",
+    "koa-etag": "^3.0.0",
+    "koa-mount": "^2.0.0",
+    "koa-router": "^7.0.1",
+    "koa-static": "^3.0.0",
+    "koa-views": "^5.0.1",
+    "lodash": "^4.12.0",
+    "node-uuid": "^1.4.7",
+    "odata-parser": "^1.4.1",
+    "passport": "^0.3.2",
+    "recursive-readdir-sync": "^1.0.6"
+  },
+  "devDependencies": {
+    "ava": "^0.15.2",
+    "babel-cli": "^6.9.0",
+    "babel-core": "^6.9.0",
+    "babel-eslint": "^6.0.4",
+    "babel-plugin-syntax-async-functions": "^6.8.0",
+    "babel-plugin-transform-async-to-generator": "^6.8.0",
+    "babel-plugin-transform-es2015-destructuring": "^6.9.0",
+    "babel-plugin-transform-es2015-modules-commonjs": "^6.8.0",
+    "babel-plugin-transform-es2015-parameters": "^6.9.0",
+    "babel-plugin-transform-es2015-spread": "^6.8.0",
+    "babel-plugin-transform-runtime": "^6.9.0",
+    "eslint": "^2.10.2",
+    "eslint-plugin-security": "^1.2.0",
+    "handlebars": "^4.0.5",
+    "npm-check-updates": "^2.6.5",
+    "nsp": "^2.4.0",
+    "nyc": "^6.4.4",
+    "passport-local": "^1.0.0",
+    "sqlite3": "^3.1.4",
+    "supertest": "^1.2.0",
+    "supertest-as-promised": "^3.1.0"
+  },
+  "files": [
+    "dist",
+    "src"
+  ]
+}
