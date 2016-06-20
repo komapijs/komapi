@@ -52,7 +52,7 @@ $ npm install twig --save
 
 ### License
 
-  [MIT](LICENSE)
+  [MIT](LICENSE.md)
 
 [npm-image]: https://img.shields.io/npm/v/komapi.svg
 [npm-url]: https://npmjs.org/package/komapi
