@@ -2,9 +2,13 @@
 
 Komapi.js is an opinionated Node.js framework built on top of Koa 2.0
 
+[![NPM Version][npm-image]][npm-url]
+[![Build][travis-image]][travis-url]
+[![coverage][codecov-image]][codecov-url]
+
 ### Usage
 Install through npm and require it in your index.js file
-`npm install --save komapi`
+`$ npm install --save komapi`
 ```js
 'use strict';
 const Komapi = require('komapi');
@@ -45,3 +49,14 @@ $ npm install jade --save
 $ npm install nunjucks --save
 $ npm install twig --save
 ```
+
+### License
+
+  [MIT](LICENSE)
+
+[npm-image]: https://img.shields.io/npm/v/komapi.svg
+[npm-url]: https://npmjs.org/package/komapi
+[travis-image]: https://travis-ci.org/komapijs/komapi.svg?branch=master
+[travis-url]: https://travis-ci.org/komapijs/komapi
+[codecov-image]: https://codecov.io/gh/komapijs/komapi/branch/master/graph/badge.svg
+[codecov-url]: https://codecov.io/gh/komapijs/komapi
