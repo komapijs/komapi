@@ -48,12 +48,12 @@ export default class KomapiPassport extends passport.Passport {
                         const mockRes = {
                             redirect: (url) => {
                                 ctx.redirect(url);
-                                return resolve();
+                                return resolve(true);
                             },
                             setHeader: ctx.set.bind(ctx),
                             end: (content) => {
                                 ctx.body = content;
-                                return resolve();
+                                return resolve(true);
                             },
                             set statusCode(status) {
                                 ctx.status = status;
@@ -75,7 +75,9 @@ export default class KomapiPassport extends passport.Passport {
                             if (err) return reject(err);
                             return resolve();
                         });
-                    }).then(next);
+                    }).then((stop) => {
+                        if (!stop) return next();
+                    });
                 };
             }
         });

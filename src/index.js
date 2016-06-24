@@ -167,10 +167,18 @@ export default class Komapi extends Koa{
         this.response = Object.assign(this.response, response(this));
     }
 
+    // Helper middleware
+    ensureAuthenticated() {
+        return function ensureAuthenticated(ctx, next) {
+            if (!ctx.isAuthenticated()) throw Boom.unauthorized('Access to this resource requires authentication.');
+            return next();
+        };
+    }
+
     // Self registering middleware
     auth(mountAt, ...args) {
         if (!this.request.login) throw new Error('Cannot use authentication middleware without running "authInit" first');
-        if (typeof mountAt === 'string' && !mountAt.startsWith('/')) {
+        if (typeof mountAt !== 'string' || (typeof mountAt === 'string' && !mountAt.startsWith('/'))) {
             args.unshift(mountAt);
             mountAt = '/';
         }
@@ -286,7 +294,7 @@ export default class Komapi extends Koa{
         KomapiPassport.mutateApp(this);
 
         // Register strategies
-        strategies.forEach(this.passport.use.bind(this.passport));
+        strategies.forEach((s) => this.passport.use(s));
 
         return this.use(this.passport.initialize());
     }

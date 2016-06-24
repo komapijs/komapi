@@ -88,6 +88,7 @@
     "npm-check-updates": "^2.6.5",
     "nsp": "^2.4.0",
     "nyc": "^6.4.4",
+    "passport-anonymous": "^1.0.1",
     "passport-local": "^1.0.0",
     "sqlite3": "^3.1.4",
     "supertest": "^1.2.0",

@@ -8,6 +8,7 @@ import bodyParser from 'koa-bodyparser';
 import Router from 'koa-router';
 import Passport from '../../src/modules/passport';
 import {Strategy as LocalStrategy} from 'passport-local';
+import {Strategy as AnonymousStrategy} from 'passport-anonymous';
 
 // Init
 const passportUser = {
@@ -37,7 +38,7 @@ function appFactory() {
 
 // Tests
 test.serial('can mutate Koa objects to improve performance', async t => {
-    // t.plan(4);
+    t.plan(4);
     const app = appFactory();
     const orgMutator = app.passport.constructor.mutate;
     t.is(typeof app.context.login, 'undefined');
@@ -46,7 +47,8 @@ test.serial('can mutate Koa objects to improve performance', async t => {
     Passport.mutate = function fakeMutator() {
         t.fail();
     };
-    app.use(app.passport.authenticate('local', {
+    app.passport.use(new AnonymousStrategy());
+    app.use(app.passport.authenticate('anonymous', {
         successRedirect: '/secured',
         failureRedirect: '/failed'
     }));

@@ -21,4 +21,4 @@ bower_components
 *.env
 ~*
 *.tmp
-npm-debug.log
+*.log

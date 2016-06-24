@@ -5,11 +5,12 @@ import test from 'ava';
 import appFactory from '../fixtures/appFactory';
 import {agent as request} from 'supertest-as-promised';
 import {Strategy as LocalStrategy} from 'passport-local';
+import {Strategy as AnonymousStrategy} from 'passport-anonymous';
 import Boom from 'boom';
 import DummyLogger from '../fixtures/dummyLogger';
 
 // Init
-process.setMaxListeners(11); // Fix false positive memory leak messages because of many Komapi instances. This should be exactly the number of times appFactory() is called in this file
+process.setMaxListeners(14); // Fix false positive memory leak messages because of many Komapi instances. This should be exactly the number of times appFactory() is called in this file
 
 // Tests
 test('is initiated through authInit() method', async t => {
@@ -36,19 +37,116 @@ test('is enabled through auth() method', async t => {
     });
     const res = await request(app.listen())
         .get('/');
-    t.is(res.status, 204);
+    t.is(res.status, 401);
+});
+test('supports vanilla passport strategies with failures', async t => {
+    const app = appFactory();
+    const passportUser = {
+        id: 1,
+        username: 'test'
+    };
+    app.bodyParser();
+    app.authInit(new LocalStrategy(function (username, password, done) {
+        if (username === 'test' && password === 'testpw') return done(null, passportUser);
+        done(null, false);
+    }));
+    app.auth('local', {
+        successRedirect: '/',
+        failureRedirect: '/login',
+        session: false
+    });
+    app.use((ctx, next) => {
+        t.fail();
+    });
+    const res = await request(app.listen())
+        .post('/login')
+        .send({ username: 'test', password: 'asdf' });
+    t.is(res.header.location, '/login');
+    t.is(res.status, 302);
+});
+test('supports vanilla passport strategies with success', async t => {
+    const app = appFactory();
+    const passportUser = {
+        id: 1,
+        username: 'test'
+    };
+    app.bodyParser();
+    app.authInit(new LocalStrategy(function (username, password, done) {
+        if (username === 'test' && password === 'testpw') return done(null, passportUser);
+        done(null, false);
+    }));
+    app.auth('local', {
+        successRedirect: '/',
+        failureRedirect: '/login',
+        session: false
+    });
+
+    app.use((ctx, next) => {
+        t.fail();
+    });
+    const res = await request(app.listen())
+        .post('/login')
+        .send({ username: 'test', password: 'testpw' });
+    t.is(res.header.location, '/');
+    t.is(res.status, 302);
 });
 test('can be mounted at specific path', async t => {
     const app = appFactory();
     app.authInit();
-    app.auth('/test');
+    app.auth('/testProtected');
     app.use((ctx, next) => {
         t.is(ctx.isAuthenticated(), false);
         ctx.body = null;
     });
-    const res = await request(app.listen())
-        .get('/test');
-    t.is(res.status, 204);
+    const resProtected = await request(app.listen())
+        .get('/testProtected');
+    const resUnprotected = await request(app.listen())
+        .get('/testUnprotected');
+    t.is(resProtected.status, 401);
+    t.is(resUnprotected.status, 204);
+});
+test('provides middleware helper for protecting routes', async t => {
+    const app = appFactory();
+    t.plan(5);
+    const passportUser = {
+        id: 1,
+        username: 'test'
+    };
+    app.bodyParser();
+    app.authInit(new LocalStrategy(function (username, password, done) {
+        if (username === 'test' && password === 'testpw') return done(null, passportUser);
+        done(null, false);
+    }),
+        new AnonymousStrategy()
+    );
+    app.auth(['local', 'anonymous'], {
+        session: false
+    });
+
+    app.use('/protected', app.ensureAuthenticated(), (ctx, next) => {
+        t.fail();
+        ctx.body = null;
+    });
+    app.use('/protectedAuthenticated', app.ensureAuthenticated(), (ctx, next) => {
+        t.pass();
+        ctx.body = null;
+    });
+    app.use('/unprotected', (ctx, next) => {
+        t.pass();
+        ctx.body = null;
+    });
+    const resProtected = await request(app.listen())
+        .post('/protected')
+        .send({ username: 'test', password: 'tasd' });
+    const resProtectedAuthenticated = await request(app.listen())
+        .post('/protectedAuthenticated')
+        .send({ username: 'test', password: 'testpw' });
+    const resUnprotected = await request(app.listen())
+        .post('/unprotected')
+        .send({ username: 'test', password: 'taad' });
+    t.is(resProtected.status, 401);
+    t.is(resProtectedAuthenticated.status, 204);
+    t.is(resUnprotected.status, 204);
 });
 test('cannot be initialized multiple times', async t => {
     const app = appFactory();
