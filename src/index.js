@@ -13,7 +13,7 @@ import mount from 'koa-mount';
 import compose from 'koa-compose';
 import uuid from 'node-uuid';
 import Knex from 'knex';
-import Bookshelf from 'bookshelf';
+import {Model} from 'objection';
 import _ from 'lodash';
 import models from './lib/models';
 
@@ -31,12 +31,9 @@ import etag from 'koa-etag';
 import cors from 'kcors';
 import bodyParser from 'koa-bodyparser';
 
-// Bookshelf plugins
-import bookshelfMoreEvents from './lib/bookshelfPlugins/moreEvents';
-import bookshelfJoiValidate from './lib/bookshelfPlugins/joiValidate';
-import bookshelfUuidPrimaryKey from './lib/bookshelfPlugins/uuidPrimaryKey';
-import bookshelfRestify from './lib/bookshelfPlugins/restify';
-import bookshelfSoftDelete from 'bookshelf-soft-delete';
+// Objection plugins
+import objectionSoftDelete from './lib/objectionPlugins/softDelete';
+import objectionRestify from './lib/objectionPlugins/restify';
 
 // Export
 export default class Komapi extends Koa{
@@ -257,37 +254,29 @@ export default class Komapi extends Koa{
 
     // Configuration
     models(path) {
-        if (!this.orm) throw new Error('Cannot load models before initializing a bookshelf instance. Use `app.bookshelf()` before attempting to load models.');
+        if (!this.orm) throw new Error('Cannot load models before initializing an objection instance. Use `app.objection()` before attempting to load models.');
         return models(path, this);
     }
-    bookshelf(opts) {
-        if (opts.bookshelf) {
-            this.orm = opts.bookshelf;
-        }
-        else {
-            this.orm = Bookshelf(opts.knex || Knex(opts));
-        }
-        this.orm.knex.on('query-error', (err, obj) => {
+    objection(opts) {
+        if (this.orm) throw new Error('Cannot initialize ORM more than once');
+        this.orm = {
+            $Model: class KomapiObjectionModel extends Model {}
+        };
+        this.orm.$Model.knex(opts.knex || Knex(opts));
+        this.orm.$migrate = this.orm.$Model.knex().migrate;
+        this.orm.$Model.knex().on('query-error', (err, obj) => {
             this.log.error({
                 err: err,
                 orm: obj,
                 context: 'orm'
             }, 'ORM Query Error');
         });
+
+        // Patch
         [
-            'registry',
-            'virtuals',
-            'visibility',
-            'pagination',
-            bookshelfMoreEvents,
-            bookshelfJoiValidate,
-            bookshelfSoftDelete,
-            bookshelfUuidPrimaryKey,
-            bookshelfRestify
-        ].forEach(this.orm.plugin.bind(this.orm));
-        Object.defineProperty(this.orm, 'models', {
-            get: () => this.orm._models
-        });
+            objectionSoftDelete,
+            objectionRestify
+        ].forEach((fn => fn(this.orm.$Model)));
     }
     authInit(...strategies) {
         if (this.request.login) throw new Error('Cannot initialize authentication more than once');
@@ -388,11 +377,11 @@ export default class Komapi extends Koa{
         }, `Komapi was started with ${this.middleware.length} middlewares. Please note that more than 4000 middlewares is not supported and could cause stability and performance issues.`);
 
         // Check pending migrations
-        if (this.orm && this.orm.knex) {
-            const [allMigrations, completedMigrations] = await this.orm.knex.migrate._migrationData();
+        if (this.orm && this.orm.$migrate) {
+            const [allMigrations, completedMigrations] = await this.orm.$migrate._migrationData();
             if (_.difference(allMigrations, completedMigrations).length > 0) this.log.warn({
                 context: 'orm'
-            }, 'There are pending migrations! Run `app.orm.knex.migrate.latest()` to run all pending migrations.');
+            }, 'There are pending migrations! Run `app.orm.$migrate.latest()` to run all pending migrations.');
         }
     }
 }

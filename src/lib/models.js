@@ -21,7 +21,7 @@ export default function loadModels(modelPath, app) {
     files.forEach((file) => {
         file = path.resolve(file);
         const name = _.upperFirst(path.parse(file).name);
-        const model = require.main.require(file)(app);
-        app.orm.model(name, model);
+        const model = require.main.require(file)(app.orm);
+        app.orm[name] = model;
     });
 }
