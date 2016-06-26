@@ -304,8 +304,8 @@ test('restricts default logging depending on environment', async t => {
     let prodApp = appFactory({
         env: 'production'
     });
-    t.is(devApp.log.level(), 30);
-    t.is(prodApp.log.level(), 40);
+    t.is(devApp.log.level(), 20);
+    t.is(prodApp.log.level(), 30);
 });
 test('is mountable with a route prefix', async t => {
     let app = appFactory({

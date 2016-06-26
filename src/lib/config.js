@@ -7,7 +7,7 @@ export default function defaultConfig(env = 'development') {
         loggers: [
             {
                 name: 'stdout',
-                level: 'info',
+                level: (env === 'production') ? 'info' : 'debug',
                 stream: process.stdout
             },
             {
