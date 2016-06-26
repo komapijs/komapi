@@ -3,20 +3,23 @@
 // Dependencies
 import test from 'ava';
 import appFactory from './fixtures/appFactory';
-import defaultConfig from '../src/lib/config';
 import {agent as request} from 'supertest-as-promised';
 import DummyLogger from './fixtures/dummyLogger';
 import Knex from 'knex';
 
 // Init
-process.setMaxListeners(39); // Fix false positive memory leak messages because of many Komapi instances. This should be exactly the number of times appFactory() is called in this file
+process.setMaxListeners(40); // Fix false positive memory leak messages because of many Komapi instances. This should be exactly the number of times appFactory() is called in this file
 
 // Tests
 test('accepts default development configuration', t => {
-    t.deepEqual(appFactory(false).config, defaultConfig('development'));
+    t.notThrows(() => {
+        appFactory(false);
+    });
 });
 test('accepts default production configuration', t => {
-    t.deepEqual(appFactory({env:'production'}, false).config, defaultConfig('production'));
+    t.notThrows(() => {
+        appFactory({env:'production'});
+    });
 });
 test('throws on invalid configuration', t => {
     t.throws(() => {

@@ -9,7 +9,7 @@ export default () => {
     return async function errorHandler(ctx, next) {
         try {
             await next();
-            if (ctx.status === 404) ctx.throw(404);
+            if (ctx.status >= 400) ctx.throw(ctx.status);
         } catch (err) {
             let error = err;
 

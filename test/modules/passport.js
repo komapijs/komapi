@@ -9,6 +9,7 @@ import Router from 'koa-router';
 import Passport from '../../src/modules/passport';
 import {Strategy as LocalStrategy} from 'passport-local';
 import {Strategy as AnonymousStrategy} from 'passport-anonymous';
+import {BasicStrategy} from 'passport-http';
 
 // Init
 const passportUser = {
@@ -25,6 +26,11 @@ function appFactory() {
         done(null, passportUser);
     });
     passport.use(new LocalStrategy(function (username, password, done) {
+        if (username === 'test' && password === 'testpw') return done(null, passportUser);
+        else if (username === 'throw') return done(new Error('Authentication Error'));
+        done(null, false);
+    }));
+    passport.use(new BasicStrategy(function (username, password, done) {
         if (username === 'test' && password === 'testpw') return done(null, passportUser);
         else if (username === 'throw') return done(new Error('Authentication Error'));
         done(null, false);
@@ -61,12 +67,26 @@ test.serial('can mutate Koa objects to improve performance', async t => {
     t.is(res.status, 204);
     Passport.mutate = orgMutator;
 });
+test('adds www-authenticate header', async t => {
+    const app = appFactory();
+    const router = new Router();
+    router.get('/', (ctx) => {
+        t.fail();
+        ctx.body = null;
+    });
+    app.use(app.passport.authenticate('basic'));
+    app.use(router.routes());
+    const res = await request(app.listen())
+        .get('/');
+    t.is(res.status, 401);
+    t.is(res.headers['www-authenticate'], 'Basic realm="Users"');
+});
 test('refuses invalid credentials', async t => {
     t.plan(5);
     const app = appFactory();
     const router = new Router();
     let context = {};
-    router.get('/', (ctx) => {
+    router.post('/', (ctx) => {
         t.fail();
         ctx.body = null;
     });
