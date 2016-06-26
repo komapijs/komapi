@@ -103,7 +103,8 @@ test('accepts valid credentials', async t => {
     });
     app.use(app.passport.authenticate('local', {
         successRedirect: '/secured',
-        failureRedirect: '/failed'
+        failureRedirect: '/failed',
+        session: true
     }));
     app.use(router.routes());
     const res = await request(app.listen())
@@ -367,7 +368,7 @@ test('supports custom user properties', async t => {
     }));
     app.use(passport.session());
     app.use(router.routes());
-    app.use(passport.authenticate('local', { session: false }));
+    app.use(passport.authenticate('local'));
     app.use((ctx, next) => {
         t.deepEqual(ctx.request.customProperty, passportUser);
         t.deepEqual(ctx.customProperty, passportUser);

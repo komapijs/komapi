@@ -7,10 +7,9 @@ import defaultConfig from '../src/lib/config';
 import {agent as request} from 'supertest-as-promised';
 import DummyLogger from './fixtures/dummyLogger';
 import Knex from 'knex';
-import Bookshelf from 'bookshelf';
 
 // Init
-process.setMaxListeners(38); // Fix false positive memory leak messages because of many Komapi instances. This should be exactly the number of times appFactory() is called in this file
+process.setMaxListeners(39); // Fix false positive memory leak messages because of many Komapi instances. This should be exactly the number of times appFactory() is called in this file
 
 // Tests
 test('accepts default development configuration', t => {
@@ -404,9 +403,28 @@ test('does not enable orm by default', async t => {
     let app = appFactory();
     t.is(app.orm, undefined);
 });
-test('orm can be enabled through bookshelf() method using a config object', async t => {
+test('orm cannot be enabled more than once', async t => {
     let app = appFactory();
-    app.bookshelf({
+    app.objection({
+        client: 'sqlite3',
+        useNullAsDefault: true,
+        connection: {
+            filename: ':memory:'
+        }
+    });
+    t.throws(() => {
+        app.objection({
+            client: 'sqlite3',
+            useNullAsDefault: true,
+            connection: {
+                filename: ':memory:'
+            }
+        });
+    }, 'Cannot initialize ORM more than once');
+});
+test('orm can be enabled through objection() method using a config object', async t => {
+    let app = appFactory();
+    app.objection({
         client: 'sqlite3',
         useNullAsDefault: true,
         connection: {
@@ -414,9 +432,9 @@ test('orm can be enabled through bookshelf() method using a config object', asyn
         }
     });
     t.is(typeof app.orm, 'object');
-    t.is(typeof app.orm.knex, 'function');
+    t.is(typeof app.orm.$Model.knex, 'function');
 });
-test('orm can be enabled through bookshelf() method using a knex instance', async t => {
+test('orm can be enabled through objection() method using a knex instance', async t => {
     let app = appFactory();
     let knex = Knex({
         client: 'sqlite3',
@@ -425,26 +443,11 @@ test('orm can be enabled through bookshelf() method using a knex instance', asyn
             filename: ':memory:'
         }
     });
-    app.bookshelf({
+    app.objection({
         knex: knex
     });
     t.is(typeof app.orm, 'object');
-    t.is(typeof app.orm.knex, 'function');
-});
-test('orm can be enabled through bookshelf() method using a bookshelf instance', async t => {
-    let app = appFactory();
-    let bookshelf = Bookshelf(Knex({
-        client: 'sqlite3',
-        useNullAsDefault: true,
-        connection: {
-            filename: ':memory:'
-        }
-    }));
-    app.bookshelf({
-        bookshelf: bookshelf
-    });
-    t.is(typeof app.orm, 'object');
-    t.is(typeof app.orm.knex, 'function');
+    t.is(typeof app.orm.$Model.knex, 'function');
 });
 test('orm query errors are logged', async t => {
     let app = appFactory();
@@ -459,7 +462,7 @@ test('orm query errors are logged', async t => {
             t.is(obj.msg, 'ORM Query Error');
         })
     });
-    app.bookshelf({
+    app.objection({
         client: 'sqlite3',
         useNullAsDefault: true,
         connection: {
@@ -467,7 +470,7 @@ test('orm query errors are logged', async t => {
         }
     });
     try {
-        await app.orm.knex.raw('select * from InvalidTable');
+        await app.orm.$Model.knex().raw('select * from InvalidTable');
     } catch (err) {
         t.pass();
     }
@@ -485,7 +488,7 @@ test('migrations can be run before starting the app', async t => {
             }
         })
     });
-    app.bookshelf({
+    app.objection({
         client: 'sqlite3',
         useNullAsDefault: true,
         connection: {
@@ -496,7 +499,7 @@ test('migrations can be run before starting the app', async t => {
             tableName: 'migrations'
         }
     });
-    await app.orm.knex.migrate.latest();
+    await app.orm.$Model.knex().migrate.latest();
     await app.healthCheck();
     t.pass();
 });
@@ -511,11 +514,11 @@ test('pending migrations are logged', async t => {
             if (/migration/.test(obj.msg)) {
                 t.is(obj.context, 'orm');
                 t.is(obj.level, 40);
-                t.is(obj.msg, 'There are pending migrations! Run `app.orm.knex.migrate.latest()` to run all pending migrations.');
+                t.is(obj.msg, 'There are pending migrations! Run `app.orm.$migrate.latest()` to run all pending migrations.');
             }
         })
     });
-    app.bookshelf({
+    app.objection({
         client: 'sqlite3',
         useNullAsDefault: true,
         connection: {
@@ -544,4 +547,26 @@ test('adding middlewares with missing dependency results in normal behaviour', a
     dummyMiddleware.registerBefore = 'non-existant-mw';
     app.use(dummyMiddleware);
     t.deepEqual(app.middleware[app.middleware.length - 1], dummyMiddleware);
+});
+test('ignores X-Request-ID from untrusted proxy', async t => {
+    let app = appFactory();
+    let reqId = '1234';
+    let res = await request(app.listen())
+        .get('/')
+        .set({
+            'X-Request-ID': reqId
+        });
+    t.not(res.headers['x-request-id'], reqId);
+});
+test('respects X-Request-ID from trusted proxy', async t => {
+    let app = appFactory({
+        proxy: true
+    });
+    let reqId = '1234';
+    let res = await request(app.listen())
+        .get('/')
+        .set({
+            'X-Request-ID': reqId
+        });
+    t.is(res.headers['x-request-id'], reqId);
 });
