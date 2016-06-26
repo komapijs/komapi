@@ -18,6 +18,7 @@ import _ from 'lodash';
 import models from './lib/models';
 
 // Middlewares
+import responseDecorator from './middleware/responseDecorator';
 import errorHandler from './middleware/errorHandler';
 import requestLogger from './middleware/requestLogger';
 import routes from './middleware/routeHandler';
@@ -156,6 +157,7 @@ export default class Komapi extends Koa{
         });
 
         // Set up mandatory middleware
+        this.use(responseDecorator());
         this.use(errorHandler());
 
         // Create prototype helpers for the native koa objects
@@ -164,23 +166,19 @@ export default class Komapi extends Koa{
         this.response = Object.assign(this.response, response(this));
     }
 
-    // Helper middleware
+    // Helper middlewares
     ensureAuthenticated() {
         return function ensureAuthenticated(ctx, next) {
             if (!ctx.isAuthenticated()) throw Boom.unauthorized('Access to this resource requires authentication.');
             return next();
         };
     }
-
-    // Self registering middleware
-    auth(mountAt, ...args) {
-        if (!this.request.login) throw new Error('Cannot use authentication middleware without running "authInit" first');
-        if (typeof mountAt !== 'string' || (typeof mountAt === 'string' && !mountAt.startsWith('/'))) {
-            args.unshift(mountAt);
-            mountAt = '/';
-        }
-        return this.use(mountAt, this.passport.authenticate(...args));
+    authenticate(...args) {
+        if (!this.request.login) throw new Error('Cannot use authentication middleware without enabling "authInit" first');
+        return this.passport.authenticate(...args);
     }
+
+    // Self-registering middleware
     bodyParser(mountAt, opts) {
         if (typeof mountAt === 'object') {
             opts = mountAt;
@@ -253,6 +251,15 @@ export default class Komapi extends Koa{
     }
 
     // Configuration
+    authInit(...strategies) {
+        if (this.request.login) throw new Error('Cannot initialize authentication more than once');
+        KomapiPassport.mutateApp(this);
+
+        // Register strategies
+        strategies.forEach((s) => this.passport.use(s));
+
+        return this.use(this.passport.initialize());
+    }
     models(path) {
         if (!this.orm) throw new Error('Cannot load models before initializing an objection instance. Use `app.objection()` before attempting to load models.');
         return models(path, this);
@@ -277,15 +284,6 @@ export default class Komapi extends Koa{
             objectionSoftDelete,
             objectionRestify
         ].forEach((fn => fn(this.orm.$Model)));
-    }
-    authInit(...strategies) {
-        if (this.request.login) throw new Error('Cannot initialize authentication more than once');
-        KomapiPassport.mutateApp(this);
-
-        // Register strategies
-        strategies.forEach((s) => this.passport.use(s));
-
-        return this.use(this.passport.initialize());
     }
 
     // Private overrides of Koa's methods
@@ -319,7 +317,7 @@ export default class Komapi extends Koa{
         ctx.send = ctx.send.bind(ctx);
         ctx.sendIf = ctx.sendIf.bind(ctx);
         ctx.request._startAt = Date.now();
-        ctx.request.reqId = uuid.v4();
+        ctx.request.reqId = (this.config.proxy && ctx.request.headers['x-request-id']) ? ctx.request.headers['x-request-id'] : uuid.v4();
         ctx.log = this.log.child({
             req_id: ctx.request.reqId,
             context: 'request'

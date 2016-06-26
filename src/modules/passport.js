@@ -1,11 +1,17 @@
 'use strict';
 
 // Dependencies
+import _ from 'lodash';
 import delegate from 'delegates';
 import passport from 'passport';
 import passportRequest from 'passport/lib/http/request';
 import passportInitialize from 'passport/lib/middleware/initialize';
 import passportAuthenticate from 'passport/lib/middleware/authenticate';
+
+// Init
+const defaultOpts = {
+    session: false
+};
 
 // Exports
 export default class KomapiPassport extends passport.Passport {
@@ -41,8 +47,9 @@ export default class KomapiPassport extends passport.Passport {
             authenticate: function authenticate(passport, strategies, opts, callback) {
                 if (typeof opts === 'function') {
                     callback = opts;
-                    opts = undefined;
+                    opts = {};
                 }
+                opts = _.defaultsDeep(opts, defaultOpts);
                 return function authenticateMiddleware(ctx, next) {
                     return new Promise((resolve, reject) => {
                         const mockRes = {

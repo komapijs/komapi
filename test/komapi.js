@@ -548,3 +548,25 @@ test('adding middlewares with missing dependency results in normal behaviour', a
     app.use(dummyMiddleware);
     t.deepEqual(app.middleware[app.middleware.length - 1], dummyMiddleware);
 });
+test('ignores X-Request-ID from untrusted proxy', async t => {
+    let app = appFactory();
+    let reqId = '1234';
+    let res = await request(app.listen())
+        .get('/')
+        .set({
+            'X-Request-ID': reqId
+        });
+    t.not(res.headers['x-request-id'], reqId);
+});
+test('respects X-Request-ID from trusted proxy', async t => {
+    let app = appFactory({
+        proxy: true
+    });
+    let reqId = '1234';
+    let res = await request(app.listen())
+        .get('/')
+        .set({
+            'X-Request-ID': reqId
+        });
+    t.is(res.headers['x-request-id'], reqId);
+});

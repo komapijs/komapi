@@ -5,7 +5,6 @@ import test from 'ava';
 import appFactory from '../fixtures/appFactory';
 import {agent as request} from 'supertest-as-promised';
 import {Strategy as LocalStrategy} from 'passport-local';
-import {Strategy as AnonymousStrategy} from 'passport-anonymous';
 import Boom from 'boom';
 import DummyLogger from '../fixtures/dummyLogger';
 
@@ -30,7 +29,7 @@ test('is initiated through authInit() method', async t => {
 test('is enabled through auth() method', async t => {
     const app = appFactory();
     app.authInit();
-    app.auth();
+    app.use(app.authenticate());
     app.use((ctx, next) => {
         t.is(ctx.isAuthenticated(), false);
         ctx.body = null;
@@ -50,11 +49,11 @@ test('supports vanilla passport strategies with failures', async t => {
         if (username === 'test' && password === 'testpw') return done(null, passportUser);
         done(null, false);
     }));
-    app.auth('local', {
+    app.use(app.authenticate('local', {
         successRedirect: '/',
         failureRedirect: '/login',
         session: false
-    });
+    }));
     app.use((ctx, next) => {
         t.fail();
     });
@@ -75,11 +74,11 @@ test('supports vanilla passport strategies with success', async t => {
         if (username === 'test' && password === 'testpw') return done(null, passportUser);
         done(null, false);
     }));
-    app.auth('local', {
+    app.use(app.authenticate('local', {
         successRedirect: '/',
         failureRedirect: '/login',
         session: false
-    });
+    }));
 
     app.use((ctx, next) => {
         t.fail();
@@ -93,7 +92,7 @@ test('supports vanilla passport strategies with success', async t => {
 test('can be mounted at specific path', async t => {
     const app = appFactory();
     app.authInit();
-    app.auth('/testProtected');
+    app.use('/testProtected', app.authenticate());
     app.use((ctx, next) => {
         t.is(ctx.isAuthenticated(), false);
         ctx.body = null;
@@ -103,49 +102,6 @@ test('can be mounted at specific path', async t => {
     const resUnprotected = await request(app.listen())
         .get('/testUnprotected');
     t.is(resProtected.status, 401);
-    t.is(resUnprotected.status, 204);
-});
-test('provides middleware helper for protecting routes', async t => {
-    const app = appFactory();
-    t.plan(5);
-    const passportUser = {
-        id: 1,
-        username: 'test'
-    };
-    app.bodyParser();
-    app.authInit(new LocalStrategy(function (username, password, done) {
-        if (username === 'test' && password === 'testpw') return done(null, passportUser);
-        done(null, false);
-    }),
-        new AnonymousStrategy()
-    );
-    app.auth(['local', 'anonymous'], {
-        session: false
-    });
-
-    app.use('/protected', app.ensureAuthenticated(), (ctx, next) => {
-        t.fail();
-        ctx.body = null;
-    });
-    app.use('/protectedAuthenticated', app.ensureAuthenticated(), (ctx, next) => {
-        t.pass();
-        ctx.body = null;
-    });
-    app.use('/unprotected', (ctx, next) => {
-        t.pass();
-        ctx.body = null;
-    });
-    const resProtected = await request(app.listen())
-        .post('/protected')
-        .send({ username: 'test', password: 'tasd' });
-    const resProtectedAuthenticated = await request(app.listen())
-        .post('/protectedAuthenticated')
-        .send({ username: 'test', password: 'testpw' });
-    const resUnprotected = await request(app.listen())
-        .post('/unprotected')
-        .send({ username: 'test', password: 'taad' });
-    t.is(resProtected.status, 401);
-    t.is(resProtectedAuthenticated.status, 204);
     t.is(resUnprotected.status, 204);
 });
 test('cannot be initialized multiple times', async t => {
@@ -158,8 +114,8 @@ test('cannot be initialized multiple times', async t => {
 test('cannot be enabled without first having been initialized', async t => {
     const app = appFactory();
     t.throws(() => {
-        app.auth();
-    }, 'Cannot use authentication middleware without running "authInit" first');
+        app.use(app.authenticate());
+    }, 'Cannot use authentication middleware without enabling "authInit" first');
 });
 test('refuses invalid credentials', async t => {
     const app = appFactory();
@@ -174,7 +130,7 @@ test('refuses invalid credentials', async t => {
     }));
 
     app.use((ctx, next) => {
-        return app.auth('local', (user, info) => {
+        return app.authenticate('local', (user, info) => {
             if (!user) throw new Boom.unauthorized();
             return ctx.login(user, {session: false});
         })(ctx, next);
@@ -201,7 +157,7 @@ test('allows valid credentials', async t => {
         done(null, false);
     }));
     app.use((ctx, next) => {
-        return app.auth('local', (user, info) => {
+        return app.authenticate('local', (user, info) => {
             if (!user) throw new Boom.unauthorized();
             return ctx.login(user, {session: false});
         })(ctx, next);
@@ -239,7 +195,7 @@ test('adds username in logs when logged in', async t => {
         done(null, false);
     }));
     app.use((ctx, next) => {
-        return app.auth('local', (user, info) => {
+        return app.authenticate('local', (user, info) => {
             if (!user) throw new Boom.unauthorized();
             return ctx.login(user, {session: false});
         })(ctx, next);
@@ -276,7 +232,7 @@ test('does not add username to logs when not logged in', async t => {
         done(null, false);
     }));
     app.use((ctx, next) => {
-        return app.auth('local', (user, info) => {
+        return app.authenticate('local', (user, info) => {
             if (!user) throw new Boom.unauthorized();
             return ctx.login(user, {session: false});
         })(ctx, next);
