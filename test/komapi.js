@@ -26,7 +26,7 @@ test('throws on invalid configuration', t => {
         appFactory({
             env: 'invalidEnvironment'
         });
-    });
+    }, 'komapi.env should be equal to one of the allowed values');
 });
 test('maps Komapi config to Koa config properties', t => {
 

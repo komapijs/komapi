@@ -57,6 +57,16 @@
       "from": "acorn-jsx@>=3.0.0 <4.0.0",
       "resolved": "https://registry.npmjs.org/acorn-jsx/-/acorn-jsx-3.0.1.tgz"
     },
+    "ajv": {
+      "version": "4.1.4",
+      "from": "ajv@latest",
+      "resolved": "https://registry.npmjs.org/ajv/-/ajv-4.1.4.tgz"
+    },
+    "ajv-keywords": {
+      "version": "0.2.0",
+      "from": "ajv-keywords@latest",
+      "resolved": "https://registry.npmjs.org/ajv-keywords/-/ajv-keywords-0.2.0.tgz"
+    },
     "align-text": {
       "version": "0.1.4",
       "from": "align-text@>=0.1.3 <0.2.0",
@@ -1631,6 +1641,11 @@
       "from": "inquirer@>=0.12.0 <0.13.0",
       "resolved": "https://registry.npmjs.org/inquirer/-/inquirer-0.12.0.tgz"
     },
+    "install": {
+      "version": "0.8.1",
+      "from": "install@latest",
+      "resolved": "https://registry.npmjs.org/install/-/install-0.8.1.tgz"
+    },
     "interpret": {
       "version": "0.6.6",
       "from": "interpret@>=0.6.5 <0.7.0",
@@ -1939,9 +1954,9 @@
       "resolved": "https://registry.npmjs.org/kind-of/-/kind-of-3.0.3.tgz"
     },
     "knex": {
-      "version": "0.11.5",
-      "from": "knex@0.11.5",
-      "resolved": "https://registry.npmjs.org/knex/-/knex-0.11.5.tgz",
+      "version": "0.11.7",
+      "from": "knex@0.11.7",
+      "resolved": "https://registry.npmjs.org/knex/-/knex-0.11.7.tgz",
       "dependencies": {
         "minimist": {
           "version": "1.1.3",
@@ -2304,7 +2319,7 @@
     },
     "npm": {
       "version": "3.10.2",
-      "from": "npm@>=3.5.1 <4.0.0",
+      "from": "npm@latest",
       "resolved": "https://registry.npmjs.org/npm/-/npm-3.10.2.tgz",
       "dependencies": {
         "abbrev": {
@@ -3796,9 +3811,9 @@
       "resolved": "https://registry.npmjs.org/object.omit/-/object.omit-2.0.0.tgz"
     },
     "objection": {
-      "version": "0.5.1",
-      "from": "objection@>=0.5.1 <0.6.0",
-      "resolved": "https://registry.npmjs.org/objection/-/objection-0.5.1.tgz"
+      "version": "0.5.2",
+      "from": "objection@>=0.5.2 <0.6.0",
+      "resolved": "https://registry.npmjs.org/objection/-/objection-0.5.2.tgz"
     },
     "observable-to-promise": {
       "version": "0.4.0",

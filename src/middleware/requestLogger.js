@@ -7,7 +7,7 @@ import Schema from '../lib/schema';
 export default (options = {}) => {
 
     // Validate options
-    Schema.apply('requestLogger', options);
+    Schema.validate('requestLogger', options);
 
     if (!options.logger) options.logger = function logger(ctx) {
         return ctx.log.info({

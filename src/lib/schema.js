@@ -1,37 +1,111 @@
 'use strict';
 
 // Dependencies
-import Joi from 'joi';
+import Ajv from 'ajv';
 
 // Init
-let schemas = {};
+let ajv = new Ajv({
+    messages: true
+});
+ajv.addKeyword('typeof', {
+    compile: (schema) => {
+        return function validate(data) {
+            validate.errors = [{
+                keyword: 'typeof',
+                params: {
+                    keyword: 'typeof'
+                },
+                message: `must be of type ${schema}.`
+            }];
+            return (typeof data === schema);
+        };
+    }
+});
 
 // Define schemas
-schemas.config = Joi.object({
-    env: Joi.any().valid(['development', 'production']).required(),
-    loggers: Joi.array().items(Joi.object({
-        name: Joi.string().required()
-    }).unknown()).required(),
-    name: Joi.string().min(1).required(),
-    proxy: Joi.boolean().required(),
-    routePrefix: Joi.string().min(1).required(),
-    subdomainOffset: Joi.number().min(0).required()
-});
-schemas.requestLogger = Joi.object({
-    logger: Joi.func().optional()
-});
+ajv.addSchema({
+    $schema: 'http://json-schema.org/draft-04/schema#',
+    title: 'Komapi config',
+    type: 'object',
+    properties: {
+        env: {
+            description: 'Environment',
+            type: 'string',
+            enum: [
+                'development',
+                'production'
+            ]
+        },
+        loggers: {
+            description: 'List of loggers',
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    name: {
+                        type: 'string'
+                    },
+                    level: {
+                        type: 'string'
+                    },
+                    stream: {
+                        type: 'object'
+                    }
+                },
+                required: [
+                    'name',
+                    'level',
+                    'stream'
+                ]
+            },
+            minItems: 0
+        },
+        name: {
+            description: 'Application name',
+            type: 'string'
+        },
+        proxy: {
+            description: 'Trust proxy headers',
+            type: 'boolean'
+        },
+        routePrefix: {
+            description: 'Prefix for routes',
+            type: 'string'
+        },
+        subdomainOffset: {
+            description: 'Number of subdomains to ignore',
+            type: 'integer'
+        }
+    },
+    additionalProperties: false,
+    required: [
+        'env',
+        'loggers',
+        'name',
+        'proxy',
+        'routePrefix',
+        'subdomainOffset'
+    ]
+}, 'komapi');
+ajv.addSchema({
+    $schema: 'http://json-schema.org/draft-04/schema#',
+    title: 'Komapi:requestLogger config',
+    type: 'object',
+    properties: {
+        logger: {
+            description: 'Logger to use',
+            typeof: 'function'
+        }
+    },
+    additionalProperties: false
+}, 'requestLogger');
+
 
 // Exports
 export default class Schema {
-    static apply(schema, options, message){
-
-        // Init
-        message = message || 'Invalid ' + schema + ' provided';
-        const result = Joi.validate(options, schemas[schema]);
-
-        // Check for valid schema
-        if (result.error) throw new Error(message + ': ' + result.error.annotate());
-
-        return result.value;
+    static validate(schema, data) {
+        let valid = ajv.validate(schema, data);
+        if (!valid) throw new Error(ajv.errors.map((v) => `${schema}${v.dataPath} ${v.message}`).join(', '));
+        return data;
     }
 }

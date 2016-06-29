@@ -16,6 +16,7 @@ import Knex from 'knex';
 import {Model} from 'objection';
 import _ from 'lodash';
 import models from './lib/models';
+import Ajv from 'ajv';
 
 // Middlewares
 import responseDecorator from './middleware/responseDecorator';
@@ -52,9 +53,12 @@ export default class Komapi extends Koa{
         this.state = {};
         this.config = Object.assign({}, defaultConfig(process.env.NODE_ENV || config.env), config);
         this.passport = new KomapiPassport;
+        this.schema = new Ajv({
+            messages: true
+        });
 
         // Validate config
-        Schema.apply('config', this.config);
+        Schema.validate('komapi', this.config);
 
         // Housekeeping
         process.env.NODE_ENV = this.config.env;
@@ -167,6 +171,15 @@ export default class Komapi extends Koa{
     }
 
     // Helper middlewares
+    ensureSchema(schema, key = 'body') {
+        if (['body', 'params', 'query'].indexOf(key) === -1) throw new Error(`You can not apply a schema to ${key}. Only allowed values are 'body', 'params' or 'query`);
+        let validate = (typeof schema === 'function') ? schema : this.schema.compile(schema);
+        return function ensureSchema(ctx, next) {
+            let valid = validate(ctx[key]);
+            if (!valid) throw Schema.parseErrors(validate.errors);
+            return next();
+        };
+    }
     ensureAuthenticated() {
         return function ensureAuthenticated(ctx, next) {
             if (!ctx.isAuthenticated()) throw Boom.unauthorized('Access to this resource requires authentication.');

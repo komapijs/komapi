@@ -58,5 +58,5 @@ $ npm install twig --save
 [npm-url]: https://npmjs.org/package/komapi
 [travis-image]: https://travis-ci.org/komapijs/komapi.svg?branch=master
 [travis-url]: https://travis-ci.org/komapijs/komapi
-[codecov-image]: https://codecov.io/gh/komapijs/komapi/branch/master/graph/badge.svg
+[codecov-image]: https://img.shields.io/codecov/c/github/komapijs/komapi/master.svg
 [codecov-url]: https://codecov.io/gh/komapijs/komapi
