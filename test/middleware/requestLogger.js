@@ -68,7 +68,7 @@ test('throws on invalid options', async t => {
         app.requestLogger({
             logger: true
         });
-    }, 'requestLogger.logger must be of type function.');
+    }, /"logger" must be a Function/);
 });
 test('logs the response status on statuscode >= 500', async t => {
     let app = appFactory();

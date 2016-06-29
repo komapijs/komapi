@@ -5,7 +5,6 @@ import test from 'ava';
 import appFactory from '../fixtures/appFactory';
 import {agent as request} from 'supertest-as-promised';
 import Boom from 'boom';
-import Joi from 'joi';
 
 // Init
 process.setMaxListeners(13); // Fix false positive memory leak messages because of many Komapi instances. This should be exactly the number of times appFactory() is called in this file
@@ -13,6 +12,21 @@ const defaultErrorResponse = {
     statusCode: 500,
     error: 'Internal Server Error',
     message: 'An internal server error occurred'
+};
+const schema = {
+    $schema: 'http://json-schema.org/draft-04/schema#',
+    title: 'Test schema',
+    type: 'object',
+    properties: {
+        stringvalue: {
+            description: 'Should be string',
+            type: 'string'
+        }
+    },
+    additionalProperties: false,
+    required: [
+        'stringvalue'
+    ]
 };
 
 // Tests
@@ -146,58 +160,46 @@ test('supports custom headers when using text', async t => {
     }, null, 2));
     t.is(res.headers['www-authenticate'], 'sample error="invalid password"');
 });
-test('natively handles Joi exceptions using 400', async t => {
+test('natively handles schemaValidationError exceptions using 400', async t => {
     let app = appFactory({
         env: 'production'
     });
-    let joiError;
     app.use((ctx, next) => {
-        const result = Joi.validate({
-            key:'invalid'
-        }, {
-            key: Joi.number()
-        });
-        joiError = result.error;
-        throw result.error;
+        ctx.request.body = {
+            stringvalue: 1234
+        };
+        return next();
     });
+    app.use(app.ensureSchema(schema));
     const res = await request(app.listen())
         .get('/');
     t.is(res.status, 400);
     t.deepEqual(res.body, {
         statusCode: 400,
         error: 'Bad Request',
-        message: joiError.message,
-        validation: {
-            data: [],
-            errors: joiError.details
+        message: 'Invalid data provided',
+        errors: {
+            stringvalue: {
+                message: 'should be string',
+                schemaPath:'#/properties/stringvalue/type'
+            }
         }
     });
 });
-test('provides an empty details array during Joi exceptions if no details were provided', async t => {
+test('provides an empty errors object during schemaValidationError exceptions if no details were provided', async t => {
     let app = appFactory({
         env: 'production'
     });
-    let joiError;
-    app.use((ctx, next) => {
-        const result = Joi.validate({
-            key:'invalid'
-        }, {
-            key: Joi.number()
-        });
-        joiError = result.error;
-        delete joiError.details;
-        throw result.error;
-    });
+    app.use(app.ensureSchema(schema));
     const res = await request(app.listen())
         .get('/');
     t.is(res.status, 400);
     t.deepEqual(res.body, {
         statusCode: 400,
         error: 'Bad Request',
-        message: joiError.message,
-        validation: {
-            data: [],
-            errors: []
+        message: 'No data provided',
+        errors: {
+
         }
     });
 });

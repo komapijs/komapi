@@ -3,7 +3,7 @@
 // Dependencies
 import Koa from 'koa';
 import defaultConfig from './lib/config';
-import Schema from './lib/schema';
+import Schema, {applySchema} from './lib/schema';
 import context from './lib/context';
 import request from './lib/request';
 import response from './lib/response';
@@ -16,7 +16,6 @@ import Knex from 'knex';
 import {Model} from 'objection';
 import _ from 'lodash';
 import models from './lib/models';
-import Ajv from 'ajv';
 
 // Middlewares
 import responseDecorator from './middleware/responseDecorator';
@@ -53,12 +52,10 @@ export default class Komapi extends Koa{
         this.state = {};
         this.config = Object.assign({}, defaultConfig(process.env.NODE_ENV || config.env), config);
         this.passport = new KomapiPassport;
-        this.schema = new Ajv({
-            messages: true
-        });
+        this.schema = new Schema();
 
         // Validate config
-        Schema.validate('komapi', this.config);
+        applySchema('komapi', this.config);
 
         // Housekeeping
         process.env.NODE_ENV = this.config.env;
@@ -172,11 +169,11 @@ export default class Komapi extends Koa{
 
     // Helper middlewares
     ensureSchema(schema, key = 'body') {
-        if (['body', 'params', 'query'].indexOf(key) === -1) throw new Error(`You can not apply a schema to ${key}. Only allowed values are 'body', 'params' or 'query`);
-        let validate = (typeof schema === 'function') ? schema : this.schema.compile(schema);
-        return function ensureSchema(ctx, next) {
-            let valid = validate(ctx[key]);
-            if (!valid) throw Schema.parseErrors(validate.errors);
+        if (['body', 'params', 'query'].indexOf(key) === -1) throw new Error(`You can not enforce a schema to '${key}'. Only allowed values are 'body', 'params' or 'query`);
+        let validate = this.schema.compile(schema);
+        return async function ensureSchema(ctx, next) {
+            let valid = await validate(ctx.request[key]);
+            if (!valid) throw Schema.parseValidationErrors(validate.errors, schema, ctx.request[key]);
             return next();
         };
     }
@@ -238,7 +235,7 @@ export default class Komapi extends Koa{
             path = mountAt;
             mountAt = '/';
         }
-        let router = routes(path);
+        let router = routes(path, this);
         let fn = compose([...middlewares, router.routes(), router.allowedMethods({
             throw: true,
             notImplemented: () => new Boom.notImplemented(),

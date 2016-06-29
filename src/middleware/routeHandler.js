@@ -6,7 +6,7 @@ import recursiveReadDir from 'recursive-readdir-sync';
 import Router from 'koa-router';
 
 // Exports
-export default function routeHandler(routePath) {
+export default function routeHandler(routePath, app) {
 
     // Prepare
     let containerRouter = new Router();
@@ -32,8 +32,8 @@ export default function routeHandler(routePath) {
         let router = new Router();
         file = path.resolve(file);
         let route = require.main.require(file);
-        if (route.default) route.default(router);
-        else route(router);
+        if (route.default) route.default(router, app);
+        else route(router, app);
         containerRouter.use(mountAt, router.routes());
     });
 

@@ -24,9 +24,10 @@ test('accepts default production configuration', t => {
 test('throws on invalid configuration', t => {
     t.throws(() => {
         appFactory({
-            env: 'invalidEnvironment'
+            env: 'invalidEnvironment',
+            proxy: 'stringvalue'
         });
-    }, 'komapi.env should be equal to one of the allowed values');
+    }, /("env" must be one of \[development, production\])/);
 });
 test('maps Komapi config to Koa config properties', t => {
 

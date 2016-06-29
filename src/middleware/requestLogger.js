@@ -1,13 +1,13 @@
 'use strict';
 
 // Dependencies
-import Schema from '../lib/schema';
+import {applySchema} from '../lib/schema';
 
 // Exports
 export default (options = {}) => {
 
     // Validate options
-    Schema.validate('requestLogger', options);
+    applySchema('requestLogger', options);
 
     if (!options.logger) options.logger = function logger(ctx) {
         return ctx.log.info({
