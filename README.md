@@ -2,9 +2,10 @@
 
 Komapi.js is an opinionated Node.js framework built on top of Koa 2.0
 
-[![NPM Version][npm-image]][npm-url]
-[![Build][travis-image]][travis-url]
-[![coverage][codecov-image]][codecov-url]
+[![npm](https://img.shields.io/npm/v/komapi.svg?maxAge=2592000)](https://npmjs.org/package/komapi)
+[![Travis](https://img.shields.io/travis/komapijs/komapi/master.svg?maxAge=2592000)](https://travis-ci.org/komapijs/komapi)
+[![Codecov branch](https://img.shields.io/codecov/c/github/komapijs/komapi/master.svg?maxAge=2592000)](https://codecov.io/gh/komapijs/komapi)
+[![npm](https://img.shields.io/npm/l/komapi.svg?maxAge=2592000)](https://github.com/komapijs/komapi/blob/master/LICENSE.md)
 
 ### Usage
 Install through npm and require it in your index.js file
@@ -53,10 +54,3 @@ $ npm install twig --save
 ### License
 
   [MIT](LICENSE.md)
-
-[npm-image]: https://img.shields.io/npm/v/komapi.svg
-[npm-url]: https://npmjs.org/package/komapi
-[travis-image]: https://travis-ci.org/komapijs/komapi.svg?branch=master
-[travis-url]: https://travis-ci.org/komapijs/komapi
-[codecov-image]: https://img.shields.io/codecov/c/github/komapijs/komapi/master.svg
-[codecov-url]: https://codecov.io/gh/komapijs/komapi
