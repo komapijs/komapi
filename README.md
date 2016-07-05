@@ -2,10 +2,10 @@
 
 Komapi.js is an opinionated Node.js framework built on top of Koa 2.0
 
-[![npm](https://img.shields.io/npm/v/komapi.svg?maxAge=2592000)](https://npmjs.org/package/komapi)
-[![Travis](https://img.shields.io/travis/komapijs/komapi/master.svg?maxAge=2592000)](https://travis-ci.org/komapijs/komapi)
-[![Codecov branch](https://img.shields.io/codecov/c/github/komapijs/komapi/master.svg?maxAge=2592000)](https://codecov.io/gh/komapijs/komapi)
-[![npm](https://img.shields.io/npm/l/komapi.svg?maxAge=2592000)](https://github.com/komapijs/komapi/blob/master/LICENSE.md)
+[![npm](https://img.shields.io/npm/v/komapi.svg)](https://npmjs.org/package/komapi)
+[![Travis](https://img.shields.io/travis/komapijs/komapi/master.svg)](https://travis-ci.org/komapijs/komapi)
+[![Codecov branch](https://img.shields.io/codecov/c/github/komapijs/komapi/master.svg)](https://codecov.io/gh/komapijs/komapi)
+[![npm](https://img.shields.io/npm/l/komapi.svg)](https://github.com/komapijs/komapi/blob/master/LICENSE.md)
 
 ### Usage
 Install through npm and require it in your index.js file
