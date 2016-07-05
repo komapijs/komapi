@@ -121,4 +121,5 @@ export default (Model) => {
     Model.RelatedQueryBuilder.prototype.oDataFilter = oDataFilter;
     Model.QueryBuilder.prototype.metaThen = metaThen;
     Model.RelatedQueryBuilder.prototype.metaThen = metaThen;
+    return Model;
 };

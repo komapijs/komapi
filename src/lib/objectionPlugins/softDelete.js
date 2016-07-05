@@ -7,11 +7,10 @@ export default (Model) => {
     class QueryBuilder extends Model.QueryBuilder {
         constructor(modelClass) {
             super(modelClass);
+            this._softDeleteProperty = modelClass.camelCase ? 'deletedAt' : 'deleted_at';
             if (modelClass.softDelete) {
                 this.onBuild(builder => {
-                    if (!builder.context().withArchived) {
-                        builder.whereNull('deleted_at');
-                    }
+                    if (!builder.context().withArchived) builder.whereNull(this._softDeleteProperty);
                 });
             }
         }
@@ -21,10 +20,11 @@ export default (Model) => {
     class RelatedQueryBuilder extends Model.RelatedQueryBuilder {
         constructor(modelClass) {
             super(modelClass);
+            this._softDeleteProperty = modelClass.camelCase ? 'deletedAt' : 'deleted_at';
             if (modelClass.softDelete) {
                 this.onBuild(builder => {
                     if (!builder.context().withArchived) {
-                        builder.whereNull('deleted_at');
+                        builder.whereNull(this._softDeleteProperty);
                     }
                 });
             }
@@ -41,6 +41,8 @@ export default (Model) => {
 
     Model.QueryBuilder = QueryBuilder;
     Model.RelatedQueryBuilder = RelatedQueryBuilder;
+
+    return Model;
 };
 
 // Functions
@@ -53,9 +55,13 @@ function del(opts = {}) {
     return this.forceDelete();
 }
 function softDelete() {
-    return this.patch({deleted_at: new Date().toISOString()});
+    return this.patch({
+        [this._softDeleteProperty]: new Date().toISOString()
+    });
 }
 function restore() {
     this.withArchived(true);
-    return this.patch({deleted_at: null});
+    return this.patch({
+        [this._softDeleteProperty]: null
+    });
 }

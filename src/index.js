@@ -35,6 +35,7 @@ import bodyParser from 'koa-bodyparser';
 // Objection plugins
 import objectionSoftDelete from './lib/objectionPlugins/softDelete';
 import objectionRestify from './lib/objectionPlugins/restify';
+import objectionTimestamps from './lib/objectionPlugins/timestamps';
 
 // Export
 export default class Komapi extends Koa{
@@ -292,8 +293,9 @@ export default class Komapi extends Koa{
         // Patch
         [
             objectionSoftDelete,
-            objectionRestify
-        ].forEach((fn => fn(this.orm.$Model)));
+            objectionRestify,
+            objectionTimestamps
+        ].forEach((fn => this.orm.$Model = fn(this.orm.$Model)));
     }
 
     // Private overrides of Koa's methods

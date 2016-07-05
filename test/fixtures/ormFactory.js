@@ -26,15 +26,25 @@ export function createDatabase(app, opts = {}) {
             table.increments('id').primary();
             table.string('name');
             table.integer('num');
-            table.timestamps();
+
             table.dateTime('deleted_at');
+            table.dateTime('deletedAt');
+
+            table.timestamps();
+            table.dateTime('createdAt');
+            table.dateTime('updatedAt');
         }),
         app.orm.$Model.knex().schema.createTable('related-' + db , (table) => {
             table.increments('id').primary();
             table.integer('test_id');
             table.string('desc');
-            table.timestamps();
+
             table.dateTime('deleted_at');
+            table.dateTime('deletedAt');
+
+            table.timestamps();
+            table.dateTime('createdAt');
+            table.dateTime('updatedAt');
         })
     ]).then(() => {
         if (opts.seed) {
@@ -62,6 +72,12 @@ export function createDatabase(app, opts = {}) {
         }
     }).then(() => {
         app.orm.Test = class Test extends app.orm.$Model {
+            static get timestamps() {
+                return (opts.timestamps === true);
+            }
+            static get camelCase() {
+                return (opts.camelCase === true);
+            }
             static get softDelete() {
                 return (opts.softDelete === true);
             }
@@ -78,6 +94,7 @@ export function createDatabase(app, opts = {}) {
                         }
                     };
                 }
+                else if (opts.schema && typeof opts.schema === 'object') schema = opts.schema;
                 return schema;
             }
             static get relationMappings() {
@@ -92,12 +109,17 @@ export function createDatabase(app, opts = {}) {
                     }
                 };
             }
-
             static get tableName() {
                 return db;
             }
         };
         app.orm.RelTest = class RelTest extends app.orm.$Model {
+            static get timestamps() {
+                return (opts.timestamps === true);
+            }
+            static get camelCase() {
+                return (opts.camelCase === true);
+            }
             static get softDelete() {
                 return (opts.softDelete === true);
             }
@@ -114,6 +136,7 @@ export function createDatabase(app, opts = {}) {
                         }
                     };
                 }
+                else if (opts.schema && typeof opts.schema === 'object') schema = opts.schema;
                 return schema;
             }
             static get relationMappings() {
@@ -128,7 +151,6 @@ export function createDatabase(app, opts = {}) {
                     }
                 };
             }
-
             static get tableName() {
                 return 'related-' + db;
             }
