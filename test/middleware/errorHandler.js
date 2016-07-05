@@ -203,3 +203,19 @@ test('provides an empty errors object during schemaValidationError exceptions if
         }
     });
 });
+test('handles invalid error objects gracefully', async t => {
+    let app = appFactory({
+        env: 'development'
+    });
+    class invalidError {
+        constructor(){}
+    }
+    app.use((ctx, next) => {
+        throw new invalidError;
+    });
+    const res = await request(app.listen())
+        .get('/');
+    t.is(res.status, 500);
+    t.is(res.body.message, 'An internal server error occurred');
+    t.is(res.body.stack[0], 'Error: Cannot wrap non-Error object');
+});

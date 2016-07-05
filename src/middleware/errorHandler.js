@@ -21,7 +21,11 @@ export default () => {
 
             // Unknown error?
             else if (!err.isBoom) {
-                error = Boom.wrap(err, err.status || 500);
+                try {
+                    error = Boom.wrap(err, err.status || 500);
+                } catch (err) {
+                    error = Boom.wrap(err, 500);
+                }
             }
 
             // Set status
