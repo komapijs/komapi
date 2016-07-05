@@ -12,7 +12,6 @@ export default (BaseModel) => {
             return schema;
         }
         $beforeInsert(...args) {
-            const out = super.$beforeInsert(...args);
             if (this.constructor.timestamps) {
                 const datetime = new Date().toISOString();
                 if (this.constructor.camelCase) {
@@ -24,17 +23,16 @@ export default (BaseModel) => {
                     this.updated_at = datetime;
                 }
             }
-            return out;
+            return super.$beforeInsert(...args);
         }
 
         $beforeUpdate(...args) {
-            const out = super.$beforeUpdate(...args);
             if (this.constructor.timestamps) {
                 const datetime = new Date().toISOString();
                 if (this.constructor.camelCase) this.updatedAt = datetime;
                 else this.updated_at = datetime;
             }
-            return out;
+            return super.$beforeUpdate(...args);
         }
     }
     return Model;
