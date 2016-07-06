@@ -236,8 +236,9 @@ export default class Komapi extends Koa{
             path = mountAt;
             mountAt = '/';
         }
-        let router = routes(path, this);
-        let fn = compose([...middlewares, router.routes(), router.allowedMethods({
+        let router = routes(path, this, middlewares);
+
+        let fn = compose([router.routes(), router.allowedMethods({
             throw: true,
             notImplemented: () => new Boom.notImplemented(),
             methodNotAllowed: () => new Boom.methodNotAllowed()
