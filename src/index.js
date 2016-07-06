@@ -51,7 +51,7 @@ export default class Komapi extends Koa{
         // Set properties
         this.orm = undefined;
         this.state = {};
-        this.config = Object.assign({}, defaultConfig(process.env.NODE_ENV || config.env), config);
+        this.config = Object.assign({}, defaultConfig(config.env || process.env.NODE_ENV), config);
         this.passport = new KomapiPassport;
         this.schema = new Schema();
 
