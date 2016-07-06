@@ -279,7 +279,8 @@ export default class Komapi extends Koa{
         if (this.orm) throw new Error('Cannot initialize ORM more than once');
         this.orm = {
             $Model: class KomapiObjectionModel extends Objection.Model {},
-            $transaction: Objection.transaction
+            $transaction: Objection.transaction,
+            $ValidationError: Objection.ValidationError
         };
         this.orm.$Model.knex(opts.knex || Knex(opts));
         this.orm.$migrate = this.orm.$Model.knex().migrate;
