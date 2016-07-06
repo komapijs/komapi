@@ -13,7 +13,7 @@ import mount from 'koa-mount';
 import compose from 'koa-compose';
 import uuid from 'node-uuid';
 import Knex from 'knex';
-import {Model} from 'objection';
+import * as Objection from 'objection';
 import _ from 'lodash';
 import models from './lib/models';
 
@@ -278,7 +278,8 @@ export default class Komapi extends Koa{
     objection(opts) {
         if (this.orm) throw new Error('Cannot initialize ORM more than once');
         this.orm = {
-            $Model: class KomapiObjectionModel extends Model {}
+            $Model: class KomapiObjectionModel extends Objection.Model {},
+            $transaction: Objection.transaction
         };
         this.orm.$Model.knex(opts.knex || Knex(opts));
         this.orm.$migrate = this.orm.$Model.knex().migrate;
@@ -290,7 +291,7 @@ export default class Komapi extends Koa{
             }, 'ORM Query Error');
         });
 
-        // Patch
+        // Patch objection with custom plugins
         [
             objectionSoftDelete,
             objectionRestify,
