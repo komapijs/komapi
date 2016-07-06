@@ -39,12 +39,12 @@
     "pretest": "npm run clean --silent && npm run lint --silent",
     "test": "nyc --reporter=lcov ava --require babel-core/register --timeout 180s --concurrency=25",
     "posttest": "npm run coverage --silent",
-    "prepublish": "npm test && npm run build",
+    "prepublish": "npm run build",
     "update-deps": "ncu --packageFile ./package.json -u --upgradeAll",
     "watch": "ava --require babel-core/register --watch --serial --verbose"
   },
   "dependencies": {
-    "ajv": "^4.1.4",
+    "ajv": "^4.1.5",
     "babel-runtime": "^6.9.2",
     "bluebird": "^3.4.1",
     "boom": "^3.2.2",
@@ -67,7 +67,6 @@
     "koa-views": "^5.0.1",
     "lodash": "^4.13.1",
     "node-uuid": "^1.4.7",
-    "npm": "^3.10.2",
     "objection": "^0.5.2",
     "odata-parser": "^1.4.1",
     "passport": "^0.3.2",
@@ -86,10 +85,10 @@
     "babel-plugin-transform-es2015-spread": "^6.8.0",
     "babel-plugin-transform-runtime": "^6.9.0",
     "del-cli": "^0.2.0",
-    "eslint": "^2.13.1",
+    "eslint": "^3.0.1",
     "eslint-plugin-security": "^1.2.0",
     "handlebars": "^4.0.5",
-    "npm-check-updates": "^2.6.7",
+    "npm-check-updates": "^2.6.8",
     "nsp": "^2.5.0",
     "nyc": "^6.6.1",
     "passport-anonymous": "^1.0.1",
@@ -97,7 +96,7 @@
     "passport-local": "^1.0.0",
     "sqlite3": "^3.1.4",
     "supertest": "^1.2.0",
-    "supertest-as-promised": "^3.1.0"
+    "supertest-as-promised": "^3.2.0"
   },
   "files": [
     "dist",
