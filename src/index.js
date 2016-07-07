@@ -196,31 +196,23 @@ export default class Komapi extends Koa{
                 };
             },
             requestLogger,
+            route: function route(...middlewares) {
+                let path = middlewares.pop();
+                let router = routes(path, app, middlewares);
+                let fn = compose([router.routes(), router.allowedMethods({
+                    throw: true,
+                    notImplemented: () => new Boom.notImplemented(),
+                    methodNotAllowed: () => new Boom.methodNotAllowed()
+                })]);
+                Object.defineProperty(fn, 'name', {
+                    value: 'routeHandler'
+                });
+                return fn;
+            },
             headers: headers,
             static: serve,
             views
         };
-    }
-
-    // Self-registering middleware
-    route(mountAt, ...middlewares) {
-        let path;
-        if (middlewares.length === 0) {
-            path = mountAt;
-            mountAt = '/';
-        }
-        else path = middlewares.pop();
-        let router = routes(path, this, middlewares);
-
-        let fn = compose([router.routes(), router.allowedMethods({
-            throw: true,
-            notImplemented: () => new Boom.notImplemented(),
-            methodNotAllowed: () => new Boom.methodNotAllowed()
-        })]);
-        Object.defineProperty(fn, 'name', {
-            value: 'routeHandler'
-        });
-        return this.use(mountAt, fn);
     }
 
     // Configuration
