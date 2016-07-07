@@ -226,16 +226,13 @@ export default class Komapi extends Koa{
         }
         return this.use(mountAt, requestLogger(opts));
     }
-    route(mountAt, path, ...middlewares) {
-        if (typeof path === 'function') {
-            middlewares.unshift(path);
+    route(mountAt, ...middlewares) {
+        let path;
+        if (middlewares.length === 0) {
             path = mountAt;
             mountAt = '/';
         }
-        else if (!path) {
-            path = mountAt;
-            mountAt = '/';
-        }
+        else path = middlewares.pop();
         let router = routes(path, this, middlewares);
 
         let fn = compose([router.routes(), router.allowedMethods({

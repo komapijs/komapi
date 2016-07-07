@@ -39,7 +39,7 @@ test('supports specifying specific route files', async t => {
 test('supports loading multiple middlewares at once', async t => {
     let app = appFactory();
     t.plan(6);
-    app.route('../fixtures/routes', ...[
+    app.route(...[
         (ctx, next) => {
             t.pass();
             return next();
@@ -60,7 +60,7 @@ test('supports loading multiple middlewares at once', async t => {
             t.pass();
             return next();
         }
-    ]);
+    ], '../fixtures/routes');
     const res = await request(app.listen())
         .get('/es5');
     t.deepEqual(res.body, {
