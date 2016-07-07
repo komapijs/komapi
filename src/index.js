@@ -251,7 +251,7 @@ export default class Komapi extends Koa{
             objectionSoftDelete,
             objectionRestify,
             objectionTimestamps
-        ].forEach((fn => this.orm.$Model = fn(this.orm.$Model)));
+        ].forEach((fn => this.orm.$Model = fn(this.orm.$Model, this)));
     }
 
     // Private overrides of Koa's methods
