@@ -4,4 +4,4 @@
 global.Promise = require('babel-runtime/core-js/promise').default = require('bluebird');
 
 // Exports
-module.exports = require('./dist/index').default;
+module.exports = require('./dist/index').default; // eslint-disable-line import/no-unresolved
