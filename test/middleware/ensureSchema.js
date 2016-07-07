@@ -60,7 +60,7 @@ test('provides middleware to ensure requests adheres to a json schema', async t 
             });
         }
     });
-    app.use(app.ensureSchema(schema));
+    app.use(app.mw.ensureSchema(schema));
     await request(app.listen())
         .get('/');
 });
@@ -79,7 +79,7 @@ test('allows valid requests', async t => {
             t.fail();
         }
     });
-    app.use(app.ensureSchema(schema));
+    app.use(app.mw.ensureSchema(schema));
     app.use((ctx, next) => {
         ctx.body = null;
     });
@@ -92,6 +92,6 @@ test('throws on invalid key', async t => {
         env: 'production'
     });
     t.throws(() => {
-        app.use(app.ensureSchema(schema, 'invalid'));
+        app.use(app.mw.ensureSchema(schema, 'invalid'));
     }, `You can not enforce a schema to 'invalid'. Only allowed values are 'body', 'params' or 'query`);
 });

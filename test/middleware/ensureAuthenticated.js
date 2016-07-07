@@ -15,22 +15,22 @@ test('provides middleware to ensure authentication', async t => {
         id: 1,
         username: 'test'
     };
-    app.bodyParser();
+    app.use(app.mw.bodyParser());
     app.authInit(new LocalStrategy(function (username, password, done) {
         if (username === 'test' && password === 'testpw') return done(null, passportUser);
         done(null, false);
     }),
         new AnonymousStrategy()
     );
-    app.use(app.authenticate(['local', 'anonymous'], {
+    app.use(app.mw.authenticate(['local', 'anonymous'], {
         session: false
     }));
 
-    app.use('/protected', app.ensureAuthenticated(), (ctx, next) => {
+    app.use('/protected', app.mw.ensureAuthenticated(), (ctx, next) => {
         t.fail();
         ctx.body = null;
     });
-    app.use('/protectedAuthenticated', app.ensureAuthenticated(), (ctx, next) => {
+    app.use('/protectedAuthenticated', app.mw.ensureAuthenticated(), (ctx, next) => {
         t.pass();
         ctx.body = null;
     });

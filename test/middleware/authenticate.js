@@ -26,10 +26,10 @@ test('is initiated through authInit() method', async t => {
         .get('/');
     t.is(res.status, 204);
 });
-test('is enabled through auth() method', async t => {
+test('is enabled through app.mw.authenticate() method', async t => {
     const app = appFactory();
     app.authInit();
-    app.use(app.authenticate());
+    app.use(app.mw.authenticate());
     app.use((ctx, next) => {
         t.is(ctx.isAuthenticated(), false);
         ctx.body = null;
@@ -44,12 +44,12 @@ test('supports vanilla passport strategies with failures', async t => {
         id: 1,
         username: 'test'
     };
-    app.bodyParser();
+    app.use(app.mw.bodyParser());
     app.authInit(new LocalStrategy(function (username, password, done) {
         if (username === 'test' && password === 'testpw') return done(null, passportUser);
         done(null, false);
     }));
-    app.use(app.authenticate('local', {
+    app.use(app.mw.authenticate('local', {
         successRedirect: '/',
         failureRedirect: '/login',
         session: false
@@ -69,12 +69,12 @@ test('supports vanilla passport strategies with success', async t => {
         id: 1,
         username: 'test'
     };
-    app.bodyParser();
+    app.use(app.mw.bodyParser());
     app.authInit(new LocalStrategy(function (username, password, done) {
         if (username === 'test' && password === 'testpw') return done(null, passportUser);
         done(null, false);
     }));
-    app.use(app.authenticate('local', {
+    app.use(app.mw.authenticate('local', {
         successRedirect: '/',
         failureRedirect: '/login',
         session: false
@@ -92,7 +92,7 @@ test('supports vanilla passport strategies with success', async t => {
 test('can be mounted at specific path', async t => {
     const app = appFactory();
     app.authInit();
-    app.use('/testProtected', app.authenticate());
+    app.use('/testProtected', app.mw.authenticate());
     app.use((ctx, next) => {
         t.is(ctx.isAuthenticated(), false);
         ctx.body = null;
@@ -114,7 +114,7 @@ test('cannot be initialized multiple times', async t => {
 test('cannot be enabled without first having been initialized', async t => {
     const app = appFactory();
     t.throws(() => {
-        app.use(app.authenticate());
+        app.use(app.mw.authenticate());
     }, 'Cannot use authentication middleware without enabling "authInit" first');
 });
 test('refuses invalid credentials', async t => {
@@ -123,14 +123,14 @@ test('refuses invalid credentials', async t => {
         id: 1,
         username: 'test'
     };
-    app.bodyParser();
+    app.use(app.mw.bodyParser());
     app.authInit(new LocalStrategy(function (username, password, done) {
         if (username === 'test' && password === 'testpw') return done(null, passportUser);
         done(null, false);
     }));
 
     app.use((ctx, next) => {
-        return app.authenticate('local', (user, info) => {
+        return app.mw.authenticate('local', (user, info) => {
             if (!user) throw new Boom.unauthorized();
             return ctx.login(user, {session: false});
         })(ctx, next);
@@ -151,13 +151,13 @@ test('allows valid credentials', async t => {
         id: 1,
         username: 'test'
     };
-    app.bodyParser();
+    app.use(app.mw.bodyParser());
     app.authInit(new LocalStrategy(function (username, password, done) {
         if (username === 'test' && password === 'testpw') return done(null, passportUser);
         done(null, false);
     }));
     app.use((ctx, next) => {
-        return app.authenticate('local', (user, info) => {
+        return app.mw.authenticate('local', (user, info) => {
             if (!user) throw new Boom.unauthorized();
             return ctx.login(user, {session: false});
         })(ctx, next);
@@ -178,7 +178,7 @@ test('adds username in logs when logged in', async t => {
         username: 'test'
     };
     t.plan(2);
-    app.requestLogger();
+    app.use(app.mw.requestLogger());
     app.log.addStream({
         name: 'DummyLogger',
         level: 'trace',
@@ -189,13 +189,13 @@ test('adds username in logs when logged in', async t => {
             }
         })
     });
-    app.bodyParser();
+    app.use(app.mw.bodyParser());
     app.authInit(new LocalStrategy(function (username, password, done) {
         if (username === 'test' && password === 'testpw') return done(null, passportUser);
         done(null, false);
     }));
     app.use((ctx, next) => {
-        return app.authenticate('local', (user, info) => {
+        return app.mw.authenticate('local', (user, info) => {
             if (!user) throw new Boom.unauthorized();
             return ctx.login(user, {session: false});
         })(ctx, next);
@@ -215,7 +215,7 @@ test('does not add username to logs when not logged in', async t => {
         username: 'test'
     };
     t.plan(2);
-    app.requestLogger();
+    app.use(app.mw.requestLogger());
     app.log.addStream({
         name: 'DummyLogger',
         level: 'trace',
@@ -226,13 +226,13 @@ test('does not add username to logs when not logged in', async t => {
             }
         })
     });
-    app.bodyParser();
+    app.use(app.mw.bodyParser());
     app.authInit(new LocalStrategy(function (username, password, done) {
         if (username === 'test' && password === 'testpw') return done(null, passportUser);
         done(null, false);
     }));
     app.use((ctx, next) => {
-        return app.authenticate('local', (user, info) => {
+        return app.mw.authenticate('local', (user, info) => {
             if (!user) throw new Boom.unauthorized();
             return ctx.login(user, {session: false});
         })(ctx, next);

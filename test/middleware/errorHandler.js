@@ -170,7 +170,7 @@ test('natively handles schemaValidationError exceptions using 400', async t => {
         };
         return next();
     });
-    app.use(app.ensureSchema(schema));
+    app.use(app.mw.ensureSchema(schema));
     const res = await request(app.listen())
         .get('/');
     t.is(res.status, 400);
@@ -190,7 +190,7 @@ test('provides an empty errors object during schemaValidationError exceptions if
     let app = appFactory({
         env: 'production'
     });
-    app.use(app.ensureSchema(schema));
+    app.use(app.mw.ensureSchema(schema));
     const res = await request(app.listen())
         .get('/');
     t.is(res.status, 400);

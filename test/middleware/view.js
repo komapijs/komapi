@@ -6,14 +6,14 @@ import appFactory from '../fixtures/appFactory';
 import {agent as request} from 'supertest-as-promised';
 
 // Tests
-test('is enabled through views() method', async t => {
+test('is enabled through app.mw.views() method', async t => {
     let app = appFactory();
-    app.views(__dirname + '/../fixtures/views', {
+    app.use(app.mw.views(__dirname + '/../fixtures/views', {
         extension: 'hbs',
         map: {
             hbs: 'handlebars'
         }
-    });
+    }));
     app.use(async (ctx, next) => {
         return await ctx.render('index', {
             who: 'World'

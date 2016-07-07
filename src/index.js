@@ -22,7 +22,7 @@ import responseDecorator from './middleware/responseDecorator';
 import errorHandler from './middleware/errorHandler';
 import requestLogger from './middleware/requestLogger';
 import routes from './middleware/routeHandler';
-import helmet from './middleware/helmet';
+import headers from './middleware/headers';
 import KomapiPassport from './modules/passport';
 import serve from 'koa-static';
 import views from 'koa-views';
@@ -169,63 +169,40 @@ export default class Komapi extends Koa{
     }
 
     // Helper middlewares
-    ensureSchema(schema, key = 'body') {
-        if (['body', 'params', 'query'].indexOf(key) === -1) throw new Error(`You can not enforce a schema to '${key}'. Only allowed values are 'body', 'params' or 'query`);
-        let validate = this.schema.compile(schema);
-        return async function ensureSchema(ctx, next) {
-            let valid = await validate(ctx.request[key]);
-            if (!valid) throw Schema.parseValidationErrors(validate.errors, schema, ctx.request[key]);
-            return next();
+    get mw() {
+        const app = this;
+        return {
+            authenticate: function authenticate(...args) {
+                if (!app.request.login) throw new Error('Cannot use authentication middleware without enabling "authInit" first');
+                return app.passport.authenticate(...args);
+            },
+            bodyParser,
+            compress,
+            cors,
+            etag: (opts) => compose([conditional(), etag(opts)]),
+            ensureAuthenticated: function ensureAuthenticated() {
+                return function ensureAuthenticated(ctx, next) {
+                    if (!ctx.isAuthenticated()) throw Boom.unauthorized('Access to this resource requires authentication.');
+                    return next();
+                };
+            },
+            ensureSchema: function ensureSchema(schema, key = 'body') {
+                if (['body', 'params', 'query'].indexOf(key) === -1) throw new Error(`You can not enforce a schema to '${key}'. Only allowed values are 'body', 'params' or 'query`);
+                let validate = app.schema.compile(schema);
+                return async function ensureSchema(ctx, next) {
+                    let valid = await validate(ctx.request[key]);
+                    if (!valid) throw Schema.parseValidationErrors(validate.errors, schema, ctx.request[key]);
+                    return next();
+                };
+            },
+            requestLogger,
+            headers: headers,
+            static: serve,
+            views
         };
-    }
-    ensureAuthenticated() {
-        return function ensureAuthenticated(ctx, next) {
-            if (!ctx.isAuthenticated()) throw Boom.unauthorized('Access to this resource requires authentication.');
-            return next();
-        };
-    }
-    authenticate(...args) {
-        if (!this.request.login) throw new Error('Cannot use authentication middleware without enabling "authInit" first');
-        return this.passport.authenticate(...args);
     }
 
     // Self-registering middleware
-    bodyParser(mountAt, opts) {
-        if (typeof mountAt === 'object') {
-            opts = mountAt;
-            mountAt = '/';
-        }
-        return this.use(mountAt, bodyParser(opts));
-    }
-    compress(mountAt, opts) {
-        if (typeof mountAt === 'object') {
-            opts = mountAt;
-            mountAt = '/';
-        }
-        return this.use(mountAt, compress(opts));
-    }
-    cors(mountAt, opts) {
-        if (typeof mountAt === 'object') {
-            opts = mountAt;
-            mountAt = '/';
-        }
-        return this.use(mountAt, cors(opts));
-    }
-    etag(mountAt, opts) {
-        if (typeof mountAt === 'object') {
-            opts = mountAt;
-            mountAt = '/';
-        }
-        this.use(mountAt, conditional());
-        return this.use(mountAt, etag(opts));
-    }
-    requestLogger(mountAt, opts) {
-        if (typeof mountAt === 'object') {
-            opts = mountAt;
-            mountAt = '/';
-        }
-        return this.use(mountAt, requestLogger(opts));
-    }
     route(mountAt, ...middlewares) {
         let path;
         if (middlewares.length === 0) {
@@ -244,19 +221,6 @@ export default class Komapi extends Koa{
             value: 'routeHandler'
         });
         return this.use(mountAt, fn);
-    }
-    helmet(mountAt, opts) {
-        if (typeof mountAt === 'object') {
-            opts = mountAt;
-            mountAt = '/';
-        }
-        return this.use(mountAt, helmet(opts));
-    }
-    serve(mountAt, serveFrom, opts) {
-        return this.use(mountAt, serve(serveFrom, opts));
-    }
-    views(templateRoot, opts) {
-        return this.use(views(templateRoot, opts));
     }
 
     // Configuration

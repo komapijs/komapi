@@ -7,10 +7,10 @@ import {agent as request} from 'supertest-as-promised';
 import DummyLogger from '../fixtures/dummyLogger';
 
 // Tests
-test('is enabled through requestLogger() method', async t => {
+test('is enabled through app.mw.requestLogger() method', async t => {
     let app = appFactory();
     t.plan(3);
-    app.requestLogger();
+    app.use(app.mw.requestLogger());
     app.log.addStream({
         name: 'DummyLogger',
         level: 'trace',
@@ -31,41 +31,11 @@ test('is enabled through requestLogger() method', async t => {
         .get('/');
     t.is(res.status, 200);
 });
-test('supports options as first parameters', async t => {
-    let app = appFactory();
-    t.plan(3);
-    app.requestLogger({
-        logger: (ctx)  => {
-            return ctx.log.trace({
-                isDummy: true
-            });
-        }
-    });
-    app.log.addStream({
-        name: 'DummyLogger',
-        level: 'trace',
-        type: 'raw',
-        stream: new DummyLogger((obj) => {
-            if (obj.context === 'request' && obj.isDummy == true) {
-                t.is(obj.level, 10);
-                t.is(obj.isDummy, true);
-            }
-        })
-    });
-    app.use((ctx, next) => {
-        ctx.send({
-            status: 'ok'
-        });
-    });
-    const res = await request(app.listen())
-        .get('/');
-    t.is(res.status, 200);
-});
 test('throws on invalid options', async t => {
     let app = appFactory();
     t.plan(1);
     t.throws(() => {
-        app.requestLogger({
+        app.mw.requestLogger({
             logger: true
         });
     }, /"logger" must be a Function/);
@@ -73,7 +43,7 @@ test('throws on invalid options', async t => {
 test('logs the response status on statuscode >= 500', async t => {
     let app = appFactory();
     t.plan(4);
-    app.requestLogger();
+    app.use(app.mw.requestLogger());
     app.log.addStream({
         name: 'DummyLogger',
         level: 'trace',
@@ -100,7 +70,7 @@ test('logs the request body and hides password on statuscode >= 500', async t =>
         password: 'asdf'
     };
     t.plan(5);
-    app.requestLogger();
+    app.use(app.mw.requestLogger());
     app.log.addStream({
         name: 'DummyLogger',
         level: 'trace',
@@ -117,7 +87,7 @@ test('logs the request body and hides password on statuscode >= 500', async t =>
             }
         })
     });
-    app.bodyParser();
+    app.use(app.mw.bodyParser());
     app.use((ctx, next) => {
         throw new Error('Test error');
     });
@@ -125,4 +95,35 @@ test('logs the request body and hides password on statuscode >= 500', async t =>
         .post('/')
         .send(body);
     t.is(res.status, 500);
+});
+
+test('supports options', async t => {
+    let app = appFactory();
+    t.plan(3);
+    app.use(app.mw.requestLogger({
+        logger: (ctx)  => {
+            return ctx.log.trace({
+                isDummy: true
+            });
+        }
+    }));
+    app.log.addStream({
+        name: 'DummyLogger',
+        level: 'trace',
+        type: 'raw',
+        stream: new DummyLogger((obj) => {
+            if (obj.context === 'request' && obj.isDummy == true) {
+                t.is(obj.level, 10);
+                t.is(obj.isDummy, true);
+            }
+        })
+    });
+    app.use((ctx, next) => {
+        ctx.send({
+            status: 'ok'
+        });
+    });
+    const res = await request(app.listen())
+        .get('/');
+    t.is(res.status, 200);
 });

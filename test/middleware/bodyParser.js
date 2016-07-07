@@ -6,10 +6,10 @@ import appFactory from '../fixtures/appFactory';
 import {agent as request} from 'supertest-as-promised';
 
 // Tests
-test('is enabled through bodyParser() method', async t => {
+test('is enabled through app.mw.bodyParser() method', async t => {
     t.plan(3);
     let app = appFactory();
-    app.bodyParser();
+    app.use(app.mw.bodyParser());
     app.use((ctx, next) => {
         t.is(ctx.request.body.username, 'test');
         t.is(ctx.request.body.password, 'asdf');
@@ -23,7 +23,7 @@ test('is enabled through bodyParser() method', async t => {
 test('can be mounted at specific paths', async t => {
     t.plan(6);
     let app = appFactory();
-    app.bodyParser('/mount');
+    app.use('/mount', app.mw.bodyParser());
     app.use('/mount', (ctx, next) => {
         t.is(ctx.request.body.username, 'test');
         t.is(ctx.request.body.password, 'asdf');
@@ -42,18 +42,4 @@ test('can be mounted at specific paths', async t => {
         .send({ username: 'test', password: 'asdf' });
     t.is(res1.status, 204);
     t.is(res2.status, 204);
-});
-test('supports options as first parameters', async t => {
-    t.plan(1);
-    let app = appFactory();
-    app.bodyParser({
-        jsonLimit: 1
-    });
-    app.use((ctx, next) => {
-        ctx.body = null;
-    });
-    const res = await request(app.listen())
-        .post('/')
-        .send({ username: 'test', password: 'asdf' });
-    t.is(res.status, 413);
 });
