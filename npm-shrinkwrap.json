@@ -1,6 +1,6 @@
 {
   "name": "komapi",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "dependencies": {
     "@f/defaults": {
       "version": "1.0.1",
