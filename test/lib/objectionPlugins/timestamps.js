@@ -7,73 +7,6 @@ import * as ormFactory from '../../fixtures/ormFactory';
 
 // Init
 process.setMaxListeners(11); // Fix false positive memory leak messages because of many Komapi instances. This should be exactly the number of times appFactory() is called in this file
-const schema = {
-    invalid: {
-        $schema: 'http://json-schema.org/draft-04/schema#',
-        title: 'Person test schema',
-        required: [
-            'name'
-        ],
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-            name: {
-                description: 'Person name',
-                type: 'string'
-            }
-        }
-    },
-    ok: {
-        $schema: 'http://json-schema.org/draft-04/schema#',
-        title: 'Person test schema',
-        required: [
-            'name'
-        ],
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-            name: {
-                description: 'Person name',
-                type: 'string'
-            },
-            created_at: {
-                description: 'Created at',
-                type: 'string',
-                fromat: 'date-time'
-            },
-            updated_at: {
-                description: 'Updated at',
-                type: 'string',
-                fromat: 'date-time'
-            }
-        }
-    },
-    okCamelCase: {
-        $schema: 'http://json-schema.org/draft-04/schema#',
-        title: 'Person test schema',
-        required: [
-            'name'
-        ],
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-            name: {
-                description: 'Person name',
-                type: 'string'
-            },
-            createdAt: {
-                description: 'Created at',
-                type: 'string',
-                fromat: 'date-time'
-            },
-            updatedAt: {
-                description: 'Updated at',
-                type: 'string',
-                fromat: 'date-time'
-            }
-        }
-    }
-};
 
 // Tests
 test('is not enabled by default', async t => {
@@ -97,7 +30,7 @@ test('is not enabled by default', async t => {
 test('is not enabled by default and does not impact schema validation', async t => {
     let app = appFactory();
     await ormFactory.createDatabase(app, {
-        schema: schema.invalid
+        schema: 1
     });
     let model = {
         name: 'nametest'
@@ -179,34 +112,11 @@ test('sets updated_at on updates with camelCase', async t => {
     t.is(typeof person.updatedAt, 'string');
     t.is(person.updated_at, null);
 });
-test('throws on invalid jsonSchema', async t => {
+test('sets updated_at on updates with jsonSchema', async t => {
     let app = appFactory();
     await ormFactory.createDatabase(app, {
         timestamps: true,
-        schema: schema.invalid
-    });
-    let model = {
-        name: 'nametest'
-    };
-    t.throws(app.orm.Test.query().insert(model), "Invalid jsonSchema for model 'Test'. Add 'created_at' and 'updated_at' to the schema to use timestamps");
-});
-test('throws on invalid jsonSchema with camelCase', async t => {
-    let app = appFactory();
-    await ormFactory.createDatabase(app, {
-        timestamps: true,
-        schema: schema.invalid,
-        camelCase: true
-    });
-    let model = {
-        name: 'nametest'
-    };
-    t.throws(app.orm.Test.query().insert(model), "Invalid jsonSchema for model 'Test'. Add 'createdAt' and 'updatedAt' to the schema to use timestamps");
-});
-test('sets updated_at on updates with valid jsonSchema', async t => {
-    let app = appFactory();
-    await ormFactory.createDatabase(app, {
-        timestamps: true,
-        schema: schema.ok
+        schema: 1
     });
     let model = {
         name: 'nametest'
@@ -225,11 +135,11 @@ test('sets updated_at on updates with valid jsonSchema', async t => {
     t.is(typeof person.updated_at, 'string');
     t.is(person.updatedAt, null);
 });
-test('sets updated_at on updates with valid jsonSchema and camelCase', async t => {
+test('sets updated_at on updates with jsonSchema and camelCase', async t => {
     let app = appFactory();
     await ormFactory.createDatabase(app, {
         timestamps: true,
-        schema: schema.okCamelCase,
+        schema: 1,
         camelCase: true
     });
     let model = {

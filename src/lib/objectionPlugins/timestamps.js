@@ -3,11 +3,25 @@
 // Exports
 export default (BaseModel) => {
     class Model extends BaseModel {
-        $beforeValidate(...args) {
-            const schema = super.$beforeValidate(...args);
+        $toDatabaseJson() {
+            const omit = this.constructor.getRelations();
+            return this.$$toJson(true, omit, null);
+        }
+        $beforeValidate(jsonSchema, json, opt) {
+            const schema = super.$beforeValidate(jsonSchema, json, opt);
             if (this.constructor.timestamps && schema && schema.properties) {
-                if (this.constructor.camelCase && (!schema.properties.createdAt || !schema.properties.updatedAt)) throw new Error(`Invalid jsonSchema for model '${this.constructor.name}'. Add 'createdAt' and 'updatedAt' to the schema to use timestamps`);
-                else if (!this.constructor.camelCase && (!schema.properties.created_at || !schema.properties.updated_at)) throw new Error(`Invalid jsonSchema for model '${this.constructor.name}'. Add 'created_at' and 'updated_at' to the schema to use timestamps`);
+                if (this.constructor.camelCase) {
+                    jsonSchema.properties.createdAt = jsonSchema.properties.updatedAt = {
+                        type: 'string',
+                        format: 'date-time'
+                    };
+                }
+                else {
+                    jsonSchema.properties.created_at = jsonSchema.properties.updated_at = {
+                        type: 'string',
+                        format: 'date-time'
+                    };
+                }
             }
             return schema;
         }
