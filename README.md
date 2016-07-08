@@ -339,7 +339,7 @@ Models can automatically be loaded by adding the following line to your applicat
 ```js
 app.models(path);
 ```
-This loads every model into `app.orm[Modelname]`, which is accessible throughout your application. Note that it is the filename of the model module with a capitalized first letter that will be used to access the model
+This loads every model into `app.orm[Modelname]`, which is accessible throughout your application. Note that it is the name of the model class exported from the module that will be used to access the model
 
 ##### Example Model
 ```js
