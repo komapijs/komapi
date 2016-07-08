@@ -4,26 +4,28 @@
 export default (BaseModel) => {
     class Model extends BaseModel {
         $toDatabaseJson() {
-            const omit = this.constructor.getRelations();
-            return this.$$toJson(true, omit, null);
-        }
-        $beforeValidate(jsonSchema, json, opt) {
-            const schema = super.$beforeValidate(jsonSchema, json, opt);
-            if (this.constructor.timestamps && schema && schema.properties) {
+            const jsonSchema = this.constructor.jsonSchema;
+            const pick = jsonSchema && jsonSchema.properties;
+            let omit;
+
+            if (!pick) {
+                omit = this.constructor.getRelations();
+            }
+            else {
                 if (this.constructor.camelCase) {
-                    jsonSchema.properties.createdAt = jsonSchema.properties.updatedAt = {
+                    pick.createdAt = pick.updatedAt = {
                         type: 'string',
                         format: 'date-time'
                     };
                 }
                 else {
-                    jsonSchema.properties.created_at = jsonSchema.properties.updated_at = {
+                    pick.created_at = pick.updated_at = {
                         type: 'string',
                         format: 'date-time'
                     };
                 }
             }
-            return schema;
+            return this.$$toJson(true, omit, pick);
         }
         $beforeInsert(...args) {
             if (this.constructor.timestamps) {
