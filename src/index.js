@@ -186,12 +186,20 @@ export default class Komapi extends Koa{
                     return next();
                 };
             },
-            ensureSchema: function ensureSchema(schema, key = 'body') {
-                if (['body', 'params', 'query'].indexOf(key) === -1) throw new Error(`You can not enforce a schema to '${key}'. Only allowed values are 'body', 'params' or 'query`);
+            ensureSchema: function ensureSchema(schema, opts) {
+                opts = Object.assign({}, {
+                    key: 'body',
+                    sendSchema: '$schema'
+                }, opts);
+                if (['body', 'params', 'query'].indexOf(opts.key) === -1) throw new Error(`You can not enforce a schema to '${opts.key}'. Only allowed values are 'body', 'params' or 'query`);
                 let validate = app.schema.compile(schema);
                 return async function ensureSchema(ctx, next) {
-                    let valid = await validate(ctx.request[key]);
-                    if (!valid) throw Schema.parseValidationErrors(validate.errors, schema, ctx.request[key]);
+                    if (opts.sendSchema) {
+                        if (typeof opts.sendSchema === 'function' && opts.sendSchema(ctx)) return ctx.send(schema);
+                        else if (ctx.request.method === 'GET' && ctx.request.query[opts.sendSchema] !== undefined && ctx.request.query[opts.sendSchema] !== 'false')  return ctx.send(schema);
+                    }
+                    let valid = await validate(ctx.request[opts.key]);
+                    if (!valid) throw Schema.parseValidationErrors(validate.errors, schema, ctx.request[opts.key]);
                     return next();
                 };
             },

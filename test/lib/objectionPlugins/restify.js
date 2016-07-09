@@ -6,7 +6,7 @@ import appFactory from '../../fixtures/appFactory';
 import * as ormFactory from '../../fixtures/ormFactory';
 
 // Init
-process.setMaxListeners(29); // Fix false positive memory leak messages because of many Komapi instances. This should be exactly the number of times appFactory() is called in this file
+process.setMaxListeners(32); // Fix false positive memory leak messages because of many Komapi instances. This should be exactly the number of times appFactory() is called in this file
 
 // Tests
 test('returns all rows and only id columns when no filter is applied', async t => {

@@ -92,6 +92,50 @@ test('throws on invalid key', async t => {
         env: 'production'
     });
     t.throws(() => {
-        app.use(app.mw.ensureSchema(schema, 'invalid'));
+        app.use(app.mw.ensureSchema(schema, {key:'invalid'}));
     }, `You can not enforce a schema to 'invalid'. Only allowed values are 'body', 'params' or 'query`);
+});
+test('replies with schema on ?$schema by default', async t => {
+    let app = appFactory({
+        env: 'production'
+    });
+    app.use(app.mw.ensureSchema(schema));
+    app.use((ctx, next) => {
+        ctx.body = null;
+    });
+    const res = await request(app.listen())
+        .get('/?$schema');
+    t.is(res.status, 200);
+    t.deepEqual(res.body, schema);
+});
+test('support custom schema reply function', async t => {
+    let app = appFactory({
+        env: 'production'
+    });
+    app.use(app.mw.ensureSchema(schema, {
+        sendSchema: (ctx) => {
+            return (ctx.request.query['test'] === 'blah');
+        }
+    }));
+    app.use((ctx, next) => {
+        ctx.body = null;
+    });
+    const res = await request(app.listen())
+        .get('/?test=blah');
+    t.is(res.status, 200);
+    t.deepEqual(res.body, schema);
+});
+test('can be disabled', async t => {
+    let app = appFactory({
+        env: 'production'
+    });
+    app.use(app.mw.ensureSchema(schema, {
+        sendSchema: false
+    }));
+    app.use((ctx, next) => {
+        ctx.body = null;
+    });
+    const res = await request(app.listen())
+        .get('/?$schema');
+    t.is(res.status, 400);
 });

@@ -155,22 +155,22 @@ Komapi provides built-in middlewares for most use cases. Some of these are just 
 
 | Middleware | Description | Reference |
 | --- | --- | --- |
-| `app.mw.authenticate(strategies, [options], [callback])` | Authenticate requets | [authenticate](komapi-middleware-authenticate), [Passport](http://passportjs.org/) |
+| `app.mw.authenticate(strategies[, options][, callback])` | Authenticate requets | [authenticate](komapi-middleware-authenticate), [Passport](http://passportjs.org/) |
 | `app.mw.bodyParser([options])` | Parse request body | [koa-bodyparser](https://github.com/koajs/bodyparser) |
 | `app.mw.compress([options])` | Compresses responses | [koa-compress](https://github.com/koajs/compress) |
 | `app.mw.cors([options])` | Set CORS headers | [kcors](https://github.com/koajs/cors) |
 | `app.mw.etag([options])` | Generates ETags | [koa-etag](https://github.com/koajs/etag), [koa-conditional-get](https://github.com/koajs/conditional-get) |
 | `app.mw.ensureAuthenticated()` | Require authentication | [ensureAuthenticated](#komapi-middleware-ensureauthenticated) |
-| `app.mw.ensureSchema(schema, [key])` | Validate requests | [ensureSchema](#komapi-middleware-ensureschema) |
+| `app.mw.ensureSchema(schema[, opts])` | Validate requests | [ensureSchema](#komapi-middleware-ensureschema) |
 | `app.mw.requestLogger([options])` | Log requests | [requestLogger](#komapi-middleware-requestlogger) |
 | `app.mw.route([middlewares ...], path)` | Load route | [Loading Route Modules](#loading-route-modules) |
 | `app.mw.headers([options])` | Set response headers | [helmet](https://github.com/helmetjs/helmet) |
-| `app.mw.static(root, [options])` | Serve static files | [koa-static](https://github.com/koajs/static) |
-| `app.mw.views(root, [options])` | Use templates | [Template Rendering](#template-rendering), [koa-views](https://github.com/queckezz/koa-views) |
+| `app.mw.static(root[, options])` | Serve static files | [koa-static](https://github.com/koajs/static) |
+| `app.mw.views(root[, options])` | Use templates | [Template Rendering](#template-rendering), [koa-views](https://github.com/queckezz/koa-views) |
 
 ##### Komapi Native Middleware
 <a name="komapi-middleware-authenticate"></a>
-###### app.mw.authenticate(strategies, [options], [callback])
+###### app.mw.authenticate(strategies[, options][, callback])
 Authenticates requests. Based on [Passport](http://passportjs.org/) and requires initialization of authentication strategies through `app.authInit()`
 ```js
 app.use(app.mw.authenticate('local'));
@@ -186,8 +186,13 @@ app.use(app.mw.ensureAuthenticated());
 ```
 
 <a name="komapi-middleware-ensureschema"></a>
-###### app.mw.ensureSchema(schema, [key])
-Ensures request body (`ctx.request.body`) conforms to the provided JSON Schema. Note that `app.mw.bodyParser()` must be enabled before this to function. Can optionally validate a different key on the `ctx.request` object (body, params or query). See [JSON Schema](http://json-schema.org/) for more information on how to create a schema.
+###### app.mw.ensureSchema(schema[, opts])
+* schema
+* opts (optional)
+* opts.key: (`body`, `params` or `query`) `default: body`
+* opts.sendSchema: reply with the schema if this query parameter was set (only for `GET`). Alternatively provide a `function (ctx) {}` returning `true` or `false`. `default: $schema`.
+
+Ensures request body (`ctx.request.body`) conforms to the provided JSON Schema. Note that `app.mw.bodyParser()` must be enabled before this to function. Can optionally validate a different key on the `ctx.request`. See [JSON Schema](http://json-schema.org/) for more information on how to create a schema.
 ```js
 const loginSchema = {
     $schema: 'http://json-schema.org/draft-04/schema#',
@@ -225,7 +230,7 @@ Authentication is handled by [Passport](http://passportjs.org/) through Komapi p
 | Middleware | Description |
 | --- | --- |
 | `app.mw.authInit(strategies...)` | Initialize and enable authentication strategies. Functions similarly to `passport.use`, with the exception that all strategies must be provided at once. |
-| `app.mw.authenticate(strategies, [options], [callback])` | Only used to authenticate requests (e.g. logging in users). This is usually only used on endpoints where a user is expected to be unauthenticated and requesting authentication. For session based authentication schemes it is only used on the endpoint used to generate the session. For non-session based schemes, it is often used with different strategies on different endpoints. A `/login` endpoint (using `app.mw.authenticate('basic')` may be provided for logging in using username and password to get a JWT for use on all the other endpoints (using `app.mw.authenticate('jwt')`). |
+| `app.mw.authenticate(strategies[, options][, callback])` | Only used to authenticate requests (e.g. logging in users). This is usually only used on endpoints where a user is expected to be unauthenticated and requesting authentication. For session based authentication schemes it is only used on the endpoint used to generate the session. For non-session based schemes, it is often used with different strategies on different endpoints. A `/login` endpoint (using `app.mw.authenticate('basic')` may be provided for logging in using username and password to get a JWT for use on all the other endpoints (using `app.mw.authenticate('jwt')`). |
 | `app.mw.ensureAuthenticated()` | This is used to restrict access to endpoints for only authenticated requests. See the example below where authentication is preferred, but not required in the entire application, except for a single endpoint that requires an authenticated request. |
 
 Example:
