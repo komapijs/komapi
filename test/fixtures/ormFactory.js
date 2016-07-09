@@ -45,11 +45,24 @@ export function createDatabase(app, opts = {}) {
             table.timestamps();
             table.dateTime('createdAt');
             table.dateTime('updatedAt');
+        }),
+        app.orm.$Model.knex().schema.createTable('related2-' + db , (table) => {
+            table.increments('id').primary();
+            table.integer('test_id');
+            table.string('desc');
+
+            table.dateTime('deleted_at');
+            table.dateTime('deletedAt');
+
+            table.timestamps();
+            table.dateTime('createdAt');
+            table.dateTime('updatedAt');
         })
     ]).then(() => {
         if (opts.seed) {
             let rows = [];
             let relRows = [];
+            let relRows2 = [];
             for (let i = 1; i <= opts.seed; i++) {
                 let row = {
                     name: `name-${i}`,
@@ -64,10 +77,19 @@ export function createDatabase(app, opts = {}) {
                     test_id: i,
                     desc: `rel-name-${i}-2`
                 });
+                relRows2.push({
+                    test_id: i,
+                    desc: `rel2-name-${i}-1`
+                });
+                relRows2.push({
+                    test_id: i,
+                    desc: `rel2-name-${i}-2`
+                });
             }
             return Promise.all([
                 app.orm.$Model.knex().batchInsert(db, rows),
-                app.orm.$Model.knex().batchInsert('related-' + db, relRows)
+                app.orm.$Model.knex().batchInsert('related-' + db, relRows),
+                app.orm.$Model.knex().batchInsert('related2-' + db, relRows2)
             ]);
         }
     }).then(() => {
@@ -106,6 +128,14 @@ export function createDatabase(app, opts = {}) {
                             from: db + '.id',
                             to: 'related-' + db + '.test_id'
                         }
+                    },
+                    reltests2: {
+                        relation: app.orm.$Model.HasManyRelation,
+                        modelClass: app.orm.RelTest2,
+                        join: {
+                            from: db + '.id',
+                            to: 'related2-' + db + '.test_id'
+                        }
                     }
                 };
             }
@@ -141,7 +171,7 @@ export function createDatabase(app, opts = {}) {
             }
             static get relationMappings() {
                 return {
-                    tests: {
+                    test: {
                         relation: app.orm.$Model.BelongsToOneRelation,
                         modelClass: app.orm.Test,
                         join: {
@@ -153,6 +183,48 @@ export function createDatabase(app, opts = {}) {
             }
             static get tableName() {
                 return 'related-' + db;
+            }
+        };
+        app.orm.RelTest2 = class RelTest2 extends app.orm.$Model {
+            static get timestamps() {
+                return (opts.timestamps === true);
+            }
+            static get camelCase() {
+                return (opts.camelCase === true);
+            }
+            static get softDelete() {
+                return (opts.softDelete === true);
+            }
+            static get jsonSchema() {
+                let schema = null;
+                if (opts.schema === 1) {
+                    schema = {
+                        title: 'Test Related Schema',
+                        type: 'object',
+                        properties: {
+                            id: {type: 'integer'},
+                            test_id: {type: 'integer'},
+                            desc: {type: 'string', minLength: 1, maxLength: 255}
+                        }
+                    };
+                }
+                else if (opts.schema && typeof opts.schema === 'object') schema = opts.schema;
+                return schema;
+            }
+            static get relationMappings() {
+                return {
+                    test: {
+                        relation: app.orm.$Model.BelongsToOneRelation,
+                        modelClass: app.orm.Test,
+                        join: {
+                            from: 'related2-' + db + '.test_id',
+                            to: db + '.id'
+                        }
+                    }
+                };
+            }
+            static get tableName() {
+                return 'related2-' + db;
             }
         };
     });

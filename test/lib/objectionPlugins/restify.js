@@ -39,51 +39,21 @@ test('can disable meta info using a boolean', async t => {
     t.is(collection.length, 10);
     t.is(collection[0].id, 1);
 });
-test('works on $relatedQuery', async t => {
+test('does not work on $relatedQuery', async t => {
     let app = appFactory();
+    t.plan(1);
     await ormFactory.createDatabase(app, {
         seed: 10
     });
-    let collection = await app.orm.Test.query()
+    await app.orm.Test.query()
         .findById(7)
         .then((res) => {
-            return res.$relatedQuery('reltests').oDataFilter({
-                $skip: 1
-            }).withMeta().then();
+            t.throws(() => {
+                return res.$relatedQuery('reltests').oDataFilter({
+                    $skip: 1
+                }).then();
+            }, 'res.$relatedQuery(...).oDataFilter is not a function');
         });
-    t.is(collection.data.length, 1);
-    t.is(collection.data[0].desc, undefined);
-    t.is(collection.data[0].id, 14);
-});
-test('works on $relatedQuery and returns specified columns', async t => {
-    let app = appFactory();
-    await ormFactory.createDatabase(app, {
-        seed: 10
-    });
-    let collection = await app.orm.Test.query()
-        .findById(7)
-        .then((res) => {
-            return res.$relatedQuery('reltests').columns(['id', 'desc']).oDataFilter({
-                $skip: 1
-            }).withMeta().then();
-        });
-    t.is(collection.data.length, 1);
-    t.is(collection.data[0].desc, 'rel-name-7-2');
-    t.is(collection.data[0].id, 14);
-});
-test('works on reversed $relatedQuery and automatically includes all belongsToOne columns and returns specified related columns', async t => {
-    let app = appFactory();
-    await ormFactory.createDatabase(app, {
-        seed: 10
-    });
-    let collection = await app.orm.RelTest.query()
-        .findById(14)
-        .then((res) => {
-            return res.$relatedQuery('tests').columns(['name']).oDataFilter().withMeta().then();
-        });
-    t.is(collection.data.length, 1);
-    t.is(collection.data[0].name, 'name-7');
-    t.is(collection.data[0].id, 7);
 });
 test('supports $top', async t => {
     let app = appFactory();
@@ -94,22 +64,6 @@ test('supports $top', async t => {
         $top: 5
     }).withMeta().then();
     t.is(collection.data.length, 5);
-});
-test('supports $top on $relatedQuery', async t => {
-    let app = appFactory();
-    await ormFactory.createDatabase(app, {
-        seed: 10
-    });
-    let collection = await app.orm.Test.query()
-        .findById(7)
-        .then((res) => {
-            return res.$relatedQuery('reltests').columns(['id', 'desc']).oDataFilter({
-                $top: 1
-            }).withMeta().then();
-        });
-    t.is(collection.data.length, 1);
-    t.is(collection.data[0].desc, 'rel-name-7-1');
-    t.is(collection.data[0].id, 13);
 });
 test('supports $skip', async t => {
     let app = appFactory();
@@ -167,7 +121,7 @@ test('supports $select', async t => {
         seed: 10
     });
     let collection = await app.orm.Test.query().oDataFilter({
-        $select: 'id,name'
+        $select: 'name'
     }).withMeta().then();
     t.is(collection.data.length, 10);
     t.is(collection.data[0].name, 'name-1');
@@ -330,25 +284,6 @@ test('supports $count', async t => {
     t.is(collection.data[0].id, 7);
     t.is(collection.pagination.$count, 10);
 });
-test('supports $count on $relatedQuery', async t => {
-    let app = appFactory();
-    await ormFactory.createDatabase(app, {
-        seed: 10
-    });
-    let collection = await app.orm.Test.query()
-        .findById(7)
-        .then((res) => {
-            return res.$relatedQuery('reltests').columns(['id', 'desc']).oDataFilter({
-                $top: 5,
-                $count: true
-            }).withMeta().then();
-        });
-    t.is(collection.pagination.$count, 2);
-    t.is(collection.data.length, 2);
-    t.is(collection.data[0].desc, 'rel-name-7-1');
-    t.is(collection.data[0].id, 13);
-    t.is(collection.data[1].id, 14);
-});
 test('supports invoking functions directly', async t => {
     let app = appFactory();
     t.plan(6);
@@ -365,4 +300,70 @@ test('supports invoking functions directly', async t => {
     t.is(collection.data.length, 10);
     t.is(collection.data[0].name, 'name-1');
     t.is(collection.data[0].id, 1);
+});
+test('supports $expand', async t => {
+    let app = appFactory();
+    await ormFactory.createDatabase(app, {
+        seed: 10
+    });
+    let collection = await app.orm.Test.query().oDataFilter({
+        $expand: 'reltests'
+    }).withMeta().then();
+    t.is(collection.data.length, 10);
+    t.is(collection.data[3].reltests[1].id, 8);
+    t.is(collection.data[3].reltests[1].desc, undefined);
+    t.is(collection.data[3].id, 4);
+});
+test('supports $select with $expand', async t => {
+    let app = appFactory();
+    await ormFactory.createDatabase(app, {
+        seed: 10
+    });
+    let collection = await app.orm.Test.query().oDataFilter({
+        $select: 'name',
+        $expand: 'reltests'
+    }).withMeta().then();
+    t.is(collection.data.length, 10);
+    t.is(collection.data[3].reltests[1].id, 8);
+    t.is(collection.data[3].reltests[1].desc, undefined);
+    t.is(collection.data[3].name, 'name-4');
+    t.is(collection.data[3].id, 4);
+});
+test('supports complex $select with complex $expand', async t => {
+    let app = appFactory();
+    await ormFactory.createDatabase(app, {
+        seed: 10
+    });
+    let collection = await app.orm.Test.query().oDataFilter({
+        $select: 'reltests/desc,reltests/test/desc,name,reltests2/desc',
+        $expand: 'reltests,reltests2'
+    }).withMeta().then();
+    t.is(collection.data.length, 10);
+    t.is(collection.data[3].reltests[1].id, 8);
+    t.is(collection.data[3].reltests[1].desc, 'rel-name-4-2');
+    t.is(collection.data[3].id, 4);
+});
+test('existing functionality of objection (accepting a valid filter) are maintained', async t => {
+    let app = appFactory();
+    await ormFactory.createDatabase(app, {
+        seed: 10
+    });
+    let collection = await app.orm.Test.query().eager('reltests(testFilter)', {
+        testFilter: function (qb) {
+            qb.where('id', 1);
+        }
+    }).withMeta().then();
+    t.is(collection.data.length, 10);
+    t.is(collection.data[3].reltests[1], undefined);
+    t.is(collection.data[0].reltests[1], undefined);
+    t.is(collection.data[0].reltests.length, 1);
+    t.is(collection.data[0].reltests[0].id, 1);
+});
+test('existing functionality of objection (throwing on invalid filters) are maintained', async t => {
+    let app = appFactory();
+    t.plan(1);
+    await ormFactory.createDatabase(app, {
+        seed: 10
+    });
+    t.throws(app.orm.Test.query().eager('reltests(missingFilter)').withMeta(), /could not find filter/);
 });
