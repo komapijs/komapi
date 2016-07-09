@@ -15,8 +15,8 @@ test('is not enabled by default', async t => {
     let model = {
         name: 'nametest'
     };
-    await app.orm.Test.query().insert(model).then();
-    let collection = await app.orm.Test.query().then();
+    await app.orm.Test.query().columns('*').insert(model).then();
+    let collection = await app.orm.Test.query().columns('*').then();
     t.is(collection.length, 1);
     t.is(collection[0].name, 'nametest');
     t.is(collection[0].id, 1);
@@ -35,8 +35,8 @@ test('is not enabled by default and does not impact schema validation', async t 
     let model = {
         name: 'nametest'
     };
-    await app.orm.Test.query().insert(model).then();
-    let collection = await app.orm.Test.query().then();
+    await app.orm.Test.query().columns('*').insert(model).then();
+    let collection = await app.orm.Test.query().columns('*').then();
     t.is(collection.length, 1);
     t.is(collection[0].name, 'nametest');
     t.is(collection[0].id, 1);
@@ -55,8 +55,8 @@ test('is enabled by setting timestamps property', async t => {
     let model = {
         name: 'nametest'
     };
-    await app.orm.Test.query().insert(model).then();
-    let collection = await app.orm.Test.query().then();
+    await app.orm.Test.query().columns('*').insert(model).then();
+    let collection = await app.orm.Test.query().columns('*').then();
     t.is(collection.length, 1);
     t.is(collection[0].name, 'nametest');
     t.is(collection[0].id, 1);
@@ -75,14 +75,14 @@ test('sets updated_at on updates', async t => {
     let model = {
         name: 'nametest'
     };
-    await app.orm.Test.query().insert(model).then();
-    let collection = await app.orm.Test.query().then();
+    await app.orm.Test.query().columns('*').insert(model).then();
+    let collection = await app.orm.Test.query().columns('*').then();
     let person = collection[0];
     let ct = person.created_at;
     t.is(person.createdAt, null);
     t.is(person.updated_at, ct);
-    await person.$query().patch({name: 'testupdated'}).then();
-    person = await person.$query().then();
+    await person.$query().columns('*').patch({name: 'testupdated'}).then();
+    person = await person.$query().columns('*').then();
     t.is(person.name, 'testupdated');
     t.is(person.created_at, ct);
     t.not(person.updated_at, ct);
@@ -98,14 +98,14 @@ test('sets updated_at on updates with camelCase', async t => {
     let model = {
         name: 'nametest'
     };
-    await app.orm.Test.query().insert(model).then();
-    let collection = await app.orm.Test.query().then();
+    await app.orm.Test.query().columns('*').insert(model).then();
+    let collection = await app.orm.Test.query().columns('*').then();
     let person = collection[0];
     let ct = person.createdAt;
     t.is(person.created_at, null);
     t.is(person.updatedAt, ct);
-    await person.$query().patch({name: 'testupdated'}).then();
-    person = await person.$query().then();
+    await person.$query().columns('*').patch({name: 'testupdated'}).then();
+    person = await person.$query().columns('*').then();
     t.is(person.name, 'testupdated');
     t.is(person.createdAt, ct);
     t.not(person.updatedAt, ct);
@@ -121,14 +121,14 @@ test('sets updated_at on updates with jsonSchema', async t => {
     let model = {
         name: 'nametest'
     };
-    await app.orm.Test.query().insert(model).then();
-    let collection = await app.orm.Test.query().then();
+    await app.orm.Test.query().columns('*').insert(model).then();
+    let collection = await app.orm.Test.query().columns('*').then();
     let person = collection[0];
     let ct = person.created_at;
     t.is(person.createdAt, null);
     t.is(person.updated_at, ct);
-    await person.$query().patch({name: 'testupdated'}).then();
-    person = await person.$query().then();
+    await person.$query().columns('*').patch({name: 'testupdated'}).then();
+    person = await person.$query().columns('*').then();
     t.is(person.name, 'testupdated');
     t.is(person.created_at, ct);
     t.not(person.updated_at, ct);
@@ -145,14 +145,14 @@ test('sets updated_at on updates with jsonSchema and camelCase', async t => {
     let model = {
         name: 'nametest'
     };
-    await app.orm.Test.query().insert(model).then();
-    let collection = await app.orm.Test.query().then();
+    await app.orm.Test.query().columns('*').insert(model).then();
+    let collection = await app.orm.Test.query().columns('*').then();
     let person = collection[0];
     let ct = person.createdAt;
     t.is(person.created_at, null);
     t.is(person.updatedAt, ct);
-    await person.$query().patch({name: 'testupdated'}).then();
-    person = await person.$query().then();
+    await person.$query().columns('*').patch({name: 'testupdated'}).then();
+    person = await person.$query().columns('*').then();
     t.is(person.name, 'testupdated');
     t.is(person.createdAt, ct);
     t.not(person.updatedAt, ct);

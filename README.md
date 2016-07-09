@@ -325,9 +325,9 @@ model.$query().withArchived(); // Not found
 Add `static get timestamps() { return true; }` to your models to enable timestamps. This will automatically set `created_at` and `updated_at`. Note that this requires `created_at` and `updated_at` columns in your schema. Currently not supported for N:M intersection tables (missing lifecycle hooks from Objection.js)
 
 ###### Restify (oData for Objection)
-Use `model.oDataFilter(ctx.request.query)` for your queries and it will automatically parse the oData query and return the result. It is also possible to return `model.oDataFilter(ctx.request.query).metaThen()` to include metadata like pagination and resultsizes, but this API is not stable and will change!
+Use `model.oDataFilter(ctx.request.query)` for your queries and it will automatically parse the oData query and return the result. It is also possible to return `model.oDataFilter(ctx.request.query).withMeta().then()` to include metadata like pagination and resultsizes.
 
-Note that this module is under active development.
+Note that this module automatically forces you to be explicit about the columns you want returned! You need to use `.columns(['columnA', 'columnB'])` on all queries where you want to use `columnA` and `columnB`. It is possible to specify `.columns('*')` for all columns, but it is highly recommended to never do this!
 
 ###### camelCase
 Add `static get camelCase() { return true; }` to your models to enable camelCase for system columns like `deleted_at`, `created_at` and `updated_at`.

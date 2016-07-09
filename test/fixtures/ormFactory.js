@@ -12,7 +12,7 @@ const knex = Knex({
         filename: ':memory:'
     }
 });
-knex.setMaxListeners(20);
+knex.setMaxListeners(27);
 
 // Exports
 export function createDatabase(app, opts = {}) {

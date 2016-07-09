@@ -21,6 +21,87 @@ const oDataFilterOperators = {
     or: 'orWhere'
 };
 
+// Exports
+export default (BaseModel) => {
+
+    // Model
+    class Model extends BaseModel {
+        static query() {
+            let cols = this.getIdColumnArray();
+            _.forOwn(this.getRelations(), (v, k) => {
+                if (v instanceof BaseModel.BelongsToOneRelation) cols.push(v.ownerCol);
+            });
+            return super.query().columns(cols);
+        }
+        $query() {
+            let cols = this.constructor.getIdColumnArray();
+
+            return super.$query().columns(cols);
+        }
+        $relatedQuery(relationName) {
+            const relatedClass = this.constructor.getRelation(relationName).relatedModelClass;
+            return super.$relatedQuery(relationName).columns(relatedClass.getIdColumnArray().map((v) => `${relatedClass.tableName}.${v}`));
+        }
+    }
+
+    // Query builder
+    class QueryBuilder extends Model.QueryBuilder {
+        execute() {
+            if (!this.context().withMeta) return super.execute();
+            let limit, offset;
+            let promises = [
+                super.execute()
+            ];
+            if (this._oData && this._oData.$count) promises.push(this.resultSize());
+            return Promise.all(promises).then((res) => {
+                let [models, total] = res;
+                const result = {
+                    pagination: {
+                        $top: (typeof (limit = _.findLast(this._operations, ['name', 'limit'])) !== 'undefined' && _.isArray(limit = limit.args) && limit.length > 0) ? limit[0] : null,
+                        $skip: (typeof (offset = _.findLast(this._operations, ['name', 'offset'])) !== 'undefined' && _.isArray(offset = offset.args) && offset.length > 0) ? offset[0] : 0,
+                        $count: (typeof total !== 'undefined') ? total : undefined
+                    },
+                    data: models
+                };
+                return result;
+            });
+        }
+    }
+
+    // RelatedQuery builder
+    class RelatedQueryBuilder extends Model.RelatedQueryBuilder {
+        execute() {
+            if (!this.context().withMeta) return super.execute();
+            let limit, offset;
+            let promises = [
+                super.execute()
+            ];
+            if (this._oData && this._oData.$count) promises.push(this.resultSize());
+            return Promise.all(promises).then((res) => {
+                let [models, total] = res;
+                const result = {
+                    pagination: {
+                        $top: (typeof (limit = _.findLast(this._operations, ['name', 'limit'])) !== 'undefined' && _.isArray(limit = limit.args) && limit.length > 0) ? limit[0] : null,
+                        $skip: (typeof (offset = _.findLast(this._operations, ['name', 'offset'])) !== 'undefined' && _.isArray(offset = offset.args) && offset.length > 0) ? offset[0] : 0,
+                        $count: (typeof total !== 'undefined') ? total : undefined
+                    },
+                    data: models
+                };
+                return result;
+            });
+        }
+    }
+
+    QueryBuilder.prototype._getColumns = RelatedQueryBuilder.prototype._getColumns = _getColumns;
+    QueryBuilder.prototype.oDataFilter = RelatedQueryBuilder.prototype.oDataFilter = oDataFilter;
+    QueryBuilder.prototype.withMeta = RelatedQueryBuilder.prototype.withMeta = withMeta;
+
+    Model.QueryBuilder = QueryBuilder;
+    Model.RelatedQueryBuilder = RelatedQueryBuilder;
+
+    return Model;
+};
+
 // Functions
 function _getColumns() {
     if (this._modelClass.jsonSchema && this._modelClass.jsonSchema.properties) return Object.keys(this._modelClass.jsonSchema.properties);
@@ -91,35 +172,7 @@ function applyFilter(filter, opts) {
     }
     return builder(filter);
 }
-function metaThen(fn) {
-    let limit, offset;
-    let promises = [
-        this.then()
-    ];
-    if (this._oData && this._oData.$count) promises.push(this.resultSize());
-    return Promise.all(promises).then((res) => {
-        let [models, total] = res;
-        const result = {
-            pagination: {
-                $top: (typeof (limit = _.findLast(this._operations, ['name', 'limit'])) !== 'undefined' && _.isArray(limit = limit.args) && limit.length > 0) ? limit[0] : null,
-                $skip: (typeof (offset = _.findLast(this._operations, ['name', 'offset'])) !== 'undefined' && _.isArray(offset = offset.args) && offset.length > 0) ? offset[0] : 0,
-                $count: (typeof total !== 'undefined') ? total : undefined
-            },
-            data: models
-        };
-        if (fn) return fn(result);
-        return result;
-    });
+function withMeta(withMeta = true) {
+    this.context().withMeta = withMeta;
+    return this;
 }
-
-// Exports
-export default (Model) => {
-    Model.QueryBuilder.prototype._getColumns = _getColumns;
-    Model.RelatedQueryBuilder.prototype._getColumns = _getColumns;
-    Model.RelatedQueryBuilder.prototype.oDataFilter = oDataFilter;
-    Model.QueryBuilder.prototype.oDataFilter = oDataFilter;
-    Model.RelatedQueryBuilder.prototype.oDataFilter = oDataFilter;
-    Model.QueryBuilder.prototype.metaThen = metaThen;
-    Model.RelatedQueryBuilder.prototype.metaThen = metaThen;
-    return Model;
-};
