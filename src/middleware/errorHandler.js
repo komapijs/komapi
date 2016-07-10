@@ -47,7 +47,7 @@ export default () => {
             }
             else {
                 ctx.status = 406;
-                ctx.body = Boom.notAcceptable().output.payload;
+                ctx.body = Boom.notAcceptable().toString();
             }
 
             // Emit the error
