@@ -193,7 +193,7 @@ class Parser {
     }
     static $select(value, opts) {
         if (!value) return {};
-        let [$select, $expand] = _.partition(value.replace(/\//g, '.').split(','), (v) => v.indexOf('/') === -1);
+        let [$select, $expand] = _.partition(value.replace(/\//g, '.').split(','), (v) => v.indexOf('.') === -1);
         $expand = this._convertToEagerExpression($expand);
         return {
             $select,
@@ -231,14 +231,17 @@ class Parser {
         };
         return builder(filter);
     }
-    static _convertToEagerExpression(array, reference = {}) {
+    static _convertToEagerExpression(array, type = null, reference = {}) {
         let objectifiedArray = _.zipObjectDeep(array);
         let out = Object.keys(objectifiedArray).reduce(_createObjectionColumnExpression(objectifiedArray), '');
         return `[${out}]`;
         function _createObjectionColumnExpression(obj) {
             return function objectionColumnExpressionReducer(previousValue, currentValue, index, array) {
-                let subValue = Object.keys(obj[currentValue]).reduce(_createObjectionColumnExpression(obj[currentValue]));
-                let retval = `${currentValue}.[${subValue}]`;
+                let retval = currentValue;
+                if (obj[currentValue]) {
+                    let subValue = Object.keys(obj[currentValue]).reduce(_createObjectionColumnExpression(obj[currentValue]));
+                    retval = `${currentValue}.[${subValue}]`;
+                }
                 if (previousValue) retval = `${previousValue},${retval}`;
                 return retval;
             };
