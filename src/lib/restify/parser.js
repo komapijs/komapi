@@ -9,49 +9,6 @@ import Ajv from 'ajv';
 import Schema from '../schema';
 
 // Init
-const defaultOpts = {
-    columns: [],
-    schema: {
-        $schema: 'http://json-schema.org/draft-04/schema#',
-        title: 'oData query parameters',
-        type: 'object',
-        properties: {
-            $filter: {
-                description: 'Filter result set',
-                type: 'string'
-            },
-            $orderby: {
-                description: 'Sort the result set',
-                type: 'string'
-            },
-            $skip: {
-                description: 'Skip this amount of records (offset)',
-                type: 'integer',
-                minimum: 0
-            },
-            $top: {
-                description: 'Limit number of records to this number',
-                type: 'integer',
-                minimum: 1,
-                maximum: 100,
-                default: 10
-            },
-            $expand: {
-                description: 'Expand related objects',
-                type: 'string'
-            },
-            $select: {
-                description: 'Return these attributes',
-                type: 'string'
-            },
-            $count: {
-                description: 'Add total result size to the output',
-                type: 'boolean',
-                default: false
-            }
-        }
-    }
-};
 let ajv = new Ajv({
     allErrors: true,
     verbose: true,
@@ -60,10 +17,58 @@ let ajv = new Ajv({
     useDefaults: true,
     coerceTypes: true
 });
-ajv.addSchema(defaultOpts.schema, 'oDataQuery');
 
-// Exports
-export default class Parser {
+class Parser {
+    static get defaultOptions() {
+        return {
+            reference: {},
+            columns: [],
+            relations: [],
+            maxRecursionDepth: 2,
+            maxRelations: 10,
+            maxColumns: 50,
+            schema: {
+                $schema: 'http://json-schema.org/draft-04/schema#',
+                title: 'oData query parameters',
+                type: 'object',
+                properties: {
+                    $filter: {
+                        description: 'Filter result set',
+                        type: 'string'
+                    },
+                    $orderby: {
+                        description: 'Sort the result set',
+                        type: 'string'
+                    },
+                    $skip: {
+                        description: 'Skip this amount of records (offset)',
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    $top: {
+                        description: 'Limit number of records to this number',
+                        type: 'integer',
+                        minimum: 1,
+                        maximum: 100,
+                        default: 10
+                    },
+                    $expand: {
+                        description: 'Expand related objects',
+                        type: 'string'
+                    },
+                    $select: {
+                        description: 'Return these attributes',
+                        type: 'string'
+                    },
+                    $count: {
+                        description: 'Add total result size to the output',
+                        type: 'boolean',
+                        default: false
+                    }
+                }
+            }
+        };
+    }
     static get oDataFilterOperators() {
         return {
             eq: '=',
@@ -90,13 +95,10 @@ export default class Parser {
         };
     }
     constructor(query, opts) {
-        this.options = {
-            columns: opts.columns || defaultOpts.columns,
-            schema: opts.schema || defaultOpts.schema
-        };
+        this.options = _.defaultsDeep({}, opts, this.constructor.defaultOptions);
 
         // Validate schema
-        let schema = (this.options.schema === defaultOpts.schema) ? 'oDataQuery' : this.options.schema;
+        let schema = (this.options.schema === this.constructor.defaultOptions.schema) ? 'oDataQuery' : this.options.schema;
         let valid = ajv.validate(schema, query);
         if (!valid) throw Schema.parseValidationErrors(ajv.errors, schema, 'Invalid oData expression', query);
 
@@ -109,10 +111,12 @@ export default class Parser {
     static getError(errorObj, parameter, extra = {}, meta) {
         let msg = '';
         let type = extra.type || 'value';
+        let what = (extra.reason) ? 'Invalid' : 'Unknown';
         if (extra.value) {
-            if (_.isArray(extra.value)) msg += `Unknown ${pluralize(type)} '${extra.value.join("', '")}`;
-            else  msg += `Unknown ${type} '${extra.value}'`;
-            msg += ` in parameter '${parameter}'. The provided '${parameter}' does not contain valid expression. Please try again with a valid expression.`;
+            if (_.isArray(extra.value)) msg += `${what} ${pluralize(type)} '${extra.value.join("', '")}`;
+            else  msg += `${what} ${type} '${extra.value}'`;
+            if (extra.reason) msg += ` in parameter '${parameter}'. ${extra.reason}. The provided '${parameter}' does not contain valid expression. Please try again with a valid expression.`;
+            else msg += ` in parameter '${parameter}'. The provided '${parameter}' does not contain valid expression. Please try again with a valid expression.`;
         }
         else if (parameter) msg = `The provided '${parameter}' is not a valid expression. Please try again with a valid expression.`;
         else msg = 'An unknown error occurred while parsing the oData expression. Please try again with a valid expression.';
@@ -158,10 +162,43 @@ export default class Parser {
         return value;
     }
     static $expand(value, opts) {
-        return (value) ? value.replace(/\//g, '.').split(',') : undefined;
+        if (value) {
+            value = value.replace(/\//g, '.').split(',');
+            value = this._convertToEagerExpression(value);
+            // if (value.length > opts.maxRelations) {
+            //     throw this.getError(Boom.badRequest, '$expand', {
+            //         value: value.length,
+            //         reason: `Only '${opts.maxRelations}' relations allowed`
+            //     }, {
+            //         $expand: value.join(',')
+            //     });
+            // }
+            // value.forEach((v) => {
+            //     let subV = v.split('/');
+            //     if (subV.length > opts.maxRecursionDepth) {
+            //         throw this.getError(Boom.badRequest, '$expand', {
+            //             value: v,
+            //             reason: `Only '${opts.maxRecursionDepth}' nested relations allowed`
+            //         }, {
+            //             $expand: value.join(',')
+            //         });
+            //     }
+            //     if (opts.reference) {}
+            //     else {
+            //
+            //     }
+            // });
+        }
+        return value;
     }
     static $select(value, opts) {
-        return (value) ? value.replace(/\//g, '.').split(',') : undefined;
+        if (!value) return {};
+        let [$select, $expand] = _.partition(value.replace(/\//g, '.').split(','), (v) => v.indexOf('/') === -1);
+        $expand = this._convertToEagerExpression($expand);
+        return {
+            $select,
+            $expand
+        };
     }
     static $count(value, opts) {
         return value;
@@ -194,4 +231,23 @@ export default class Parser {
         };
         return builder(filter);
     }
+    static _convertToEagerExpression(array, reference = {}) {
+        let objectifiedArray = _.zipObjectDeep(array);
+        let out = Object.keys(objectifiedArray).reduce(_createObjectionColumnExpression(objectifiedArray), '');
+        return `[${out}]`;
+        function _createObjectionColumnExpression(obj) {
+            return function objectionColumnExpressionReducer(previousValue, currentValue, index, array) {
+                let subValue = Object.keys(obj[currentValue]).reduce(_createObjectionColumnExpression(obj[currentValue]));
+                let retval = `${currentValue}.[${subValue}]`;
+                if (previousValue) retval = `${previousValue},${retval}`;
+                return retval;
+            };
+        }
+    }
 }
+
+// Add schema
+ajv.addSchema(Parser.defaultOptions.schema, 'oDataQuery');
+
+// Exports
+export default Parser;

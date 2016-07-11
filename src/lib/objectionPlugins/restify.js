@@ -52,7 +52,7 @@ export default (BaseModel) => {
             if (query.$top) this.limit(query.$top);
             if (query.$expand) {
                 if (query.$select && query.$select.$expand) this.context()._eagerColumns = RelationExpression.parse(query.$select.$expand);
-                this.eager(`[${query.$expand.join(',')}]`);
+                this.eager(query.$expand);
             }
             if (query.$select && query.$select.$select) this.columns(query.$select.$select);
             if (query.$count) this.context().withCount = query.$count;

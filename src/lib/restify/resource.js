@@ -3,19 +3,17 @@
 // Dependencies
 import _ from 'lodash';
 import pluralize from 'pluralize';
+import Parser from './parser';
 
 // Init
-const defaultOpts = {
-    maxRecursionDepth: 2
-};
 
 // Exports
 export default class Resource {
     constructor(Model, opts = {}) {
-        this.basePath = opts.path || `/${pluralize(Model.name)}`;
+        this.manager = null;
+        this.basePath = opts.path || `/${pluralize(Model.name).toLowerCase()}`;
         this.Model = Model;
-        this.options = _.defaults(defaultOpts, opts);
-        this.oDataOptions = {};
+        this.oDataOptions = _.defaultsDeep({}, opts, Parser.defaultOptions);
         this.routes = [];
     }
     oData(opts) {
