@@ -45,18 +45,16 @@ export default (BaseModel) => {
             let query = parser.parse();
 
             // Prepare data
-            let [$selectSelf, $selectRelated] = _.partition(query.$select, (v) => v.indexOf('.') === -1);
-
             // Create query
             if (query.$filter) this.where(query.$filter);
             if (query.$orderby) _.forEach(query.$orderby, this.orderBy);
             if (query.$skip) this.offset(query.$skip);
             if (query.$top) this.limit(query.$top);
             if (query.$expand) {
-                if ($selectRelated.length > 0) this.context()._eagerColumns = RelationExpression.parse(createObjectionColumnExpressionFromArray($selectRelated));
+                if (query.$select && query.$select.$expand) this.context()._eagerColumns = RelationExpression.parse(query.$select.$expand);
                 this.eager(`[${query.$expand.join(',')}]`);
             }
-            if ($selectSelf.length > 0) this.columns($selectSelf);
+            if (query.$select && query.$select.$select) this.columns(query.$select.$select);
             if (query.$count) this.context().withCount = query.$count;
             return this;
         }
@@ -131,17 +129,4 @@ function _restifiedFetchRelation(relation, nextEager) {
     return queryBuilder.select(cols).then(related => {
         return this._fetchNextEager(relation, related, nextEager);
     });
-}
-function createObjectionColumnExpressionFromArray(array) {
-    let objectifiedArray = _.zipObjectDeep(array);
-    let out = Object.keys(objectifiedArray).reduce(_createObjectionColumnExpression(objectifiedArray), '');
-    return `[${out}]`;
-    function _createObjectionColumnExpression(obj) {
-        return function objectionColumnExpressionReducer(previousValue, currentValue, index, array) {
-            let subValue = Object.keys(obj[currentValue]).reduce(_createObjectionColumnExpression(obj[currentValue]));
-            let retval = `${currentValue}.[${subValue}]`;
-            if (previousValue) retval = `${previousValue}, ${retval}`;
-            return retval;
-        };
-    }
 }
