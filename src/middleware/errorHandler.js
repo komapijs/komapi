@@ -34,6 +34,15 @@ export default () => {
             // Check for dev and include stacktrace
             if (error.output.statusCode >= 500 && ctx.app.env === 'development') error.output.payload.stack = (error.stack && error.stack.split) ? error.stack.split('\n') : error.stack;
 
+            // Convert boom response to proper format
+            error.output.payload = {
+                error: {
+                    code : error.output.payload.code || '',
+                    message: error.output.payload.message,
+                    stack: error.output.payload.stack
+                }
+            };
+
             // Respond with the proper format
             let format = ctx.accepts(['json', 'text']);
             if (format === 'json') {

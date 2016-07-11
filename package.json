@@ -70,6 +70,7 @@
     "objection": "^0.5.2",
     "odata-parser": "^1.4.1",
     "passport": "^0.3.2",
+    "pluralize": "^3.0.0",
     "recursive-readdir-sync": "^1.0.6"
   },
   "devDependencies": {

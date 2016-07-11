@@ -16,6 +16,7 @@ import Knex from 'knex';
 import * as Objection from 'objection';
 import _ from 'lodash';
 import models from './lib/models';
+import Resource from './lib/restify/resource';
 
 // Middlewares
 import responseDecorator from './middleware/responseDecorator';
@@ -23,6 +24,7 @@ import errorHandler from './middleware/errorHandler';
 import requestLogger from './middleware/requestLogger';
 import routes from './middleware/routeHandler';
 import headers from './middleware/headers';
+import restHandler from './middleware/restHandler';
 import KomapiPassport from './modules/passport';
 import serve from 'koa-static';
 import views from 'koa-views';
@@ -204,6 +206,19 @@ export default class Komapi extends Koa{
                 };
             },
             requestLogger,
+            restify: function restify(...middlewares) {
+                let resources = middlewares.pop();
+                let router = restHandler(resources, app, middlewares);
+                let fn = compose([router.routes(), router.allowedMethods({
+                    throw: true,
+                    notImplemented: () => new Boom.notImplemented(),
+                    methodNotAllowed: () => new Boom.methodNotAllowed()
+                })]);
+                Object.defineProperty(fn, 'name', {
+                    value: 'restify'
+                });
+                return fn;
+            },
             route: function route(...middlewares) {
                 let path = middlewares.pop();
                 let router = routes(path, app, middlewares);
@@ -232,6 +247,10 @@ export default class Komapi extends Koa{
         strategies.forEach((s) => this.passport.use(s));
 
         return this.use(this.passport.initialize());
+    }
+    restify(Model, opts) {
+        if (_.isString(Model)) Model = this.orm[Model];
+        return new Resource(Model, opts);
     }
     models(path) {
         if (!this.orm) throw new Error('Cannot load models before initializing an objection instance. Use `app.objection()` before attempting to load models.');
