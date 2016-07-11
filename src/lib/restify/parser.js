@@ -95,34 +95,30 @@ class Parser {
         };
     }
     constructor(query, opts) {
+        this.query = query;
         this.options = _.defaultsDeep({}, opts, this.constructor.defaultOptions);
 
         // Validate schema
         let schema = (this.options.schema === this.constructor.defaultOptions.schema) ? 'oDataQuery' : this.options.schema;
-        let valid = ajv.validate(schema, query);
-        if (!valid) throw Schema.parseValidationErrors(ajv.errors, schema, 'Invalid oData expression', query);
-
-        // Parse
-        this.parsed = this.constructor.parse(query, this.options);
+        let valid = ajv.validate(schema, this.query);
+        if (!valid) throw Schema.parseValidationErrors(ajv.errors, schema, 'Invalid oData expression', this.query);
     }
-    parse() {
-        return this.parsed;
-    }
-    static getError(errorObj, parameter, extra = {}, meta) {
+    getError(errorObj, parameter, extra = {}, meta = {}) {
+        meta.options = this.options;
         let msg = '';
         let type = extra.type || 'value';
         let what = (extra.reason) ? 'Invalid' : 'Unknown';
         if (extra.value) {
             if (_.isArray(extra.value)) msg += `${what} ${pluralize(type)} '${extra.value.join("', '")}`;
             else  msg += `${what} ${type} '${extra.value}'`;
-            if (extra.reason) msg += ` in parameter '${parameter}'. ${extra.reason}. The provided '${parameter}' does not contain valid expression. Please try again with a valid expression.`;
-            else msg += ` in parameter '${parameter}'. The provided '${parameter}' does not contain valid expression. Please try again with a valid expression.`;
+            if (extra.reason) msg += ` in parameter '${parameter}'. ${extra.reason}. Please try again with a valid expression.`;
+            else msg += ` in parameter '${parameter}'. Please try again with a valid expression.`;
         }
         else if (parameter) msg = `The provided '${parameter}' is not a valid expression. Please try again with a valid expression.`;
         else msg = 'An unknown error occurred while parsing the oData expression. Please try again with a valid expression.';
         return errorObj(msg, meta);
     }
-    static parse(query, opts) {
+    parse() {
         let out = {};
         [
             '$filter',
@@ -132,10 +128,10 @@ class Parser {
             '$expand',
             '$select',
             '$count'
-        ].forEach((k) => out[k] = this[k](query[k], opts));
+        ].forEach((k) => out[k] = this[k](this.query[k]));
         return out;
     }
-    static $filter(value, opts) {
+    $filter(value) {
         let out = {};
         if (!value) return undefined;
         try {
@@ -145,26 +141,25 @@ class Parser {
         }
         if (out.error) {
             throw this.getError(Boom.badRequest, '$filter', undefined, {
-                opts: opts,
                 input: value,
                 output: out
             });
         }
-        return this._convertFilter(out.$filter, opts);
+        return this._convertFilter(out.$filter);
     }
-    static $orderby(value, opts) {
+    $orderby(value, opts) {
 
     }
-    static $skip(value, opts) {
+    $skip(value) {
         return value;
     }
-    static $top(value, opts) {
+    $top(value) {
         return value;
     }
-    static $expand(value, opts) {
+    $expand(value) {
         if (value) {
             value = value.replace(/\//g, '.').split(',');
-            value = this._convertToEagerExpression(value);
+            value = this._convertToEagerExpression(value, '$expand');
             // if (value.length > opts.maxRelations) {
             //     throw this.getError(Boom.badRequest, '$expand', {
             //         value: value.length,
@@ -191,22 +186,22 @@ class Parser {
         }
         return value;
     }
-    static $select(value, opts) {
+    $select(value) {
         if (!value) return {};
         let [$select, $expand] = _.partition(value.replace(/\//g, '.').split(','), (v) => v.indexOf('.') === -1);
-        $expand = this._convertToEagerExpression($expand);
+        $expand = this._convertToEagerExpression($expand, '$select');
         return {
             $select,
             $expand
         };
     }
-    static $count(value, opts) {
+    $count(value) {
         return value;
     }
-    static _convertFilter(filter, opts) {
+    _convertFilter(filter) {
         const builder = (obj) => {
-            if (obj.left && obj.left.type === 'property' && obj.right && obj.right.type === 'literal' && this.oDataFilterOperators[obj.type]) {
-                if (opts.columns.length > 0 && opts.columns.indexOf(obj.left.name) === -1) {
+            if (obj.left && obj.left.type === 'property' && obj.right && obj.right.type === 'literal' && this.constructor.oDataFilterOperators[obj.type]) {
+                if (this.options.columns.length > 0 && this.options.columns.indexOf(obj.left.name) === -1) {
                     throw this.getError(Boom.badRequest, '$filter', {
                         value: obj.left.name,
                         type: 'attribute'
@@ -220,10 +215,10 @@ class Parser {
                         type: 'operator'
                     }, filter);
                 }
-                else return (qb) => qb.where(obj.left.name, this.oDataFilterOperators[obj.type], obj.right.value);
+                else return (qb) => qb.where(obj.left.name, this.constructor.oDataFilterOperators[obj.type], obj.right.value);
             }
-            else if (this.oDataFilterOperators[obj.type]) return (qb) => qb.where(builder(obj.left))[this.oDataFilterOperators[obj.type]](builder(obj.right));
-            else if (obj.func && this.oDataFilterFunctions[obj.func]) return this.oDataFilterFunctions[obj.func](obj.args);
+            else if (this.constructor.oDataFilterOperators[obj.type]) return (qb) => qb.where(builder(obj.left))[this.constructor.oDataFilterOperators[obj.type]](builder(obj.right));
+            else if (obj.func && this.constructor.oDataFilterFunctions[obj.func]) return this.constructor.oDataFilterFunctions[obj.func](obj.args);
             else throw this.getError(Boom.notImplemented, '$filter', {
                 value: obj.func || obj.type,
                 type: (obj.func) ? 'function' : 'operator'
@@ -231,21 +226,49 @@ class Parser {
         };
         return builder(filter);
     }
-    static _convertToEagerExpression(array, type = null, reference = {}) {
+    _convertToEagerExpression(array, type = null) {
+
+        // Validate top-level max number of columns/relations
+        if (type) {
+            let maxLength = (type === '$select') ? this.options.maxColumns : this.options.maxRelations;
+            let typeDesc = (type === '$select') ? 'attributes' : 'relations';
+            if (array.length > maxLength) {
+                throw this.getError(Boom.badRequest, type, {
+                    value: array.length,
+                    type: `number of ${typeDesc}`,
+                    reason: `Only '${maxLength}' ${typeDesc} allowed in the same request`
+                });
+            }
+        }
+
+        let currentRef = this.options.reference;
         let objectifiedArray = _.zipObjectDeep(array);
-        let out = Object.keys(objectifiedArray).reduce(_createObjectionColumnExpression(objectifiedArray), '');
-        return `[${out}]`;
-        function _createObjectionColumnExpression(obj) {
+        let depth = (type === '$select') ? -1 : 0;
+
+        // Recursive function
+        let createObjectionColumnExpression = (obj) => {
+            depth++;
+            if (type && depth > this.options.maxRecursionDepth) {
+                throw this.getError(Boom.badRequest, type, {
+                    value: depth,
+                    type: 'number of nested relations',
+                    reason: `Only '${this.options.maxRecursionDepth}' nested relations allowed`
+                });
+            }
             return function objectionColumnExpressionReducer(previousValue, currentValue, index, array) {
                 let retval = currentValue;
                 if (obj[currentValue]) {
-                    let subValue = Object.keys(obj[currentValue]).reduce(_createObjectionColumnExpression(obj[currentValue]));
+                    let subValue = Object.keys(obj[currentValue]).reduce(createObjectionColumnExpression(obj[currentValue]));
                     retval = `${currentValue}.[${subValue}]`;
                 }
                 if (previousValue) retval = `${previousValue},${retval}`;
                 return retval;
             };
-        }
+        };
+
+        // Parse
+        let out = Object.keys(objectifiedArray).reduce(createObjectionColumnExpression(objectifiedArray), '');
+        return `[${out}]`;
     }
 }
 
