@@ -39,6 +39,7 @@ export default () => {
                 error: {
                     code : error.output.payload.code || '',
                     message: error.output.payload.message,
+                    errors: error.output.payload.errors,
                     stack: error.output.payload.stack
                 }
             };

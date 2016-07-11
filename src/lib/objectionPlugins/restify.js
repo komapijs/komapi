@@ -2,43 +2,10 @@
 
 // Dependencies
 import _ from 'lodash';
-import Boom from 'boom';
-import oDataParser from 'odata-parser';
+import Parser from '../restify/parser';
 import RelationExpression from 'objection/lib/queryBuilder/RelationExpression';
 import EagerFetcher from 'objection/lib/queryBuilder/EagerFetcher';
 import ValidationError from 'objection/lib/ValidationError';
-
-// Init
-const defaultOpts = {
-    $count: {
-        default: false
-    },
-    $skip : {
-        default: 0
-    },
-    $top: {
-        allow: 100,
-        default: 10
-    },
-    $select: {
-        allow: false,
-        default: false
-    },
-    $expand: {
-        allow: [],
-        default: []
-    }
-};
-const oDataFilterOperators = {
-    eq: '=',
-    ne: '<>',
-    lt: '<',
-    le: '<=',
-    gt: '>',
-    ge: '>=',
-    and: 'andWhere',
-    or: 'orWhere'
-};
 
 // Exports
 export default (BaseModel) => {
@@ -67,70 +34,30 @@ export default (BaseModel) => {
 
     // Query builder
     class QueryBuilder extends Model.QueryBuilder {
-        getAllowedColumns() {
-            if (this.context().oDataFilter.$select.allow) return this.context().oDataFilter.$select.allow.concat(this._modelClass.getIdColumnArray());
+        getAllowedColumns(allowedColumns = []) {
+            if (allowedColumns.length > 0) return allowedColumns.concat(this._modelClass.getIdColumnArray());
             else if (this._modelClass.jsonSchema && this._modelClass.jsonSchema.properties) return Object.keys(this._modelClass.jsonSchema.properties).concat(this._modelClass.getIdColumnArray());
-            return false;
+            return [];
         }
-        oDataFilter(userQuery = {}, opts) {
-            this.context().oDataFilter = opts = _.defaults({}, opts, defaultOpts);
-            let columnsAllow = this.getAllowedColumns();
-            let invalidColumns = [];
-            let parameters = ['$top', '$skip', '$orderby', '$select', '$filter', '$expand'];
-            let query = _.pick(userQuery, parameters);
-            try {
-                if (Object.keys(query).length > 0) {
-                    query = oDataParser.parse(_.reduce(query, function reduceQueryToString(result, value, key) {
-                        if (result !== '') result += '&';
-                        return `${result}${key}=${value}`;
-                    }, ''));
-                    if (query.error) throw Boom.badRequest(`The following error occurred: '${query.error}'. Please try again with valid a oData expression`, query);
-                }
-            }
-            catch (err) {
-                if (err.isBoom) throw err;
-                throw Boom.badRequest('There was an unknown error in your oData expression. Please try again with valid a oData expression', err);
-            }
+        oDataFilter(oDataQuery = {}, opts) {
+            opts.columns = this.getAllowedColumns(opts.columns);
+            let parser = new Parser(oDataQuery, opts);
+            let query = parser.parse();
 
             // Prepare data
-            query.$select = (query.$select) ? query.$select.map((v) => v.replace(/\//g, '.')) : [];
-            let [selfColumns, relatedColumns] = _.partition(query.$select, (v) => v.indexOf('.') === -1);
-            query.$count = userQuery.$count;
+            let [$selectSelf, $selectRelated] = _.partition(query.$select, (v) => v.indexOf('.') === -1);
 
             // Create query
-            if (query.$filter) this.where(applyFilter.call(this, query.$filter, opts));
-
-            if (query.$orderby) query.$orderby.forEach((obj) => {
-                return Object.keys(obj).forEach((k) => {
-                    if (columnsAllow && columnsAllow.indexOf(k) === -1) throw Boom.badRequest(`The following error occurred: 'unknown attribute ${k} in $orderby'. Please try again with valid a oData expression`, query.$orderby);
-                    this.orderBy(k, obj[k].toUpperCase());
-                });
-            });
-
+            if (query.$filter) this.where(query.$filter);
+            if (query.$orderby) _.forEach(query.$orderby, this.orderBy);
             if (query.$skip) this.offset(query.$skip);
-            else this.offset(opts.$skip.default);
-
-            if (query.$top) this.limit( _.clamp(query.$top, 0, opts.$top.allow));
-            else this.limit(opts.$top.default);
-
+            if (query.$top) this.limit(query.$top);
             if (query.$expand) {
-                if (relatedColumns && relatedColumns.length > 0) this.context()._eagerColumns = RelationExpression.parse(createObjectionColumnExpressionFromArray(relatedColumns));
-                this.eager(`[${query.$expand.join(',').replace(/\//g, '.')}]`);
+                if ($selectRelated.length > 0) this.context()._eagerColumns = RelationExpression.parse(createObjectionColumnExpressionFromArray($selectRelated));
+                this.eager(`[${query.$expand.join(',')}]`);
             }
-
-            if (selfColumns && selfColumns.length > 0) {
-                if (columnsAllow && (invalidColumns = _.difference(selfColumns, columnsAllow)).length > 0) throw Boom.badRequest(`The following error occurred: 'unknown attributes ${invalidColumns.join(',')} in $select'. Please try again with valid a oData expression`, query.$select);
-                this.columns(selfColumns);
-            }
-            else if (opts.$select.default) this.columns(opts.$select.default);
-
-            if (query.$count) {
-                if (['true', 'false', true, false].indexOf(query.$count) === -1) throw Boom.badRequest(`The following error occurred: 'unknown value ${query.$count} in $count'. Only 'true' or 'false' allowed. Please try again with valid a oData expression`, query.$count);
-                query.$count = (['true', true].indexOf(query.$count) > -1);
-            }
-            else query.$count = opts.$count.default;
-
-            this._oData = query;
+            if ($selectSelf.length > 0) this.columns($selectSelf);
+            if (query.$count) this.context().withCount = query.$count;
             return this;
         }
         withMeta(type) {
@@ -146,7 +73,7 @@ export default (BaseModel) => {
             let promises = [
                 super.execute()
             ];
-            if (this._oData && this._oData.$count) promises.push(this.resultSize());
+            if (this.context().withCount) promises.push(this.resultSize());
             return Promise.all(promises).then((res) => {
                 let [models, total] = res;
                 let out = {
@@ -172,32 +99,6 @@ export default (BaseModel) => {
 };
 
 // Functions
-function applyFilter(filter, opts) {
-    const columns = this.getAllowedColumns();
-    function builder(obj) {
-        if (obj.left && obj.left.type === 'property' && obj.right && obj.right.type === 'literal' && oDataFilterOperators[obj.type]) {
-            if (columns && columns.indexOf(obj.left.name) === -1) throw Boom.badRequest(`The following error occurred: 'unknown attribute ${obj.left.name} in $filter'. Please try again with valid a oData expression`, filter);
-            if (_.isArray(obj.right.value) && _.difference(obj.right.value, ['null', '']).length === 0) {
-                if (obj.type === 'eq') return function () {
-                    this.whereNull(obj.left.name);
-                };
-                else if (obj.type === 'ne') return function () {
-                    this.whereNotNull(obj.left.name);
-                };
-                else throw Boom.notImplemented(`The following error occurred: 'invalid operator ${obj.type} in $filter for ${obj.right.value}'. Please try again with valid a oData expression`, filter);
-            }
-            else return function () {
-                this.where(obj.left.name, oDataFilterOperators[obj.type], obj.right.value);
-            };
-        }
-        else if (oDataFilterOperators[obj.type]) return function () {
-            this.where(builder(obj.left))[oDataFilterOperators[obj.type]](builder(obj.right));
-        };
-
-        else throw Boom.notImplemented(`The following error occurred: 'invalid operator ${(obj.func) ? `${obj.type} of type ${obj.func}` : obj.type} in $filter'. Please try again with valid a oData expression`, filter);
-    }
-    return builder(filter);
-}
 function _restifiedFetchRelation(relation, nextEager) {
     let queryBuilder = relation.ownerModelClass.RelatedQueryBuilder.forClass(relation.relatedModelClass).childQueryOf(this.rootQuery);
     let operation = relation.find(queryBuilder, this.models);
@@ -227,7 +128,7 @@ function _restifiedFetchRelation(relation, nextEager) {
         }
     }
     cols = _.uniq(cols);
-    return queryBuilder.select(cols).debug().then(related => {
+    return queryBuilder.select(cols).then(related => {
         return this._fetchNextEager(relation, related, nextEager);
     });
 }

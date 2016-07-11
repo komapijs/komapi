@@ -204,7 +204,7 @@ export default class Komapi extends Koa{
                         else if (ctx.request.method === 'GET' && ctx.request.query[opts.sendSchema] !== undefined && ctx.request.query[opts.sendSchema] !== 'false')  return ctx.send(schema);
                     }
                     let valid = await validate(ctx.request[opts.key]);
-                    if (!valid) throw Schema.parseValidationErrors(validate.errors, schema, ctx.request[opts.key]);
+                    if (!valid) throw Schema.parseValidationErrors(validate.errors, schema, undefined, ctx.request[opts.key]);
                     return next();
                 };
             },

@@ -32,16 +32,16 @@ export default class Schema extends Ajv {
             jsonPointers: false
         }, opts));
     }
-    static parseValidationErrors(errors, schema, data) {
+    static parseValidationErrors(errors, schema, message, data) {
         let messages = {};
-        let message = 'No data provided';
+        message = message || ((data) ? 'Invalid data provided' : 'No data provided');
         if (data) {
-            message = 'Invalid data provided';
             errors.forEach((error) => {
                 let descError = this._getDescriptiveError(error);
                 _.set(messages, descError.dataPath, {
                     message: descError.message,
-                    schemaPath: error.schemaPath
+                    schemaPath: decodeURIComponent(error.schemaPath),
+                    data: descError.data
                 });
             });
         }
@@ -55,20 +55,23 @@ export default class Schema extends Ajv {
             enum: (e) => {
                 return {
                     dataPath: e.dataPath,
-                    message: `${e.message} (${e.schema.join(', ')})`
+                    message: `${e.message} (${e.schema.join(', ')})`,
+                    data: error.data
                 };
             },
             required: (e) => {
                 return {
                     dataPath: `${e.dataPath}.${e.params.missingProperty}`,
-                    message: 'should be present'
+                    message: 'should be present',
+                    data: error.data
                 };
             }
         };
         if (mapping[error.keyword]) return mapping[error.keyword](error);
         return {
             dataPath: error.dataPath,
-            message: error.message
+            message: error.message,
+            data: error.data
         };
     }
 }
