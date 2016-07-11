@@ -63,6 +63,9 @@ export default class Komapi extends Koa{
         // Housekeeping
         process.env.NODE_ENV = this.config.env;
 
+        // Setup
+        if (this.config.env === 'development') require('longjohn');
+
         // Integrate with Koa
         [
             'env',
@@ -285,9 +288,21 @@ export default class Komapi extends Koa{
     use(mountAt, ...fn) {
         if (typeof mountAt === 'function') fn.unshift(mountAt);
         if (typeof mountAt !== 'string') mountAt = '/';
-        if (fn.length > 1) fn = compose(fn);
+        if (fn.length > 1) {
+            let name = `[${fn.map((f) => f.name).join(', ')}]`;
+            fn = compose(fn);
+            Object.defineProperty(fn, 'name', {
+                value: name
+            });
+        }
         else fn = fn.pop();
-        if (mountAt !== '/') fn = mount(mountAt, fn);
+        if (mountAt !== '/') {
+            let name = fn.name;
+            fn = mount(mountAt, fn);
+            Object.defineProperty(fn, 'name', {
+                value: name
+            });
+        }
         if (this.config.routePrefix !== '/') fn = mount(this.config.routePrefix, fn);
         this.log.debug({
             mountedAt: mountAt,
