@@ -4493,7 +4493,7 @@
     },
     "source-map-support": {
       "version": "0.4.1",
-      "from": "source-map-support@>=0.4.0 <0.5.0",
+      "from": "source-map-support@latest",
       "resolved": "https://registry.npmjs.org/source-map-support/-/source-map-support-0.4.1.tgz",
       "dependencies": {
         "source-map": {
