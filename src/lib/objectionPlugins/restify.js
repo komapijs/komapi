@@ -68,16 +68,16 @@ export default (BaseModel) => {
     // Query builder
     class QueryBuilder extends Model.QueryBuilder {
         getAllowedColumns() {
-            if (this._modelClass.jsonSchema && this._modelClass.jsonSchema.properties) return Object.keys(this._modelClass.jsonSchema.properties).concat(this._modelClass.getIdColumnArray());
-            return [];
+            if (this.context().oDataFilter.$select.allow) return this.context().oDataFilter.$select.allow.concat(this._modelClass.getIdColumnArray());
+            else if (this._modelClass.jsonSchema && this._modelClass.jsonSchema.properties) return Object.keys(this._modelClass.jsonSchema.properties).concat(this._modelClass.getIdColumnArray());
+            return false;
         }
         oDataFilter(userQuery = {}, opts) {
-            this.context().oDataFilter = true;
+            this.context().oDataFilter = opts = _.defaults({}, opts, defaultOpts);
             let columnsAllow = this.getAllowedColumns();
             let invalidColumns = [];
             let parameters = ['$top', '$skip', '$orderby', '$select', '$filter', '$expand'];
             let query = _.pick(userQuery, parameters);
-            opts = _.defaults({}, opts, defaultOpts);
             try {
                 if (Object.keys(query).length > 0) {
                     query = oDataParser.parse(_.reduce(query, function reduceQueryToString(result, value, key) {
@@ -102,7 +102,7 @@ export default (BaseModel) => {
 
             if (query.$orderby) query.$orderby.forEach((obj) => {
                 return Object.keys(obj).forEach((k) => {
-                    if (columnsAllow.length > 0 && columnsAllow.indexOf(k) === -1) throw Boom.badRequest(`The following error occurred: 'unknown attribute ${k} in $orderby'. Please try again with valid a oData expression`, query.$orderby);
+                    if (columnsAllow && columnsAllow.indexOf(k) === -1) throw Boom.badRequest(`The following error occurred: 'unknown attribute ${k} in $orderby'. Please try again with valid a oData expression`, query.$orderby);
                     this.orderBy(k, obj[k].toUpperCase());
                 });
             });
@@ -119,7 +119,7 @@ export default (BaseModel) => {
             }
 
             if (selfColumns && selfColumns.length > 0) {
-                if ((opts.$select.allow || columnsAllow.length > 0) && (invalidColumns = _.difference(selfColumns, opts.$select.allow || [], columnsAllow)).length > 0) throw Boom.badRequest(`The following error occurred: 'unknown attributes ${invalidColumns.join(',')} in $select'. Please try again with valid a oData expression`, query.$select);
+                if (columnsAllow && (invalidColumns = _.difference(selfColumns, columnsAllow)).length > 0) throw Boom.badRequest(`The following error occurred: 'unknown attributes ${invalidColumns.join(',')} in $select'. Please try again with valid a oData expression`, query.$select);
                 this.columns(selfColumns);
             }
             else if (opts.$select.default) this.columns(opts.$select.default);
@@ -176,7 +176,7 @@ function applyFilter(filter, opts) {
     const columns = this.getAllowedColumns();
     function builder(obj) {
         if (obj.left && obj.left.type === 'property' && obj.right && obj.right.type === 'literal' && oDataFilterOperators[obj.type]) {
-            if (columns.length > 0 && columns.indexOf(obj.left.name) === -1) throw Boom.badRequest(`The following error occurred: 'unknown attribute ${obj.left.name} in $filter'. Please try again with valid a oData expression`, filter);
+            if (columns && columns.indexOf(obj.left.name) === -1) throw Boom.badRequest(`The following error occurred: 'unknown attribute ${obj.left.name} in $filter'. Please try again with valid a oData expression`, filter);
             if (_.isArray(obj.right.value) && _.difference(obj.right.value, ['null', '']).length === 0) {
                 if (obj.type === 'eq') return function () {
                     this.whereNull(obj.left.name);
