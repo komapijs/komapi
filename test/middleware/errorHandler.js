@@ -57,7 +57,7 @@ test('supports text when JSON is unacceptable', async t => {
     t.deepEqual(res.body, {});
     t.is(res.text, JSON.stringify(defaultErrorResponse, null, 2));
 });
-test('responds with 406 using JSON for no acceptable response types', async t => {
+test('responds with 406 using text for no acceptable response types', async t => {
     let app = appFactory({
         env: 'production'
     });
@@ -68,10 +68,7 @@ test('responds with 406 using JSON for no acceptable response types', async t =>
         .get('/')
         .set('Accept', 'text/html,application/xml');
     t.is(res.status, 406);
-    t.deepEqual(res.body, {
-        statusCode: 406,
-        error: 'Not Acceptable'
-    });
+    t.deepEqual(res.text, 'Error: Not Acceptable');
 });
 test('does not provide stacktraces in production', async t => {
     let app = appFactory({
