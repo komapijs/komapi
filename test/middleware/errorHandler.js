@@ -5,13 +5,16 @@ import test from 'ava';
 import appFactory from '../fixtures/appFactory';
 import {agent as request} from 'supertest-as-promised';
 import Boom from 'boom';
+import _ from 'lodash';
 
 // Init
 process.setMaxListeners(13); // Fix false positive memory leak messages because of many Komapi instances. This should be exactly the number of times appFactory() is called in this file
 const defaultErrorResponse = {
-    statusCode: 500,
-    error: 'Internal Server Error',
-    message: 'An internal server error occurred'
+    error: {
+        code: '',
+        status: 500,
+        message: 'An internal server error occurred'
+    }
 };
 const schema = {
     $schema: 'http://json-schema.org/draft-04/schema#',
@@ -81,7 +84,7 @@ test('does not provide stacktraces in production', async t => {
         .get('/')
         .set('Accept', '*/*');
     t.is(res.status, 500);
-    t.deepEqual(res.body, defaultErrorResponse);
+    t.is(res.body.error.stack, undefined);
 });
 test('provides stacktraces in development', async t => {
     let app = appFactory();
@@ -95,8 +98,9 @@ test('provides stacktraces in development', async t => {
         .get('/')
         .set('Accept', '*/*');
     t.is(res.status, 500);
-    let expectedBody = Object.assign({}, defaultErrorResponse, {stack: stack.split('\n')});
-    t.deepEqual(res.body, expectedBody);
+    let defaultError = _.cloneDeep(defaultErrorResponse);
+    defaultError.error.stack = stack.split('\n');
+    t.deepEqual(res.body, defaultError);
 });
 test('handles stacktraces in array format', async t => {
     let app = appFactory();
@@ -111,8 +115,9 @@ test('handles stacktraces in array format', async t => {
         .get('/')
         .set('Accept', '*/*');
     t.is(res.status, 500);
-    let expectedBody = Object.assign({}, defaultErrorResponse, {stack: stack.split('\n')});
-    t.deepEqual(res.body, expectedBody);
+    let defaultError = _.cloneDeep(defaultErrorResponse);
+    defaultError.error.stack = stack.split('\n');
+    t.deepEqual(res.body, defaultError);
 });
 test('supports custom headers when using JSON', async t => {
     let app = appFactory({
@@ -126,11 +131,10 @@ test('supports custom headers when using JSON', async t => {
         .set('Accept', '*/*');
     t.is(res.status, 401);
     t.deepEqual(res.body, {
-        statusCode: 401,
-        error: 'Unauthorized',
-        message: 'invalid password',
-        attributes: {
-            error: 'invalid password'
+        error: {
+            code: '',
+            status: 401,
+            message: 'invalid password'
         }
     });
     t.is(res.headers['www-authenticate'], 'sample error="invalid password"');
@@ -148,11 +152,10 @@ test('supports custom headers when using text', async t => {
     t.is(res.status, 401);
     t.deepEqual(res.body, {});
     t.is(res.text, JSON.stringify({
-        statusCode: 401,
-        error: 'Unauthorized',
-        message: 'invalid password',
-        attributes: {
-            error: 'invalid password'
+        error: {
+            code: '',
+            status: 401,
+            message: 'invalid password'
         }
     }, null, 2));
     t.is(res.headers['www-authenticate'], 'sample error="invalid password"');
@@ -172,15 +175,19 @@ test('natively handles schemaValidationError exceptions using 400', async t => {
         .get('/');
     t.is(res.status, 400);
     t.deepEqual(res.body, {
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'Invalid data provided',
-        errors: {
-            stringvalue: {
-                message: 'should be string',
-                schemaPath:'#/properties/stringvalue/type'
+        error: {
+            code: '',
+            status: 400,
+            message: 'Invalid data provided',
+            errors: {
+                stringvalue: {
+                    message: 'should be string',
+                    schemaPath:'#/properties/stringvalue/type',
+                    data: 1234
+                }
             }
         }
+
     });
 });
 test('provides an empty errors object during schemaValidationError exceptions if no details were provided', async t => {
@@ -192,11 +199,11 @@ test('provides an empty errors object during schemaValidationError exceptions if
         .get('/');
     t.is(res.status, 400);
     t.deepEqual(res.body, {
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'No data provided',
-        errors: {
-
+        error: {
+            code: '',
+            status: 400,
+            message: 'No data provided',
+            errors: {}
         }
     });
 });
@@ -213,6 +220,6 @@ test('handles invalid error objects gracefully', async t => {
     const res = await request(app.listen())
         .get('/');
     t.is(res.status, 500);
-    t.is(res.body.message, 'An internal server error occurred');
-    t.is(res.body.stack[0], 'Error: Cannot wrap non-Error object');
+    t.is(res.body.error.message, 'An internal server error occurred');
+    t.is(res.body.error.stack[0], 'Error: Cannot wrap non-Error object');
 });

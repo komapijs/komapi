@@ -51,11 +51,13 @@ test('provides middleware to ensure requests adheres to a json schema', async t 
             t.deepEqual(err.errors, {
                 enumvalue: {
                     message: 'should be present',
-                    schemaPath: '#/required'
+                    schemaPath: '#/required',
+                    data: null
                 },
                 stringvalue: {
                     message: 'should be string',
-                    schemaPath: '#/properties/stringvalue/type'
+                    schemaPath: '#/properties/stringvalue/type',
+                    data: 1234
                 }
             });
         }
