@@ -252,6 +252,7 @@ export default class Komapi extends Koa{
         return this.use(this.passport.initialize());
     }
     restify(Model, opts) {
+        if (!Model || !this.orm[Model]) throw new Error(`Invalid model '${Model}' provided. The model has not been loaded into ORM`);
         if (_.isString(Model)) Model = this.orm[Model];
         return new Resource(Model, opts);
     }

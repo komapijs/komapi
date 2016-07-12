@@ -113,7 +113,7 @@ class Parser {
             let type = extra.type || 'value';
             if (_.isArray(extra.value)) {
                 type = pluralize(type);
-                msg += `${what} ${type} '[${extra.value.join("', '")}]`;
+                msg += `${what} ${type} '[${extra.value.join("', '")}]'`;
             }
             else  msg += `${what} ${type} '${extra.value}'`;
             if (extra.reason) msg += ` in parameter '${parameter}'. ${extra.reason}. Please try again with a valid expression.`;
@@ -231,7 +231,7 @@ class Parser {
                         });
                     }
                     if (v) {
-                        let newReference = (reference.resource && reference.resource.registry) ? _.get(reference, `resource.registry.${_.get(reference, `resource.Model.relationMappings.${k}.modelClass.name`)}.oDataOptions`) : reference;
+                        let newReference = (reference.resource && reference.resource.registry && reference.resource.Model && reference.resource.Model.relationMappings && reference.resource.Model.relationMappings[k]) ? _.get(reference, `resource.registry.${reference.resource.Model.getRelation(k).relatedModelClass.name}.oDataOptions`) : reference;
                         if (!reference.relations || !newReference || reference.relations.indexOf(k) === -1) {
                             throw parser.getError(Boom.badRequest, '$select', {
                                 value: nextPath.replace(/\./g, '/'),
@@ -269,7 +269,7 @@ class Parser {
         function verifySelect(attributes) {
             let reference = (parser.resource) ? parser.resource.oDataOptions : parser.options;
             let invalidColumns = [];
-            if (!reference.columns || (invalidColumns = _.difference(attributes, reference.columns)).length > 0) {
+            if (reference.columns && (invalidColumns = _.difference(attributes, reference.columns)).length > 0) {
                 let type = 'attribute';
                 throw parser.getError(Boom.badRequest, '$select', {
                     value: invalidColumns,
@@ -277,6 +277,7 @@ class Parser {
                     appendReason: `does not exist`
                 });
             }
+            return attributes;
         }
         return {
             $select: verifySelect($select),
@@ -299,7 +300,7 @@ class Parser {
         let objectifiedArray = _.zipObjectDeep(array);
         let parser = this;
         function buildEagerExpression(obj) {
-            function splitKey(obj, reference, path, depth = -1) {
+            function splitKey(obj, reference, path, depth = 0) {
                 depth++;
                 if (depth > parser.options.maxRecursionDepth) {
                     throw parser.getError(Boom.badRequest, '$expand', {
@@ -312,9 +313,9 @@ class Parser {
                 let out = [];
                 _.forOwn(obj, (v, k) => {
                     path = (path) ? `${path}.${k}` : k;
-                    let newReference = (reference.resource && reference.resource.registry) ? _.get(reference, `resource.registry.${_.get(reference, `resource.Model.relationMappings.${k}.modelClass.name`)}.oDataOptions`) : reference;
+                    let newReference = (reference.resource && reference.resource.registry && reference.resource.Model && reference.resource.Model.relationMappings && reference.resource.Model.relationMappings[k]) ? _.get(reference, `resource.registry.${reference.resource.Model.getRelation(k).relatedModelClass.name}.oDataOptions`) : reference;
                     if (!reference.relations || !newReference || reference.relations.indexOf(k) === -1) {
-                        throw parser.getError(Boom.badRequest, '$select', {
+                        throw parser.getError(Boom.badRequest, '$expand', {
                             value: path.replace(/\./g, '/'),
                             type: 'relation',
                             appendReason: `does not exist`
