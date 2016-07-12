@@ -6,13 +6,15 @@ import Boom from 'boom';
 // Init
 export default class Restify {
     constructor(resources) {
+        this.registry = {};
         this.resources = resources;
-        // this.reference = this.buildReference();
+        this._buildRegistry();
     }
-    buildReference() {
+    _buildRegistry() {
         this.resources.forEach((resource) => {
-            if (this.reference[resource.Model.name]) throw new Error(`REST resources must be unique! Unable to register '${resource.Model.name}' as REST resource more than once.`);
-            this.reference[resource.Model.name] = resource;
+            if (this.registry[resource.Model.name]) throw new Error(`REST resources must be unique! Unable to register '${resource.Model.name}' as REST resource more than once.`);
+            this.registry[resource.Model.name] = resource;
+            resource.registry = this.registry;
         });
     }
     static getIdParameter(resource) {
@@ -34,9 +36,6 @@ export default class Restify {
     register(router) {
         this.resources.forEach((resource) => {
             resource.manager = this;
-            resource.oData({
-                reference: this.reference
-            });
             let baseRoute = `${resource.basePath}`;
             resource.routes.forEach((route) => {
                 let path = baseRoute;

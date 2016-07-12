@@ -3,9 +3,6 @@
 // Dependencies
 import _ from 'lodash';
 import Parser from '../restify/parser';
-import RelationExpression from 'objection/lib/queryBuilder/RelationExpression';
-import EagerFetcher from 'objection/lib/queryBuilder/EagerFetcher';
-import ValidationError from 'objection/lib/ValidationError';
 
 // Exports
 export default (BaseModel) => {
@@ -30,31 +27,40 @@ export default (BaseModel) => {
             const relatedClass = this.constructor.getRelation(relationName).relatedModelClass;
             return super.$relatedQuery(relationName).select(relatedClass.getIdColumnArray().map((v) => `${relatedClass.tableName}.${v}`));
         }
+        static getSystemColumns() {
+            return this.getIdColumnArray();
+        }
+        static getAllColumns(allowedColumns) {
+            if (allowedColumns) return allowedColumns.concat(this.getSystemColumns());
+            else if (this.jsonSchema && this.jsonSchema.properties) return Object.keys(this.jsonSchema.properties).concat(this.getSystemColumns());
+            return null;
+        }
     }
 
     // Query builder
     class QueryBuilder extends Model.QueryBuilder {
-        getAllowedColumns(allowedColumns = []) {
-            if (allowedColumns.length > 0) return allowedColumns.concat(this._modelClass.getIdColumnArray());
-            else if (this._modelClass.jsonSchema && this._modelClass.jsonSchema.properties) return Object.keys(this._modelClass.jsonSchema.properties).concat(this._modelClass.getIdColumnArray());
-            return [];
+        getAllowedColumns(allowedColumns) {
+            return this._modelClass.getAllColumns(allowedColumns);
         }
         oDataFilter(oDataQuery = {}, opts) {
             opts.columns = this.getAllowedColumns(opts.columns);
             let parser = new Parser(oDataQuery, opts);
             let query = parser.parse();
 
-            // Prepare data
             // Create query
             if (query.$filter) this.where(query.$filter);
             if (query.$orderby) _.forEach(query.$orderby, this.orderBy);
             if (query.$skip) this.offset(query.$skip);
             if (query.$top) this.limit(query.$top);
-            if (query.$expand) {
-                if (query.$select && query.$select.$expand) this.context()._eagerColumns = RelationExpression.parse(query.$select.$expand);
-                this.eager(query.$expand);
+            if (query.$expand)  this.eager(query.$expand);
+            if (query.$select) {
+                if (query.$select.$select) this.columns(query.$select.$select);
+                if (query.$select.$expand) {
+                    _.forOwn(query.$select.$expand, (v, k) => {
+                        this.filterEager(k, (qb) => qb.select(v));
+                    });
+                }
             }
-            if (query.$select && query.$select.$select) this.columns(query.$select.$select);
             if (query.$count) this.context().withCount = query.$count;
             return this;
         }
@@ -90,43 +96,5 @@ export default (BaseModel) => {
     Model.QueryBuilder = QueryBuilder;
     Model.RelatedQueryBuilder = RelatedQueryBuilder;
 
-    // Override the eager fetching mechanism to only use explicit columns
-    EagerFetcher.prototype._fetchRelation = _restifiedFetchRelation;
-
     return Model;
 };
-
-// Functions
-function _restifiedFetchRelation(relation, nextEager) {
-    let queryBuilder = relation.ownerModelClass.RelatedQueryBuilder.forClass(relation.relatedModelClass).childQueryOf(this.rootQuery);
-    let operation = relation.find(queryBuilder, this.models);
-
-    queryBuilder.callQueryBuilderOperation(operation, []);
-
-    _.each(nextEager.args, filterName => {
-        let filter = this.filters[filterName];
-
-        if (!_.isFunction(filter)) {
-            throw new ValidationError({eager: 'could not find filter "' + filterName + '" for relation "' + relation.name + '"'});
-        }
-
-        filter(queryBuilder);
-    });
-
-    // Customizations
-    let cols = relation.relatedModelClass.getDefaultColumns();
-    if (this.rootQuery.context()._eagerColumns) {
-        let eagerCols = this.rootQuery.context()._eagerColumns.childExpression(relation.name);
-        if (eagerCols) {
-            eagerCols = Object.keys(eagerCols.children).map((k) => {
-                if (relation.relatedModelClass.relationMappings && relation.relatedModelClass.relationMappings[k]) return k;
-                return `${relation.relatedModelClass.tableName}.${k}`;
-            });
-            cols = cols.concat(eagerCols);
-        }
-    }
-    cols = _.uniq(cols);
-    return queryBuilder.select(cols).then(related => {
-        return this._fetchNextEager(relation, related, nextEager);
-    });
-}

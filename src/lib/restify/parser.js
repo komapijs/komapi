@@ -21,9 +21,10 @@ let ajv = new Ajv({
 class Parser {
     static get defaultOptions() {
         return {
-            reference: {},
-            columns: [],
-            relations: [],
+            resource: null,
+            idColumnArray: [],
+            columns: null,
+            relations: null,
             maxRecursionDepth: 2,
             maxRelations: 10,
             maxColumns: 50,
@@ -106,12 +107,17 @@ class Parser {
     getError(errorObj, parameter, extra = {}, meta = {}) {
         meta.options = this.options;
         let msg = '';
-        let type = extra.type || 'value';
         let what = (extra.reason) ? 'Invalid' : 'Unknown';
         if (extra.value) {
-            if (_.isArray(extra.value)) msg += `${what} ${pluralize(type)} '${extra.value.join("', '")}`;
+            if (_.isArray(extra.value) && extra.value.length === 1) extra.value = extra.value[0];
+            let type = extra.type || 'value';
+            if (_.isArray(extra.value)) {
+                type = pluralize(type);
+                msg += `${what} ${type} '[${extra.value.join("', '")}]`;
+            }
             else  msg += `${what} ${type} '${extra.value}'`;
             if (extra.reason) msg += ` in parameter '${parameter}'. ${extra.reason}. Please try again with a valid expression.`;
+            else if (extra.appendReason) msg += ` in parameter '${parameter}'. ${_.upperFirst(type)} ${extra.appendReason}. Please try again with a valid expression.`;
             else msg += ` in parameter '${parameter}'. Please try again with a valid expression.`;
         }
         else if (parameter) msg = `The provided '${parameter}' is not a valid expression. Please try again with a valid expression.`;
@@ -157,43 +163,10 @@ class Parser {
         return value;
     }
     $expand(value) {
-        if (value) {
-            value = value.replace(/\//g, '.').split(',');
-            value = this._convertToEagerExpression(value, '$expand');
-            // if (value.length > opts.maxRelations) {
-            //     throw this.getError(Boom.badRequest, '$expand', {
-            //         value: value.length,
-            //         reason: `Only '${opts.maxRelations}' relations allowed`
-            //     }, {
-            //         $expand: value.join(',')
-            //     });
-            // }
-            // value.forEach((v) => {
-            //     let subV = v.split('/');
-            //     if (subV.length > opts.maxRecursionDepth) {
-            //         throw this.getError(Boom.badRequest, '$expand', {
-            //             value: v,
-            //             reason: `Only '${opts.maxRecursionDepth}' nested relations allowed`
-            //         }, {
-            //             $expand: value.join(',')
-            //         });
-            //     }
-            //     if (opts.reference) {}
-            //     else {
-            //
-            //     }
-            // });
-        }
-        return value;
+        return this._convertExpand(value);
     }
     $select(value) {
-        if (!value) return {};
-        let [$select, $expand] = _.partition(value.replace(/\//g, '.').split(','), (v) => v.indexOf('.') === -1);
-        $expand = this._convertToEagerExpression($expand, '$select');
-        return {
-            $select,
-            $expand
-        };
+        return this._convertSelect(value);
     }
     $count(value) {
         return value;
@@ -226,48 +199,139 @@ class Parser {
         };
         return builder(filter);
     }
-    _convertToEagerExpression(array, type = null) {
+    _convertSelect(value) {
+        if (!value) return null;
+        let [$select, $expand] = _.partition(value.replace(/\//g, '.').split(','), (v) => v.indexOf('.') === -1);
 
-        // Validate top-level max number of columns/relations
-        if (type) {
-            let maxLength = (type === '$select') ? this.options.maxColumns : this.options.maxRelations;
-            let typeDesc = (type === '$select') ? 'attributes' : 'relations';
-            if (array.length > maxLength) {
-                throw this.getError(Boom.badRequest, type, {
-                    value: array.length,
-                    type: `number of ${typeDesc}`,
-                    reason: `Only '${maxLength}' ${typeDesc} allowed in the same request`
+        // Validate
+        if (($select.length + $expand.length) > this.options.maxColumns) {
+            throw this.getError(Boom.badRequest, '$select', {
+                value: ($select.length + $expand.length),
+                type: `number of attributes`,
+                reason: `Only '${this.options.maxColumns}' attributes allowed in the same request`
+            });
+        }
+
+        let objectifiedArray = _.zipObjectDeep($expand);
+        let parser = this;
+        function buildExpandSelect(obj) {
+            function splitKey(obj, reference, path, depth = -1) {
+                depth++;
+                let out = {
+                    key: [],
+                    val: []
+                };
+                _.forOwn(obj, (v, k) => {
+                    let nextPath = (path) ? `${path}.${k}` : k;
+                    if (depth > parser.options.maxRecursionDepth) {
+                        throw parser.getError(Boom.badRequest, '$select', {
+                            value: path.replace(/\./g, '/'),
+                            type: 'attribute path',
+                            reason: `Only '${parser.options.maxRecursionDepth}' levels of nesting allowed`
+                        });
+                    }
+                    if (v) {
+                        let newReference = (reference.resource && reference.resource.registry) ? _.get(reference, `resource.registry.${_.get(reference, `resource.Model.relationMappings.${k}.modelClass.name`)}.oDataOptions`) : reference;
+                        if (!reference.relations || !newReference || reference.relations.indexOf(k) === -1) {
+                            throw parser.getError(Boom.badRequest, '$select', {
+                                value: nextPath.replace(/\./g, '/'),
+                                type: 'relation',
+                                appendReason: `does not exist`
+                            });
+                        }
+                        let sub = splitKey(v, newReference, nextPath, depth);
+                        let key = [sub.key].concat(_.fill([], sub.key, 0, reference.idColumnArray.length));
+                        let val = [sub.val].concat(reference.idColumnArray);
+
+                        out.key.push(key);
+                        out.val.push(val);
+                    }
+                    else {
+                        if (!reference.columns || reference.columns.indexOf(k) === -1) {
+                            throw parser.getError(Boom.badRequest, '$select', {
+                                value: path.replace(/\./g, '/'),
+                                type: 'attribute',
+                                appendReason: `does not exist`
+                            });
+                        }
+                        out.key.push(path);
+                        out.val.push(k);
+                    }
+                });
+
+                // Reset
+                depth = 0;
+                return out;
+            }
+            let o = splitKey(obj, (parser.resource) ? parser.resource.oDataOptions : parser.options);
+            return _.zipObject(o.key, o.val);
+        }
+        function verifySelect(attributes) {
+            let reference = (parser.resource) ? parser.resource.oDataOptions : parser.options;
+            let invalidColumns = [];
+            if (!reference.columns || (invalidColumns = _.difference(attributes, reference.columns)).length > 0) {
+                let type = 'attribute';
+                throw parser.getError(Boom.badRequest, '$select', {
+                    value: invalidColumns,
+                    type: type,
+                    appendReason: `does not exist`
                 });
             }
         }
-
-        let currentRef = this.options.reference;
-        let objectifiedArray = _.zipObjectDeep(array);
-        let depth = (type === '$select') ? -1 : 0;
-
-        // Recursive function
-        let createObjectionColumnExpression = (obj) => {
-            depth++;
-            if (type && depth > this.options.maxRecursionDepth) {
-                throw this.getError(Boom.badRequest, type, {
-                    value: depth,
-                    type: 'number of nested relations',
-                    reason: `Only '${this.options.maxRecursionDepth}' nested relations allowed`
-                });
-            }
-            return function objectionColumnExpressionReducer(previousValue, currentValue, index, array) {
-                let retval = currentValue;
-                if (obj[currentValue]) {
-                    let subValue = Object.keys(obj[currentValue]).reduce(createObjectionColumnExpression(obj[currentValue]));
-                    retval = `${currentValue}.[${subValue}]`;
-                }
-                if (previousValue) retval = `${previousValue},${retval}`;
-                return retval;
-            };
+        return {
+            $select: verifySelect($select),
+            $expand: buildExpandSelect(objectifiedArray)
         };
+    }
+    _convertExpand(value) {
+        if (!value) return null;
+        let array = value.replace(/\//g, '.').split(',');
 
-        // Parse
-        let out = Object.keys(objectifiedArray).reduce(createObjectionColumnExpression(objectifiedArray), '');
+        // Validate
+        if ((array.length) > this.options.maxRelations) {
+            throw this.getError(Boom.badRequest, '$expand', {
+                value: array.length,
+                type: `number of relations`,
+                reason: `Only '${this.options.maxRelations}' relations allowed in the same request`
+            });
+        }
+
+        let objectifiedArray = _.zipObjectDeep(array);
+        let parser = this;
+        function buildEagerExpression(obj) {
+            function splitKey(obj, reference, path, depth = -1) {
+                depth++;
+                if (depth > parser.options.maxRecursionDepth) {
+                    throw parser.getError(Boom.badRequest, '$expand', {
+                        value: depth,
+                        type: 'number of nested relations',
+                        reason: `Only '${parser.options.maxRecursionDepth}' nested relations allowed`
+                    });
+                }
+
+                let out = [];
+                _.forOwn(obj, (v, k) => {
+                    path = (path) ? `${path}.${k}` : k;
+                    let newReference = (reference.resource && reference.resource.registry) ? _.get(reference, `resource.registry.${_.get(reference, `resource.Model.relationMappings.${k}.modelClass.name`)}.oDataOptions`) : reference;
+                    if (!reference.relations || !newReference || reference.relations.indexOf(k) === -1) {
+                        throw parser.getError(Boom.badRequest, '$select', {
+                            value: path.replace(/\./g, '/'),
+                            type: 'relation',
+                            appendReason: `does not exist`
+                        });
+                    }
+                    let retval = k;
+                    if (v) {
+                        let subValues = splitKey(v, newReference, path, depth);
+                        retval = (subValues.indexOf(',') > -1) ? `${k}.[${subValues}]` : `${k}.${subValues}`;
+                    }
+                    out.push(`${retval}`);
+                });
+                return out.join(',');
+            }
+            return splitKey(obj, (parser.resource) ? parser.resource.oDataOptions : parser.options);
+        }
+        let out = buildEagerExpression(objectifiedArray);
         return `[${out}]`;
     }
 }

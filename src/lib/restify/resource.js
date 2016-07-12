@@ -10,10 +10,15 @@ import Parser from './parser';
 // Exports
 export default class Resource {
     constructor(Model, opts = {}) {
-        this.manager = null;
+        this.registry = null;
         this.basePath = opts.path || `/${pluralize(Model.name).toLowerCase()}`;
         this.Model = Model;
-        this.oDataOptions = _.defaultsDeep({}, opts, Parser.defaultOptions);
+        this.oDataOptions = _.defaultsDeep({}, opts, {
+            resource: this,
+            idColumnArray: this.Model.getIdColumnArray(),
+            columns: this.Model.getAllColumns(),
+            relations: (this.Model.relationMappings) ? Object.keys(this.Model.relationMappings) : null
+        }, Parser.defaultOptions);
         this.routes = [];
     }
     oData(opts) {
