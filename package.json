@@ -30,11 +30,10 @@
   "main": "index.js",
   "scripts": {
     "prebuild": "npm run clean --silent",
-    "build": "babel -q -D ./src/ --out-dir ./dist/",
+    "build": "babel -q -D -s true ./src/ --out-dir ./dist/",
     "check-deps": "nsp check --output summary && ncu --packageFile ./package.json",
     "clean": "del-cli ./dist ./coverage ./.nyc_output",
     "coverage": "nyc report --reporter=text --reporter=text-summary --reporter=html && nyc check-coverage --lines=100 --functions=100 --branches=100 --statements=100",
-    "dev-build": "babel -q -D -s true ./src/ --out-dir ./dist/",
     "lint": "eslint index.js src/",
     "pretest": "npm run clean --silent && npm run lint --silent",
     "test": "nyc --reporter=lcov ava --require babel-core/register --timeout 180s --concurrency=25",
@@ -70,7 +69,8 @@
     "objection": "^0.5.2",
     "odata-parser": "^1.4.1",
     "passport": "^0.3.2",
-    "recursive-readdir-sync": "^1.0.6"
+    "recursive-readdir-sync": "^1.0.6",
+    "source-map-support": "^0.4.1"
   },
   "devDependencies": {
     "ava": "^0.15.2",
