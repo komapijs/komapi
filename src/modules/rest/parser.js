@@ -63,7 +63,8 @@ let schema = new Schema({
     coerceTypes: true
 });
 
-class Parser {
+// Exports
+export default class Parser {
     constructor(opts) {
         this.options = opts;
         this.schema = this._buildSchema();
@@ -106,6 +107,3 @@ class Parser {
         return expandedSelect;
     }
 }
-
-// Exports
-export default Parser;
