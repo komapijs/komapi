@@ -5,9 +5,6 @@ import test from 'ava';
 import appFactory from '../../fixtures/appFactory';
 import * as ormFactory from '../../fixtures/ormFactory';
 
-// Init
-process.setMaxListeners(11); // Fix false positive memory leak messages because of many Komapi instances. This should be exactly the number of times appFactory() is called in this file
-
 // Tests
 test('is not enabled by default', async t => {
     let app = appFactory();
@@ -26,6 +23,10 @@ test('is not enabled by default', async t => {
     t.is(collection[0].updated_at, null);
     t.is(collection[0].created_at, collection[0].updated_at);
     t.is(collection[0].createdAt, collection[0].updatedAt);
+    t.is(app.orm.Test.systemColumns.indexOf('created_at'), -1);
+    t.is(app.orm.Test.systemColumns.indexOf('updated_at'), -1);
+    t.is(app.orm.Test.systemColumns.indexOf('createdAt'), -1);
+    t.is(app.orm.Test.systemColumns.indexOf('updatedAt'), -1);
 });
 test('is not enabled by default and does not impact schema validation', async t => {
     let app = appFactory();
@@ -66,6 +67,8 @@ test('is enabled by setting timestamps property', async t => {
     t.is(typeof collection[0].updated_at, 'string');
     t.is(collection[0].created_at, collection[0].updated_at);
     t.is(collection[0].createdAt, collection[0].updatedAt);
+    t.not(app.orm.Test.systemColumns.indexOf('created_at'), -1);
+    t.not(app.orm.Test.systemColumns.indexOf('updated_at'), -1);
 });
 test('sets updated_at on updates', async t => {
     let app = appFactory();
@@ -111,6 +114,8 @@ test('sets updated_at on updates with camelCase', async t => {
     t.not(person.updatedAt, ct);
     t.is(typeof person.updatedAt, 'string');
     t.is(person.updated_at, null);
+    t.not(app.orm.Test.systemColumns.indexOf('createdAt'), -1);
+    t.not(app.orm.Test.systemColumns.indexOf('updatedAt'), -1);
 });
 test('sets updated_at on updates with jsonSchema', async t => {
     let app = appFactory();

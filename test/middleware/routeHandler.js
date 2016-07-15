@@ -36,6 +36,23 @@ test('supports specifying specific route files', async t => {
         status: 'es5'
     });
 });
+test('supports using route modules directly', async t => {
+    let app = appFactory();
+    app.use(app.mw.route((router) => {
+        router.get('/ty', (ctx) => {
+            return ctx.body = {
+                ty: 'works'
+            };
+        });
+        return router;
+    }));
+    const res = await request(app.listen())
+        .get('/ty');
+    t.is(res.status, 200);
+    t.deepEqual(res.body, {
+        ty: 'works'
+    });
+});
 test('supports loading multiple middlewares at once', async t => {
     let app = appFactory();
     t.plan(6);

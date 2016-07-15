@@ -6,7 +6,7 @@ import {agent as request} from 'supertest-as-promised';
 import Koa from 'koa';
 import bodyParser from 'koa-bodyparser';
 import Router from 'koa-router';
-import Passport from '../../src/modules/passport';
+import Passport from '../../../src/modules/authentication/passport';
 import {Strategy as LocalStrategy} from 'passport-local';
 import {Strategy as AnonymousStrategy} from 'passport-anonymous';
 import {BasicStrategy} from 'passport-http';

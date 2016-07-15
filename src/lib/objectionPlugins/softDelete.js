@@ -1,16 +1,26 @@
 'use strict';
 
 // Exports
-export default (Model) => {
+export default (BaseModel) => {
+
+    // Model
+    class Model extends BaseModel {
+        static get softDeleteColumn() {
+            if (!this.softDelete) return null;
+            return (this.camelCase) ? 'deletedAt' : 'deleted_at';
+        }
+        static get systemColumns() {
+            return (this.softDeleteColumn) ? [this.softDeleteColumn] : [];
+        }
+    }
 
     // Query builder
     class QueryBuilder extends Model.QueryBuilder {
         constructor(modelClass) {
             super(modelClass);
-            this._softDeleteProperty = modelClass.camelCase ? 'deletedAt' : 'deleted_at';
-            if (modelClass.softDelete) {
+            if (modelClass.softDeleteColumn) {
                 this.onBuild(builder => {
-                    if (!builder.context().withArchived) builder.whereNull(this._softDeleteProperty);
+                    if (!builder.context().withArchived) builder.whereNull(modelClass.softDeleteColumn);
                 });
             }
         }
@@ -20,11 +30,10 @@ export default (Model) => {
     class RelatedQueryBuilder extends Model.RelatedQueryBuilder {
         constructor(modelClass) {
             super(modelClass);
-            this._softDeleteProperty = modelClass.camelCase ? 'deletedAt' : 'deleted_at';
-            if (modelClass.softDelete) {
+            if (modelClass.softDeleteColumn) {
                 this.onBuild(builder => {
                     if (!builder.context().withArchived) {
-                        builder.whereNull(this._softDeleteProperty);
+                        builder.whereNull(modelClass.softDeleteColumn);
                     }
                 });
             }
@@ -56,12 +65,12 @@ function del(opts = {}) {
 }
 function softDelete() {
     return this.patch({
-        [this._softDeleteProperty]: new Date().toISOString()
+        [this._modelClass.softDeleteColumn]: new Date().toISOString()
     });
 }
 function restore() {
     this.withArchived(true);
     return this.patch({
-        [this._softDeleteProperty]: null
+        [this._modelClass.softDeleteColumn]: null
     });
 }

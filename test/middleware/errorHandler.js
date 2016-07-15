@@ -8,7 +8,6 @@ import Boom from 'boom';
 import _ from 'lodash';
 
 // Init
-process.setMaxListeners(13); // Fix false positive memory leak messages because of many Komapi instances. This should be exactly the number of times appFactory() is called in this file
 const defaultErrorResponse = {
     error: {
         code: '',
@@ -166,7 +165,7 @@ test('natively handles schemaValidationError exceptions using 400', async t => {
     });
     app.use((ctx, next) => {
         ctx.request.body = {
-            stringvalue: 1234
+            stringvalue: []
         };
         return next();
     });
@@ -179,15 +178,14 @@ test('natively handles schemaValidationError exceptions using 400', async t => {
             code: '',
             status: 400,
             message: 'Invalid data provided',
-            errors: {
-                stringvalue: {
-                    message: 'should be string',
-                    schemaPath:'#/properties/stringvalue/type',
-                    data: 1234
-                }
+            errors: [{
+                path: '/stringvalue',
+                keyword: 'type',
+                message: 'should be string',
+                data: []
             }
+            ]
         }
-
     });
 });
 test('provides an empty errors object during schemaValidationError exceptions if no details were provided', async t => {

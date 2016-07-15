@@ -10,6 +10,10 @@ const knex = Knex({
     useNullAsDefault: true,
     connection: {
         filename: ':memory:'
+    },
+    migrations: {
+        directory: __dirname + '/migrations',
+        tableName: 'migrations'
     }
 });
 knex.setMaxListeners(30);
@@ -110,7 +114,6 @@ export function createDatabase(app, opts = {}) {
                         title: 'Test Schema',
                         type: 'object',
                         properties: {
-                            id: {type: 'integer'},
                             name: {type: 'string', minLength: 1, maxLength: 255},
                             num: {type: 'number'}
                         }
@@ -160,7 +163,6 @@ export function createDatabase(app, opts = {}) {
                         title: 'Test Related Schema',
                         type: 'object',
                         properties: {
-                            id: {type: 'integer'},
                             test_id: {type: 'integer'},
                             desc: {type: 'string', minLength: 1, maxLength: 255}
                         }
@@ -202,7 +204,6 @@ export function createDatabase(app, opts = {}) {
                         title: 'Test Related Schema',
                         type: 'object',
                         properties: {
-                            id: {type: 'integer'},
                             test_id: {type: 'integer'},
                             desc: {type: 'string', minLength: 1, maxLength: 255}
                         }

@@ -16,7 +16,7 @@ export default () => {
             // Is validation error?
             if (err.name === 'SchemaValidationError') {
                 error = Boom.badRequest(err.message, err);
-                error.output.payload.errors = err.errors;
+                error.output.payload.errors = err.descriptiveErrors();
             }
 
             // Unknown error?

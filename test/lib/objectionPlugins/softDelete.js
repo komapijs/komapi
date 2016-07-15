@@ -5,9 +5,6 @@ import test from 'ava';
 import appFactory from '../../fixtures/appFactory';
 import * as ormFactory from '../../fixtures/ormFactory';
 
-// Init
-process.setMaxListeners(16); // Fix false positive memory leak messages because of many Komapi instances. This should be exactly the number of times appFactory() is called in this file
-
 // Tests
 test('is not enabled by default', async t => {
     let app = appFactory();
@@ -24,6 +21,8 @@ test('is not enabled by default', async t => {
     t.is(collection2[1].desc, 'rel-name-1-2');
     t.is(collection2[1].id, 2);
     t.is(collection2[1].softDelete, undefined);
+    t.is(app.orm.Test.systemColumns.indexOf('deleted_at'), -1);
+    t.is(app.orm.Test.systemColumns.indexOf('deletedAt'), -1);
 });
 test('returns all records', async t => {
     let app = appFactory();
@@ -35,6 +34,7 @@ test('returns all records', async t => {
     t.is(collection.length, 10);
     t.is(collection[0].name, 'name-1');
     t.is(collection[0].id, 1);
+    t.not(app.orm.Test.systemColumns.indexOf('deleted_at'), -1);
 });
 test('returns non-deleted records', async t => {
     let app = appFactory();
@@ -76,6 +76,7 @@ test('returns all records with camelCase', async t => {
     t.is(collection[0].id, 1);
     t.is(collection[0].deleted_at, null);
     t.is(typeof collection[0].deletedAt, 'string');
+    t.not(app.orm.Test.systemColumns.indexOf('deletedAt'), -1);
 });
 test('can restore records', async t => {
     let app = appFactory();

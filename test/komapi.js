@@ -7,23 +7,20 @@ import {agent as request} from 'supertest-as-promised';
 import DummyLogger from './fixtures/dummyLogger';
 import Knex from 'knex';
 
-// Init
-process.setMaxListeners(40); // Fix false positive memory leak messages because of many Komapi instances. This should be exactly the number of times appFactory() is called in this file
-
 // Tests
 test('accepts default development configuration', t => {
     t.notThrows(() => {
-        appFactory(false);
+        return appFactory(false);
     });
 });
 test('accepts default production configuration', t => {
     t.notThrows(() => {
-        appFactory({env:'production'});
+        return appFactory({env:'production'});
     });
 });
 test('throws on invalid configuration', t => {
     t.throws(() => {
-        appFactory({
+        return appFactory({
             env: 'invalidEnvironment',
             proxy: 'stringvalue'
         });
@@ -417,7 +414,7 @@ test('orm cannot be enabled more than once', async t => {
         }
     });
     t.throws(() => {
-        app.objection({
+        return app.objection({
             client: 'sqlite3',
             useNullAsDefault: true,
             connection: {
@@ -573,4 +570,36 @@ test('respects X-Request-ID from trusted proxy', async t => {
             'X-Request-ID': reqId
         });
     t.is(res.headers['x-request-id'], reqId);
+});
+test('can restify a model', async t => {
+    let app = appFactory();
+    app.objection({
+        client: 'sqlite3',
+        useNullAsDefault: true,
+        connection: {
+            filename: ':memory:'
+        }
+    });
+    app.orm.Test1 = class Test1 extends app.orm.$Model{};
+    app.orm.Test2 = class Test2 extends app.orm.$Model{};
+    t.is(app.restify('Test1').Model, app.orm.Test1);
+    t.is(app.restify(app.orm.Test2).Model, app.orm.Test2);
+});
+test('throws when providing an invalid model to restify', async t => {
+    let app = appFactory();
+    t.plan(3);
+    app.objection({
+        client: 'sqlite3',
+        useNullAsDefault: true,
+        connection: {
+            filename: ':memory:'
+        }
+    });
+    t.throws(app.restify, /(Invalid model (.*) provided)/);
+    t.throws(() => {
+        return app.restify(class InvalidModel{});
+    }, /(Invalid model (.*) provided)/);
+    t.throws(() => {
+        return app.restify('invalidModel');
+    }, /(Invalid model (.*) provided)/);
 });

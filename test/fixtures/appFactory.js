@@ -5,6 +5,9 @@ import Komapi from '../../src/index';
 import defaultConfig from '../../src/lib/config';
 import DummyLogger from './dummyLogger';
 
+// Init
+process.setMaxListeners(3);
+
 // Exports
 export default function appFactory(config, disableLogging = true) {
     if (config === false) {
@@ -24,6 +27,7 @@ export default function appFactory(config, disableLogging = true) {
             logger.stream = new DummyLogger(() => {});
         });
     }
+    process.setMaxListeners(process.getMaxListeners() + 1); // Fix false positive memory leak messages because of many Komapi instances. This should be exactly the number of times appFactory() is called in this file
     return new Komapi(config);
 
 }

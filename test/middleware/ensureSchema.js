@@ -40,26 +40,69 @@ test('provides middleware to ensure requests adheres to a json schema', async t 
     let app = appFactory({
         env: 'production'
     });
-    app.use(async (ctx, next) => {
+    app.use(async(ctx, next) => {
         ctx.request.body = {
-            stringvalue: 1234
+            stringvalue: []
         };
         try {
             return await next();
         } catch (err) {
             t.is(err.name, 'SchemaValidationError');
-            t.deepEqual(err.errors, {
-                enumvalue: {
-                    message: 'should be present',
+            t.deepEqual(err.errors, [{
+                path: '/enumvalue',
+                keyword: 'required',
+                message: 'should be present',
+                data: null,
+                metadata: {
+                    keyword: 'required',
+                    dataPath: '',
                     schemaPath: '#/required',
-                    data: null
-                },
-                stringvalue: {
-                    message: 'should be string',
-                    schemaPath: '#/properties/stringvalue/type',
-                    data: 1234
+                    params: {missingProperty: 'enumvalue'},
+                    message: 'should have required property \'enumvalue\'',
+                    schema: {
+                        enumvalue: {
+                            description: 'Environment',
+                            type: 'string',
+                            enum: ['development', 'production']
+                        },
+                        stringvalue: {description: 'Should be string', type: 'string'},
+                        numbervalue: {description: 'Should be string', type: 'string'}
+                    },
+                    parentSchema: {
+                        '$schema': 'http://json-schema.org/draft-04/schema#',
+                        title: 'Test schema',
+                        type: 'object',
+                        properties: {
+                            enumvalue: {
+                                description: 'Environment',
+                                type: 'string',
+                                enum: ['development', 'production']
+                            },
+                            stringvalue: {description: 'Should be string', type: 'string'},
+                            numbervalue: {description: 'Should be string', type: 'string'}
+                        },
+                        additionalProperties: false,
+                        required: ['stringvalue', 'enumvalue']
+                    },
+                    data: {stringvalue: []}
                 }
-            });
+            },
+            {
+                path: '/stringvalue',
+                keyword: 'type',
+                message: 'should be string',
+                data: [],
+                metadata: {
+                    keyword: 'type',
+                    dataPath: '/stringvalue',
+                    schemaPath: '#/properties/stringvalue/type',
+                    params: {type: 'string'},
+                    message: 'should be string',
+                    schema: 'string',
+                    parentSchema: {description: 'Should be string', type: 'string'},
+                    data: []
+                }
+            }]);
         }
     });
     app.use(app.mw.ensureSchema(schema));
@@ -70,7 +113,7 @@ test('allows valid requests', async t => {
     let app = appFactory({
         env: 'production'
     });
-    app.use(async (ctx, next) => {
+    app.use(async(ctx, next) => {
         ctx.request.body = {
             stringvalue: 'asd',
             enumvalue: 'development'
@@ -94,7 +137,7 @@ test('throws on invalid key', async t => {
         env: 'production'
     });
     t.throws(() => {
-        app.use(app.mw.ensureSchema(schema, {key:'invalid'}));
+        app.use(app.mw.ensureSchema(schema, {key: 'invalid'}));
     }, `You can not enforce a schema to 'invalid'. Only allowed values are 'body', 'params' or 'query`);
 });
 test('replies with schema on ?$schema by default', async t => {

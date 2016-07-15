@@ -17,13 +17,16 @@ import * as Objection from 'objection';
 import _ from 'lodash';
 import models from './lib/models';
 
+// Modules
+import Resource from './modules/rest/resource';
+
 // Middlewares
 import responseDecorator from './middleware/responseDecorator';
 import errorHandler from './middleware/errorHandler';
 import requestLogger from './middleware/requestLogger';
 import routes from './middleware/routeHandler';
 import headers from './middleware/headers';
-import KomapiPassport from './modules/passport';
+import KomapiPassport from './modules/authentication/passport';
 import serve from 'koa-static';
 import views from 'koa-views';
 import compress from 'koa-compress';
@@ -37,13 +40,16 @@ import objectionSoftDelete from './lib/objectionPlugins/softDelete';
 import objectionRestify from './lib/objectionPlugins/restify';
 import objectionTimestamps from './lib/objectionPlugins/timestamps';
 
-// Export
+
+/**
+ * @extends Koa
+ */
 export default class Komapi extends Koa{
 
     /**
      * Create a Kompai instance
      *
-     * @param config
+     * @param {Object=} config
      */
     constructor (config = {}) {
         super();
@@ -53,7 +59,10 @@ export default class Komapi extends Koa{
         this.state = {};
         this.config = Object.assign({}, defaultConfig(config.env || process.env.NODE_ENV), config);
         this.passport = new KomapiPassport;
-        this.schema = new Schema();
+        this.schema = new Schema({
+            useDefaults: true,
+            coerceTypes: true
+        });
 
         // Validate config
         applySchema('komapi', this.config);
@@ -260,6 +269,11 @@ export default class Komapi extends Koa{
             objectionRestify,
             objectionTimestamps
         ].forEach((fn => this.orm.$Model = fn(this.orm.$Model, this)));
+    }
+    restify(Model, opts) {
+        if (_.isString(Model) && this.orm[Model]) Model = this.orm[Model];
+        if (!Model || !(Model.prototype instanceof this.orm.$Model)) throw new Error(`Invalid model '${(Model && Model.name) || Model}' provided. Provide a valid model instance or a model name from 'app.orm'`);
+        return new Resource(Model, opts, this);
     }
 
     // Private overrides of Koa's methods

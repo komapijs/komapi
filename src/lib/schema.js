@@ -3,6 +3,7 @@
 // Dependencies
 import Ajv from 'ajv';
 import _ from 'lodash';
+import moment from 'moment';
 import SchemaValidationError from './errors/schemaValidationError';
 import Joi from 'joi';
 
@@ -28,51 +29,41 @@ export default class Schema extends Ajv {
         super(_.defaultsDeep({
             allErrors: true,
             verbose: true,
+            formats: {'date-time': (v) => moment(v, moment.ISO_8601, true).isValid()},
             messages: true,
-            jsonPointers: false
+            jsonPointers: true,
+            format: 'full'
         }, opts));
     }
     static parseValidationErrors(errors, schema, message, data) {
-        let messages = {};
         message = message || ((data) ? 'Invalid data provided' : 'No data provided');
-        if (data) {
-            errors.forEach((error) => {
-                let descError = this._getDescriptiveError(error);
-                _.set(messages, descError.dataPath, {
-                    message: descError.message,
-                    schemaPath: decodeURIComponent(error.schemaPath),
-                    data: descError.data
-                });
-            });
-        }
         let err = new SchemaValidationError(message);
         err.schema = schema;
-        err.errors = messages;
+        err.errors = (data) ? errors.map(this._getDescriptiveError) : null;
         return err;
     }
     static _getDescriptiveError(error) {
-        const mapping = {
-            enum: (e) => {
-                return {
-                    dataPath: e.dataPath,
-                    message: `${e.message} (${e.schema.join(', ')})`,
-                    data: error.data
-                };
-            },
-            required: (e) => {
-                return {
-                    dataPath: `${e.dataPath}.${e.params.missingProperty}`,
-                    message: 'should be present',
-                    data: null
-                };
-            }
-        };
-        if (mapping[error.keyword]) return mapping[error.keyword](error);
-        return {
-            dataPath: error.dataPath,
+        let descriptiveError = {
+            path: error.dataPath,
+            keyword: error.keyword,
             message: error.message,
             data: error.data
         };
+        const mapping = {
+            enum: (e, out) => {
+                out.allowedValues = e.schema;
+                return out;
+            },
+            required: (e, out) => {
+                out.path += `/${e.params.missingProperty}`;
+                out.message = 'should be present';
+                out.data = null;
+                return out;
+            }
+        };
+        if (mapping[error.keyword]) descriptiveError = mapping[error.keyword](error, descriptiveError);
+        descriptiveError.metadata = error;
+        return descriptiveError;
     }
 }
 export function applySchema(schema, data, message){

@@ -20,5 +20,21 @@ module.exports = (orm) => {
                 }
             };
         }
+        static jsonSchema() {
+            return {
+                $schema: 'http://json-schema.org/draft-04/schema#',
+                title: 'Schema definition',
+                required: [
+                    'username'
+                ],
+                type: 'object',
+                properties: {
+                    username: {
+                        description: 'Username',
+                        type: 'string'
+                    }
+                }
+            };
+        }
     };
 };

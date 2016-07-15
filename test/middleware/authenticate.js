@@ -8,9 +8,6 @@ import {Strategy as LocalStrategy} from 'passport-local';
 import Boom from 'boom';
 import DummyLogger from '../fixtures/dummyLogger';
 
-// Init
-process.setMaxListeners(14); // Fix false positive memory leak messages because of many Komapi instances. This should be exactly the number of times appFactory() is called in this file
-
 // Tests
 test('is initiated through authInit() method', async t => {
     t.plan(4);

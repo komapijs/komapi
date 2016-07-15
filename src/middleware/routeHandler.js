@@ -11,6 +11,14 @@ export default function routeHandler(routePath, app, middlewares) {
     // Prepare
     let containerRouter = new Router();
 
+    // Shortcut for route modules
+    if (typeof routePath === 'function') {
+        let router = new Router();
+        routePath(router, app);
+        containerRouter.use(...[...middlewares, router.routes()]);
+        return containerRouter;
+    }
+
     // Create a list of files
     let files = [];
     if (routePath.endsWith('.js')) {
