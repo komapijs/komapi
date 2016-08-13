@@ -571,35 +571,20 @@ test('respects X-Request-ID from trusted proxy', async t => {
         });
     t.is(res.headers['x-request-id'], reqId);
 });
-test('can restify a model', async t => {
+test('provides ctx.request.auth property that resolves to the passport property ', async t => {
+    t.plan(2);
     let app = appFactory();
-    app.objection({
-        client: 'sqlite3',
-        useNullAsDefault: true,
-        connection: {
-            filename: ':memory:'
-        }
+    app.use((ctx, next) => {
+        t.is(ctx.request.auth, null);
+        ctx.request.dummy = true;
+        ctx.request._passport = {
+            instance: {
+                _userProperty: 'dummy'
+            }
+        };
+        t.is(ctx.request.auth, true);
+        return next();
     });
-    app.orm.Test1 = class Test1 extends app.orm.$Model{};
-    app.orm.Test2 = class Test2 extends app.orm.$Model{};
-    t.is(app.restify('Test1').Model, app.orm.Test1);
-    t.is(app.restify(app.orm.Test2).Model, app.orm.Test2);
-});
-test('throws when providing an invalid model to restify', async t => {
-    let app = appFactory();
-    t.plan(3);
-    app.objection({
-        client: 'sqlite3',
-        useNullAsDefault: true,
-        connection: {
-            filename: ':memory:'
-        }
-    });
-    t.throws(app.restify, /(Invalid model (.*) provided)/);
-    t.throws(() => {
-        return app.restify(class InvalidModel{});
-    }, /(Invalid model (.*) provided)/);
-    t.throws(() => {
-        return app.restify('invalidModel');
-    }, /(Invalid model (.*) provided)/);
+    await request(app.listen())
+        .get('/');
 });

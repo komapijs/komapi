@@ -2,8 +2,8 @@
 
 // Dependencies
 import path from 'path';
-import recursiveReadDir from 'recursive-readdir-sync';
 import Router from 'koa-router';
+import findFiles from '../lib/findFiles';
 
 // Exports
 export default function routeHandler(routePath, app, middlewares) {
@@ -20,13 +20,7 @@ export default function routeHandler(routePath, app, middlewares) {
     }
 
     // Create a list of files
-    let files = [];
-    if (routePath.endsWith('.js')) {
-        files.push(routePath);
-    }
-    else {
-        files = recursiveReadDir(routePath).filter((p) => p.endsWith('.js'));
-    }
+    const files = findFiles(routePath);
 
     // Handle the files
     files.forEach((file) => {
@@ -38,7 +32,6 @@ export default function routeHandler(routePath, app, middlewares) {
             .replace(/.js$/, '')
             .replace(/^\/$/, '');
         let router = new Router();
-        file = path.resolve(file);
         let route = require.main.require(file);
         if (route.default) route.default(router, app);
         else route(router, app);

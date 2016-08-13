@@ -1,8 +1,8 @@
 'use strict';
 
 // Exports
-export default (app) => {
-    return {
+export default (context) => {
+    Object.assign(context, {
         send: function send(body, status, headers) {
             this.body = body;
             if (status) this.status = status;
@@ -17,5 +17,6 @@ export default (app) => {
                 return this.body;
             }
         }
-    };
+    });
+    return context;
 };

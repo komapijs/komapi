@@ -22,7 +22,8 @@ export default class Resource {
      * @param {Object=} opts
      * @param {Komapi} app
      */
-    constructor(Model, opts = {}, app) {
+    constructor(Model, opts, app) {
+        opts = opts || {};
         this.Model = Model;
         this.options = _.defaultsDeep({}, {
             columns: this.Model.getAllColumns(opts.columns)

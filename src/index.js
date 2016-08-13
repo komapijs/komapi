@@ -16,9 +16,7 @@ import Knex from 'knex';
 import * as Objection from 'objection';
 import _ from 'lodash';
 import models from './lib/models';
-
-// Modules
-import Resource from './modules/rest/resource';
+import services from './lib/services';
 
 // Middlewares
 import responseDecorator from './middleware/responseDecorator';
@@ -36,9 +34,9 @@ import cors from 'kcors';
 import bodyParser from 'koa-bodyparser';
 
 // Objection plugins
-import objectionSoftDelete from './lib/objectionPlugins/softDelete';
-import objectionRestify from './lib/objectionPlugins/restify';
-import objectionTimestamps from './lib/objectionPlugins/timestamps';
+import objectionSoftDelete from './modules/objectionPlugins/softDelete';
+import objectionRestify from './modules/objectionPlugins/restify';
+import objectionTimestamps from './modules/objectionPlugins/timestamps';
 
 
 /**
@@ -59,6 +57,7 @@ export default class Komapi extends Koa{
         this.state = {};
         this.config = Object.assign({}, defaultConfig(config.env || process.env.NODE_ENV), config);
         this.passport = new KomapiPassport;
+        this.service = {};
         this.schema = new Schema({
             useDefaults: true,
             coerceTypes: true
@@ -172,9 +171,10 @@ export default class Komapi extends Koa{
         this.use(errorHandler());
 
         // Create prototype helpers for the native koa objects
-        this.context = Object.assign(this.context, context(this));
-        this.request = Object.assign(this.request, request(this));
-        this.response = Object.assign(this.response, response(this));
+        this.context = context(this.context, this);
+        this.request = request(this.request, this);
+        this.response = response(this.response, this);
+
     }
 
     // Helper middlewares
@@ -218,8 +218,8 @@ export default class Komapi extends Koa{
                 let router = routes(path, app, middlewares);
                 let fn = compose([router.routes(), router.allowedMethods({
                     throw: true,
-                    notImplemented: () => new Boom.notImplemented(),
-                    methodNotAllowed: () => new Boom.methodNotAllowed()
+                    notImplemented: () => new Boom.notImplemented('Not Implemented'),
+                    methodNotAllowed: () => new Boom.methodNotAllowed('Method Not Allowed')
                 })]);
                 Object.defineProperty(fn, 'name', {
                     value: 'routeHandler'
@@ -270,10 +270,8 @@ export default class Komapi extends Koa{
             objectionTimestamps
         ].forEach((fn => this.orm.$Model = fn(this.orm.$Model, this)));
     }
-    restify(Model, opts) {
-        if (_.isString(Model) && this.orm[Model]) Model = this.orm[Model];
-        if (!Model || !(Model.prototype instanceof this.orm.$Model)) throw new Error(`Invalid model '${(Model && Model.name) || Model}' provided. Provide a valid model instance or a model name from 'app.orm'`);
-        return new Resource(Model, opts, this);
+    services(path) {
+        return services(path, this);
     }
 
     // Private overrides of Koa's methods

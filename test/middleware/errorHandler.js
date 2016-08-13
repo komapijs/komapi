@@ -183,12 +183,11 @@ test('natively handles schemaValidationError exceptions using 400', async t => {
                 keyword: 'type',
                 message: 'should be string',
                 data: []
-            }
-            ]
+            }]
         }
     });
 });
-test('provides an empty errors object during schemaValidationError exceptions if no details were provided', async t => {
+test('provides an empty errors array during schemaValidationError exceptions if no details were provided', async t => {
     let app = appFactory({
         env: 'production'
     });
@@ -201,7 +200,7 @@ test('provides an empty errors object during schemaValidationError exceptions if
             code: '',
             status: 400,
             message: 'No data provided',
-            errors: {}
+            errors: []
         }
     });
 });
