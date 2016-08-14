@@ -3,6 +3,14 @@
 // Dependencies
 import Service from '../service';
 import Boom from 'boom';
+import Schema from '../../../lib/schema';
+
+// Init
+let schema = new Schema({
+    useDefaults: true,
+    coerceTypes: true,
+    removeAdditional: true
+});
 
 // Exports
 export default class RestService extends Service {
@@ -82,9 +90,28 @@ export default class RestService extends Service {
         super.$setup(path);
 
         // Add REST hooks
+        let dataMethods = [
+            'POST',
+            'PUT',
+            'PATCH'
+        ];
         Object.keys(this.$routes).forEach((operation) => {
-            this.$hooks(operation, [this.$outputFormatter]);
+            let opts = this.$routes[operation];
+            let hooks = [this.$outputFormatter(), this.$querySchemaValidator()];
+            if (dataMethods.indexOf(opts.method) > -1) hooks.push(this.$dataSchemaValidator({
+                patch: (opts.method !== 'PUT')
+            }));
+            this.$hooks(operation, hooks);
         });
+
+        // Store compiled schemas
+        if (this.$dataSchema) {
+            this.$_dataSchema = {
+                patch: schema.compile(this.$dataSchema),
+                full: schema.compile(Object.assign({}, this.$dataSchema, {required: Object.keys(this.$dataSchema.properties)}))
+            };
+        }
+        if (this.$querySchema) this.$_querySchema = schema.compile(this.$querySchema);
     }
 
     /**
@@ -104,7 +131,7 @@ export default class RestService extends Service {
                 enable: true,
                 method: 'OPTIONS',
                 route: ['/:id', '/'],
-                handler: this.$optionsRouteHandler.bind(this)
+                handler: this.$optionsRouteHandler()
             },
             get: {
                 enable: !!this.get,
@@ -181,36 +208,72 @@ export default class RestService extends Service {
     // Internal methods
     /**
      * Options route handler
-     * @param {Function} ctx
-     * @returns {function(*)}
+     * @returns {Function}
      */
-    $optionsRouteHandler(ctx) {
-        let allMethods = ctx.matched.reduce((prev, cur) => prev.concat(cur.methods.filter((method) => (method !== 'OPTIONS'))), []);
-        let allow = [...new Set(allMethods)];
-        if (allow.length === 0) throw Boom.notFound('Not Found');
-        ctx.set('Allow', allow);
-        return this.options().then(ctx.send);
+    $optionsRouteHandler() {
+        return (ctx) => {
+            let allMethods = ctx.matched.reduce((prev, cur) => prev.concat(cur.methods.filter((method) => (method !== 'OPTIONS'))), []);
+            let allow = [...new Set(allMethods)];
+            if (allow.length === 0) throw Boom.notFound('Not Found');
+            ctx.set('Allow', allow);
+            return this.options().then(ctx.send);
+        };
     }
 
     /**
      * Format the rest response
-     * @param {Object} args argument passed to the function
-     * @param {Function} next
-     * @returns {*}
+     * @returns {Function}
      */
-    $outputFormatter(args, next) {
-        args.$metadata = {};
-        return next().then((res) => {
-            let metadata = args.$metadata;
-            if (res) {
-                metadata.data = res;
-                return metadata;
+    $outputFormatter() {
+        return (args, next) => {
+            args.$metadata = {};
+            return next().then((res) => {
+                let metadata = args.$metadata;
+                if (res) {
+                    metadata.data = res;
+                    return metadata;
+                }
+                return res;
+            });
+        };
+    }
+
+    /**
+     * Validate data using the dataschema
+     * @param {Object} opts Options
+     * @returns {Function}
+     */
+    $dataSchemaValidator(opts) {
+        return (args, next) => {
+            if (this.$dataSchema) {
+                let validator = (opts.patch) ? this.$_dataSchema.patch : this.$_dataSchema.full;
+                let valid = validator(args.data);
+                if (!valid) throw Schema.parseValidationErrors(validator.errors, this.$dataSchema, 'Invalid data', args.data);
             }
-            return res;
-        });
+            return next();
+        };
+    }
+    /**
+     * Validate data using the queryschema
+     * @returns {Function}
+     */
+    $querySchemaValidator() {
+        return (args, next) => {
+            if (this.$querySchema && args.params) {
+                let valid = this.$_querySchema(args.params.query);
+                if (!valid) throw Schema.parseValidationErrors(this.$_querySchema.errors, this.$querySchema, 'Invalid query parameters', args.params.query);
+            }
+            return next();
+        };
     }
 
     // Operations
+    // find(params = {}) {}
+    // get(id, params = {}) {}
+    // create(data, params = {}) {}
+    // update(id, data = {} params = {}) {}
+    // patch(id, data = {}, params = {}) {}
+    // delete(id, params = {}) {}
     options() {
         return Promise.resolve({
             schemas: {
@@ -219,11 +282,4 @@ export default class RestService extends Service {
             }
         });
     }
-
-    // find(params = {}) {}
-    // get(id, params = {}) {}
-    // create(data, params = {}) {}
-    // update(id, data = {} params = {}) {}
-    // patch(id, data = {}, params = {}) {}
-    // delete(id, params = {}) {}
 }

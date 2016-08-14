@@ -34,11 +34,8 @@ export default class Service {
         _.forOwn(this.$routes, (options, operation) => {
             if (options.enable) {
                 let routes = _.castArray(options.route);
-                let methods = _.castArray(options.method);
                 routes.forEach((route) => {
-                    methods.forEach((method) => {
-                        router[method.toLowerCase()](route, options.handler);
-                    }) ;
+                    router[options.method.toLowerCase()](route, options.handler);
                 });
             }
         });
