@@ -11,68 +11,68 @@ export default class RestService extends Service {
      * A JSON Schema describing and validating the data format
      * @returns {mixed}
      */
-    // get $dataSchema() {
-    //     return null;
-    // }
+    get $dataSchema() {
+        return null;
+    }
 
     /**
      * A JSON Schema describing and validating the query format
      * @returns {Object}
      */
-    // get $querySchema() {
-    //     return {
-    //         $schema: 'http://json-schema.org/draft-04/schema#',
-    //         title: 'Komapi REST query parameters',
-    //         type: 'object',
-    //         properties: {
-    //             $filter: {
-    //                 description: 'Filter result set',
-    //                 type: 'string'
-    //             },
-    //             $sort: {
-    //                 description: 'Sort the result set',
-    //                 type: 'array',
-    //                 items: {
-    //                     type: 'string'
-    //                 },
-    //                 uniqueItems: true
-    //             },
-    //             $skip: {
-    //                 description: 'Skip this amount of records (offset)',
-    //                 type: 'integer',
-    //                 minimum: 0
-    //             },
-    //             $top: {
-    //                 description: 'Limit number of records to this number',
-    //                 type: 'integer',
-    //                 minimum: 1,
-    //                 maximum: 100,
-    //                 default: 10
-    //             },
-    //             $expand: {
-    //                 description: 'Expand related objects',
-    //                 type: 'array',
-    //                 items: {
-    //                     type: 'string'
-    //                 },
-    //                 uniqueItems: true
-    //             },
-    //             $select: {
-    //                 description: 'Limit returned attributes to these attributes',
-    //                 type: 'array',
-    //                 items: {
-    //                     type: 'string'
-    //                 },
-    //                 uniqueItems: true
-    //             },
-    //             $count: {
-    //                 description: 'Add total number of records to response',
-    //                 type: 'boolean',
-    //                 default: false
-    //             }
-    //         }
-    //     };
-    // }
+    get $querySchema() {
+        return {
+            $schema: 'http://json-schema.org/draft-04/schema#',
+            title: 'Komapi REST query parameters',
+            type: 'object',
+            properties: {
+                $filter: {
+                    description: 'Filter result set',
+                    type: 'string'
+                },
+                $sort: {
+                    description: 'Sort the result set',
+                    type: 'array',
+                    items: {
+                        type: 'string'
+                    },
+                    uniqueItems: true
+                },
+                $skip: {
+                    description: 'Skip this amount of records (offset)',
+                    type: 'integer',
+                    minimum: 0
+                },
+                $top: {
+                    description: 'Limit number of records to this number',
+                    type: 'integer',
+                    minimum: 1,
+                    maximum: 100,
+                    default: 10
+                },
+                $expand: {
+                    description: 'Expand related objects',
+                    type: 'array',
+                    items: {
+                        type: 'string'
+                    },
+                    uniqueItems: true
+                },
+                $select: {
+                    description: 'Limit returned attributes to these attributes',
+                    type: 'array',
+                    items: {
+                        type: 'string'
+                    },
+                    uniqueItems: true
+                },
+                $count: {
+                    description: 'Add total number of records to response',
+                    type: 'boolean',
+                    default: false
+                }
+            }
+        };
+    }
 
     /**
      * Bootstrapping code here
@@ -83,18 +83,7 @@ export default class RestService extends Service {
 
         // Add REST hooks
         Object.keys(this.$routes).forEach((operation) => {
-            function restFormatter(args, next) {
-                args.$metadata = {};
-                return next().then((res) => {
-                    let metadata = args.$metadata;
-                    if (res) {
-                        metadata.data = res;
-                        return metadata;
-                    }
-                    return res;
-                });
-            }
-            this.$hooks(operation, [restFormatter]);
+            this.$hooks(operation, [this.$outputFormatter]);
         });
     }
 
@@ -111,6 +100,12 @@ export default class RestService extends Service {
      */
     get $routes() {
         return {
+            options: {
+                enable: true,
+                method: 'OPTIONS',
+                route: ['/:id', '/'],
+                handler: this.$optionsRouteHandler.bind(this)
+            },
             get: {
                 enable: !!this.get,
                 method: 'GET',
@@ -183,7 +178,48 @@ export default class RestService extends Service {
         };
     }
 
+    // Internal methods
+    /**
+     * Options route handler
+     * @param {Function} ctx
+     * @returns {function(*)}
+     */
+    $optionsRouteHandler(ctx) {
+        let allMethods = ctx.matched.reduce((prev, cur) => prev.concat(cur.methods.filter((method) => (method !== 'OPTIONS'))), []);
+        let allow = [...new Set(allMethods)];
+        if (allow.length === 0) throw Boom.notFound('Not Found');
+        ctx.set('Allow', allow);
+        return this.options().then(ctx.send);
+    }
+
+    /**
+     * Format the rest response
+     * @param {Object} args argument passed to the function
+     * @param {Function} next
+     * @returns {*}
+     */
+    $outputFormatter(args, next) {
+        args.$metadata = {};
+        return next().then((res) => {
+            let metadata = args.$metadata;
+            if (res) {
+                metadata.data = res;
+                return metadata;
+            }
+            return res;
+        });
+    }
+
     // Operations
+    options() {
+        return Promise.resolve({
+            schemas: {
+                query: this.$querySchema || undefined,
+                data: this.$dataSchema || undefined
+            }
+        });
+    }
+
     // find(params = {}) {}
     // get(id, params = {}) {}
     // create(data, params = {}) {}

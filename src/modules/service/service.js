@@ -1,5 +1,8 @@
 'use strict';
 
+// Dependencies
+import _ from 'lodash';
+
 // Exports
 export default class Service {
 
@@ -28,9 +31,16 @@ export default class Service {
      * @returns {Router}
      */
     registerRoutes(router) {
-        Object.keys(this.$routes).forEach((operation) => {
-            const options = this.$routes[operation];
-            if (options.enable) router[options.method.toLowerCase()](options.route, options.handler);
+        _.forOwn(this.$routes, (options, operation) => {
+            if (options.enable) {
+                let routes = _.castArray(options.route);
+                let methods = _.castArray(options.method);
+                routes.forEach((route) => {
+                    methods.forEach((method) => {
+                        router[method.toLowerCase()](route, options.handler);
+                    }) ;
+                });
+            }
         });
         return router;
     }

@@ -15,7 +15,7 @@ export default function routeHandler(routePath, app, middlewares) {
     if (typeof routePath === 'function') {
         let router = new Router();
         routePath(router, app);
-        containerRouter.use(...[...middlewares, router.routes()]);
+        containerRouter.use('', ...[...middlewares, router.routes()]);
         return containerRouter;
     }
 

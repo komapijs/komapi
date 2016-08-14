@@ -5,6 +5,9 @@ import Service from '../../../src/modules/service/service';
 
 // Exports
 module.exports = class UserService extends Service {
+    get $querySchema() {
+        return null;
+    }
     get $routes() {
         let routes = super.$routes;
         routes.find = {

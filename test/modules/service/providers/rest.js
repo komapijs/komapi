@@ -90,10 +90,60 @@ test('provides routes for all common rest operations', async t => {
     });
     t.deepEqual(res.delete, {});
 });
-test('send 404 by default for an empty response on GET operation', async t => {
+test('responds 404 by default for an empty response on GET operation', async t => {
     let app = appFactory();
     app.services('../../../fixtures/services/rest.js');
     app.use(app.mw.route(app.service.Rest.registerRoutes.bind(app.service.Rest)));
     let res = await request(app.listen()).get('/2');
     t.is(res.status, 404);
+});
+test('provides a default options route with the different schemas', async t => {
+    let app = appFactory();
+    app.services('../../../fixtures/services/rest.js');
+    app.use(app.mw.route(app.service.Rest.registerRoutes.bind(app.service.Rest)));
+    let res1 = await request(app.listen()).options('/');
+    let res2 = await request(app.listen()).options('/1');
+    t.is(res1.status, 200);
+    t.is(res1.headers.allow, 'HEAD, GET, POST');
+    t.deepEqual(res1.body, {
+        data: {
+            schemas: {
+                query: app.service.Rest.$querySchema
+            }
+        }
+    });
+    t.is(res2.status, 200);
+    t.is(res2.headers.allow, 'HEAD, GET, PUT, PATCH, DELETE');
+    t.deepEqual(res2.body, {
+        data: {
+            schemas: {
+                query: app.service.Rest.$querySchema
+            }
+        }
+    });
+});
+test('options route is disabled if no other routes can be found', async t => {
+    let app = appFactory();
+    app.services('../../../fixtures/services/blog.js');
+    app.use(app.mw.route(app.service.Blog.registerRoutes.bind(app.service.Blog)));
+    let res = await request(app.listen()).options('/');
+    t.is(res.status, 404);
+    t.is(res.headers.allow, undefined);
+});
+test('schemas can be overridden', async t => {
+    let app = appFactory();
+    app.services('../../../fixtures/services/comment.js');
+    app.use(app.mw.route(app.service.Comment.registerRoutes.bind(app.service.Comment)));
+    let res = await request(app.listen()).options('/');
+    t.is(res.status, 200);
+    t.is(res.headers.allow, 'HEAD, GET');
+    t.deepEqual(res.body, {
+        data: {
+            schemas: {
+                data: {
+                    $schema: true
+                }
+            }
+        }
+    });
 });

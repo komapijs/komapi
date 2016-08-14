@@ -8,7 +8,7 @@ import appFactory from '../fixtures/appFactory';
 test('loads services through the services() method', async t => {
     let app = appFactory();
     app.services('../fixtures/services');
-    t.is(Object.keys(app.service).length, 3);
+    t.is(Object.keys(app.service).length, 4);
     t.not(app.service.User, undefined);
     t.not(app.service.Comment, undefined);
 });
