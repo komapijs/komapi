@@ -1,6 +1,8 @@
 # KomAPI
 
-Komapi is an opinionated Node.js framework built on top of Koa 2.0. Note that there might be occasional breaking changes during the pre-v1.0.0 cycles.
+Komapi is an opinionated Node.js framework built on top of Koa 2.0. 
+ 
+Disclaimer: There will be breaking changes and outdated documentation during the pre-v1.0.0 cycles.
 
 [![npm](https://img.shields.io/npm/v/komapi.svg)](https://npmjs.org/package/komapi)
 [![Travis](https://img.shields.io/travis/komapijs/komapi/master.svg)](https://travis-ci.org/komapijs/komapi)
