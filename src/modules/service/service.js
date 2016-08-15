@@ -7,6 +7,16 @@ import _ from 'lodash';
 export default class Service {
 
     /**
+     * Initiate the service
+     * @final
+     * @param Komapi app Application instance
+     */
+    constructor(app) {
+        this.app = app;
+        this.hooks = {};
+    }
+
+    /**
      * All public routes and their options
      * @example
      * // return {
@@ -30,7 +40,7 @@ export default class Service {
      * Helper function for automatically registering routes
      * @returns {Router}
      */
-    registerRoutes(router) {
+    $registerRoutes(router) {
         _.forOwn(this.$routes, (options, operation) => {
             if (options.enable) {
                 let routes = _.castArray(options.route);
@@ -40,16 +50,6 @@ export default class Service {
             }
         });
         return router;
-    }
-
-    /**
-     * Initiate the service
-     * @final
-     * @param Komapi app Application instance
-     */
-    constructor(app) {
-        this.app = app;
-        this.hooks = {};
     }
 
     /**
