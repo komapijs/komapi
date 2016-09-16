@@ -59,7 +59,7 @@ export default class KomapiPassport extends passport.Passport {
                             },
                             setHeader: ctx.set.bind(ctx),
                             end: (content) => {
-                                ctx.body = content;
+                                if (content) ctx.body = content;
                                 return resolve(true);
                             },
                             set statusCode(status) {

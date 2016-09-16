@@ -10,6 +10,7 @@ import Passport from '../../../src/modules/authentication/passport';
 import {Strategy as LocalStrategy} from 'passport-local';
 import {Strategy as AnonymousStrategy} from 'passport-anonymous';
 import {BasicStrategy} from 'passport-http';
+import {Strategy as OAuth2Strategy} from 'passport-oauth2';
 
 // Init
 const passportUser = {
@@ -398,4 +399,22 @@ test('supports custom user properties', async t => {
         .post('/login')
         .send({ username: 'test', password: 'testpw' });
     t.is(res.status, 204);
+});
+test('does not set body unless explicitly told to', async t => {
+    const app = new Koa();
+    const passport = new Passport();
+    passport.use(new OAuth2Strategy({
+        authorizationURL: 'https://www.example.com/oauth2/authorize',
+        tokenURL: 'https://www.example.com/oauth2/token',
+        clientID: 'ABC123',
+        clientSecret: 'secret'
+    }, (accessToken, refreshToken, profile, done) => {}));
+    app.use(bodyParser());
+    app.use(passport.initialize());
+    app.use(passport.authenticate('oauth2'));
+    const res = await request(app.listen())
+        .get('/login')
+        .send({ username: 'test', password: 'testpw' });
+    t.is(res.status, 302);
+    t.is(res.headers['location'], 'https://www.example.com/oauth2/authorize?response_type=code&client_id=ABC123');
 });
