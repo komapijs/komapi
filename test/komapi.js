@@ -2,25 +2,46 @@
 
 // Dependencies
 import test from 'ava';
-import appFactory from './fixtures/appFactory';
+import Komapi from '../src/index';
 import {agent as request} from 'supertest-as-promised';
 import DummyLogger from './fixtures/dummyLogger';
 import Knex from 'knex';
 
 // Tests
-test('accepts default development configuration', t => {
+test('accepts default development configuration', async t => {
+    t.plan(4);
+    let app;
+    delete process.env.NODE_ENV;
     t.notThrows(() => {
-        return appFactory(false);
+        app = new Komapi();
     });
+    app.use((ctx, next) => {
+        t.false(ctx.state.cache);
+    });
+    await request(app.listen())
+        .get('/');
+    t.is(app.env, 'development');
+    t.is(app.log.streams.length, 0);
 });
-test('accepts default production configuration', t => {
+test('accepts default production configuration', async t => {
+    t.plan(4);
+    let app;
     t.notThrows(() => {
-        return appFactory({env:'production'});
+        app = new Komapi({
+            env:'production'
+        });
     });
+    app.use((ctx, next) => {
+        t.true(ctx.state.cache);
+    });
+    await request(app.listen())
+        .get('/');
+    t.is(app.env, 'production');
+    t.is(app.log.streams.length, 0);
 });
 test('throws on invalid configuration', t => {
     t.throws(() => {
-        return appFactory({
+        return new Komapi({
             env: 'invalidEnvironment',
             proxy: 'stringvalue'
         });
@@ -35,7 +56,7 @@ test('maps Komapi config to Koa config properties', t => {
         proxy: true,
         subdomainOffset: 3
     };
-    let app = appFactory(initialConfig);
+    let app = new Komapi(initialConfig);
 
     // Check
     Object.keys(initialConfig).forEach((i) => {
@@ -58,7 +79,7 @@ test('allows Koa config properties to be set directly and be visible through the
         proxy: false,
         subdomainOffset: 1
     };
-    let app = appFactory(initialConfig);
+    let app = new Komapi(initialConfig);
 
     // Check
     Object.keys(modifiedConfig).forEach((i) => {
@@ -82,7 +103,7 @@ test('allows config properties to be set on the Komapi config object and be visi
         proxy: false,
         subdomainOffset: 1
     };
-    let app = appFactory(initialConfig);
+    let app = new Komapi(initialConfig);
 
     // Check
     Object.keys(modifiedConfig).forEach((i) => {
@@ -91,8 +112,16 @@ test('allows config properties to be set on the Komapi config object and be visi
         t.is(app.config[i], modifiedConfig[i]);
     });
 });
+test('accepts a 2nd user config parameter that is set to app.locals', async t => {
+    const userConfig = {
+        userConfig: true,
+        a: 'b'
+    };
+    let app = new Komapi(undefined, userConfig);
+    t.deepEqual(app.locals, userConfig);
+});
 test('gives a simple representation of itself through json', t => {
-    let app = appFactory();
+    let app = new Komapi();
     let out = app.toJSON();
     t.deepEqual(Object.keys(out), [
         'config',
@@ -102,9 +131,8 @@ test('gives a simple representation of itself through json', t => {
     t.is(out.state, app.state);
 });
 test('emits an error event on errors', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     t.plan(2);
-
     app.on('error', (err) => {
         t.pass();
     });
@@ -116,7 +144,7 @@ test('emits an error event on errors', async t => {
     t.is(res.status, 500);
 });
 test('logs any emitted errors', t => {
-    let app = appFactory();
+    let app = new Komapi();
     t.plan(4);
     app.log.addStream({
         name: 'DummyLogger',
@@ -132,7 +160,7 @@ test('logs any emitted errors', t => {
     app.emit('error', new Error('Dummy Error'));
 });
 test('logs error stack traces (strings) as array', t => {
-    let app = appFactory();
+    let app = new Komapi();
     const err = new Error('Dummy Error');
     const expectedStack = err.stack.split('\n');
     t.plan(2);
@@ -148,7 +176,7 @@ test('logs error stack traces (strings) as array', t => {
     app.emit('error', err);
 });
 test('logs error stack traces (array) as array', t => {
-    let app = appFactory();
+    let app = new Komapi();
     const err = new Error('Dummy Error');
     const expectedStack = err.stack = err.stack.split('\n');
     t.plan(2);
@@ -166,7 +194,7 @@ test('logs error stack traces (array) as array', t => {
 test('logs uncaught exceptions and exits with a non-zero exit code', async t => {
     t.plan(5);
     let listeners = process.listeners('uncaughtException').length;
-    let app = appFactory();
+    let app = new Komapi();
     let newListeners = process.listeners('uncaughtException').length;
     let orgExit = process.exit;
     t.is(newListeners, listeners + 1);
@@ -190,7 +218,7 @@ test('logs uncaught exceptions and exits with a non-zero exit code', async t => 
 test('logs unhandled promise rejections and exits with a non-zero exit code', async t => {
     t.plan(5);
     let listeners = process.listeners('unhandledRejection').length;
-    let app = appFactory();
+    let app = new Komapi();
     let newListeners = process.listeners('unhandledRejection').length;
     let orgExit = process.exit;
     t.is(newListeners, listeners + 1);
@@ -212,7 +240,7 @@ test('logs unhandled promise rejections and exits with a non-zero exit code', as
     handler.call(app, new Error('Rejected Promise'), new Promise(()=>{},()=>{}));
 });
 test('logs a warning when using a high number of middlewares', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     let num = 4000 + 1;
     let defaultmw = app.middleware.length;
     for (let i = 0;i<(num-defaultmw);i++) {
@@ -234,13 +262,13 @@ test('logs a warning when using a high number of middlewares', async t => {
         .get('/');
 });
 test('does not provide a default route', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     const res = await request(app.listen())
         .get('/');
     t.is(res.status, 404);
 });
 test('provides a helper method (ctx.sendIf) to send the response if found', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     let reply = {status:'ok'};
     app.use((ctx, next) => ctx.sendIf(reply));
     const res = await request(app.listen())
@@ -249,7 +277,7 @@ test('provides a helper method (ctx.sendIf) to send the response if found', asyn
     t.is(res.status, 200);
 });
 test('provides a helper method (ctx.sendIf) to send the response, statusCode and headers, if found', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     let reply = {status:'ok'};
     app.use((ctx, next) => ctx.sendIf(reply, 201, {
         'X-TMP': 'TEST'
@@ -261,7 +289,7 @@ test('provides a helper method (ctx.sendIf) to send the response, statusCode and
     t.is(res.status, 201);
 });
 test('provides a helper method (ctx.sendIf) to send a 404 if the response was not found', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     let reply = null;
     app.use((ctx, next) => ctx.sendIf(reply));
     const res = await request(app.listen())
@@ -269,7 +297,7 @@ test('provides a helper method (ctx.sendIf) to send a 404 if the response was no
     t.is(res.status, 404);
 });
 test('provides a helper method (ctx.send) to send the response', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     let reply = {status:'ok'};
     app.use((ctx, next) => ctx.send(reply));
     const res = await request(app.listen())
@@ -278,7 +306,7 @@ test('provides a helper method (ctx.send) to send the response', async t => {
     t.is(res.status, 200);
 });
 test('provides a helper method (ctx.send) to send the response, statusCode and headers', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     let reply = null;
     app.use((ctx, next) => ctx.send(reply, 201, {
         'X-TMP': 'TEST'
@@ -290,7 +318,7 @@ test('provides a helper method (ctx.send) to send the response, statusCode and h
     t.is(res.status, 201);
 });
 test('provides a helper method (ctx.send) to send the response even if it was not found', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     let reply = null;
     app.use((ctx, next) => ctx.send(reply));
     const res = await request(app.listen())
@@ -298,18 +326,8 @@ test('provides a helper method (ctx.send) to send the response even if it was no
     t.deepEqual(JSON.stringify(res.body), JSON.stringify({}));
     t.is(res.status, 204);
 });
-test('restricts default logging depending on environment', async t => {
-    let devApp = appFactory({
-        env: 'development'
-    });
-    let prodApp = appFactory({
-        env: 'production'
-    });
-    t.is(devApp.log.level(), 20);
-    t.is(prodApp.log.level(), 30);
-});
 test('is mountable with a route prefix', async t => {
-    let app = appFactory({
+    let app = new Komapi({
         routePrefix: '/test'
     });
     app.use((ctx, next) => ctx.send({status:'ok'}));
@@ -319,30 +337,8 @@ test('is mountable with a route prefix', async t => {
     t.is(res1.status, 404);
     t.is(res2.status, 200);
 });
-test('sets some development values by default', async t => {
-    let app = appFactory();
-    t.plan(2);
-    t.is(app.log.streams.length, 2);
-    app.use((ctx, next) => {
-        t.false(ctx.state.cache);
-    });
-    await request(app.listen())
-        .get('/');
-});
-test('sets some production values in production', async t => {
-    let app = appFactory({
-        env: 'production'
-    });
-    t.plan(2);
-    t.is(app.log.streams.length, 2);
-    app.use((ctx, next) => {
-        t.true(ctx.state.cache);
-    });
-    await request(app.listen())
-        .get('/');
-});
 test('supports adding multiple middlewares at once', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     t.plan(5);
 
     app.use(...[
@@ -371,7 +367,7 @@ test('supports adding multiple middlewares at once', async t => {
         .get('/');
 });
 test('supports mounting middleware at specific routes', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     t.plan(3);
     app.use('/route1', ...[
         (ctx, next) => {
@@ -401,11 +397,11 @@ test('supports mounting middleware at specific routes', async t => {
         .get('/route2');
 });
 test('does not enable orm by default', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     t.is(app.orm, undefined);
 });
 test('orm cannot be enabled more than once', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     app.objection({
         client: 'sqlite3',
         useNullAsDefault: true,
@@ -424,7 +420,7 @@ test('orm cannot be enabled more than once', async t => {
     }, 'Cannot initialize ORM more than once');
 });
 test('orm can be enabled through objection() method using a config object', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     app.objection({
         client: 'sqlite3',
         useNullAsDefault: true,
@@ -436,7 +432,7 @@ test('orm can be enabled through objection() method using a config object', asyn
     t.is(typeof app.orm.$Model.knex, 'function');
 });
 test('orm can be enabled through objection() method using a knex instance', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     let knex = Knex({
         client: 'sqlite3',
         useNullAsDefault: true,
@@ -451,7 +447,7 @@ test('orm can be enabled through objection() method using a knex instance', asyn
     t.is(typeof app.orm.$Model.knex, 'function');
 });
 test('orm query errors are logged', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     t.plan(4);
     app.log.addStream({
         name: 'DummyLogger',
@@ -477,7 +473,7 @@ test('orm query errors are logged', async t => {
     }
 });
 test('migrations can be run before starting the app', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     t.plan(1);
     app.log.addStream({
         name: 'DummyLogger',
@@ -505,7 +501,7 @@ test('migrations can be run before starting the app', async t => {
     t.pass();
 });
 test('pending migrations are logged', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     t.plan(3);
     app.log.addStream({
         name: 'DummyLogger',
@@ -533,7 +529,7 @@ test('pending migrations are logged', async t => {
     await app.healthCheck();
 });
 test('listen supports callbacks', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     t.plan(2);
     app.use((ctx, next) => {
         ctx.body = null;
@@ -543,14 +539,14 @@ test('listen supports callbacks', async t => {
     t.is(res.status, 204);
 });
 test('adding middlewares with missing dependency results in normal behaviour', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     function dummyMiddleware(){}
     dummyMiddleware.registerBefore = 'non-existant-mw';
     app.use(dummyMiddleware);
     t.deepEqual(app.middleware[app.middleware.length - 1], dummyMiddleware);
 });
 test('ignores X-Request-ID from untrusted proxy', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     let reqId = '1234';
     let res = await request(app.listen())
         .get('/')
@@ -560,7 +556,7 @@ test('ignores X-Request-ID from untrusted proxy', async t => {
     t.not(res.headers['x-request-id'], reqId);
 });
 test('respects X-Request-ID from trusted proxy', async t => {
-    let app = appFactory({
+    let app = new Komapi({
         proxy: true
     });
     let reqId = '1234';
@@ -571,9 +567,9 @@ test('respects X-Request-ID from trusted proxy', async t => {
         });
     t.is(res.headers['x-request-id'], reqId);
 });
-test('provides ctx.request.auth property that resolves to the passport property ', async t => {
+test('provides ctx.request.auth property that resolves to the passport property', async t => {
     t.plan(2);
-    let app = appFactory();
+    let app = new Komapi();
     app.use((ctx, next) => {
         t.is(ctx.request.auth, null);
         ctx.request.dummy = true;

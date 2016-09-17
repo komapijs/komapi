@@ -3,13 +3,13 @@
 // Dependencies
 import test from 'ava';
 import Resource from '../../../src/modules/rest/resource';
-import appFactory from '../../fixtures/appFactory';
+import Komapi from '../../../src/index';
 import * as ormFactory from '../../fixtures/ormFactory';
 import {agent as request} from 'supertest-as-promised';
 
 // Tests
 test('provides default routes', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10
     });

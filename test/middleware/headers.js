@@ -2,12 +2,12 @@
 
 // Dependencies
 import test from 'ava';
-import appFactory from '../fixtures/appFactory';
+import Komapi from '../../src/index';
 import {agent as request} from 'supertest-as-promised';
 
 // Tests
 test('is enabled through app.mw.headers() method', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     app.use(app.mw.headers());
     app.use((ctx, next) => {
         ctx.send({
@@ -19,7 +19,7 @@ test('is enabled through app.mw.headers() method', async t => {
     t.is(res.headers['x-content-type-options'], 'nosniff');
 });
 test('uses hsts headers by default when using https', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     app.use((ctx, next) => {
         ctx.req.socket = { encrypted: true };
         return next();
@@ -36,7 +36,7 @@ test('uses hsts headers by default when using https', async t => {
     t.is(res.headers['strict-transport-security'], 'max-age=86400');
 });
 test('supports options', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     app.use((ctx, next) => {
         ctx.req.socket = { encrypted: true };
         return next();
@@ -57,7 +57,7 @@ test('supports options', async t => {
     t.is(res.headers['strict-transport-security'], 'max-age=12345');
 });
 test('throws if it encounters an internal error', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     app.use((ctx, next) => {
         ctx.response.setHeader = () => {
             throw new Error('Dummy Error');

@@ -2,14 +2,14 @@
 
 // Dependencies
 import test from 'ava';
-import appFactory from '../fixtures/appFactory';
+import Komapi from '../../src/index';
 import {agent as request} from 'supertest-as-promised';
 import {Strategy as LocalStrategy} from 'passport-local';
 import {Strategy as AnonymousStrategy} from 'passport-anonymous';
 
 // Tests
 test('provides middleware to ensure authentication', async t => {
-    const app = appFactory();
+    const app = new Komapi();
     t.plan(5);
     const passportUser = {
         id: 1,

@@ -2,13 +2,13 @@
 
 // Dependencies
 import test from 'ava';
-import appFactory from '../fixtures/appFactory';
+import Komapi from '../../src/index';
 import {agent as request} from 'supertest-as-promised';
 
 // Tests
 test('is enabled through app.mw.bodyParser() method', async t => {
     t.plan(3);
-    let app = appFactory();
+    let app = new Komapi();
     app.use(app.mw.bodyParser());
     app.use((ctx, next) => {
         t.is(ctx.request.body.username, 'test');
@@ -22,7 +22,7 @@ test('is enabled through app.mw.bodyParser() method', async t => {
 });
 test('can be mounted at specific paths', async t => {
     t.plan(6);
-    let app = appFactory();
+    let app = new Komapi();
     app.use('/mount', app.mw.bodyParser());
     app.use('/mount', (ctx, next) => {
         t.is(ctx.request.body.username, 'test');

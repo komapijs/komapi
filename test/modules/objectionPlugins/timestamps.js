@@ -2,12 +2,12 @@
 
 // Dependencies
 import test from 'ava';
-import appFactory from '../../fixtures/appFactory';
+import Komapi from '../../../src/index';
 import * as ormFactory from '../../fixtures/ormFactory';
 
 // Tests
 test('is not enabled by default', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app);
     let model = {
         name: 'nametest'
@@ -29,7 +29,7 @@ test('is not enabled by default', async t => {
     t.is(app.orm.Test.systemColumns.indexOf('updatedAt'), -1);
 });
 test('is not enabled by default and does not impact schema validation', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         schema: 1
     });
@@ -49,7 +49,7 @@ test('is not enabled by default and does not impact schema validation', async t 
     t.is(collection[0].createdAt, collection[0].updatedAt);
 });
 test('is enabled by setting timestamps property', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         timestamps: true
     });
@@ -71,7 +71,7 @@ test('is enabled by setting timestamps property', async t => {
     t.not(app.orm.Test.systemColumns.indexOf('updated_at'), -1);
 });
 test('sets updated_at on updates', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         timestamps: true
     });
@@ -93,7 +93,7 @@ test('sets updated_at on updates', async t => {
     t.is(person.updatedAt, null);
 });
 test('sets updated_at on updates with camelCase', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         timestamps: true,
         camelCase: true
@@ -118,7 +118,7 @@ test('sets updated_at on updates with camelCase', async t => {
     t.not(app.orm.Test.systemColumns.indexOf('updatedAt'), -1);
 });
 test('sets updated_at on updates with jsonSchema', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         timestamps: true,
         schema: 1
@@ -141,7 +141,7 @@ test('sets updated_at on updates with jsonSchema', async t => {
     t.is(person.updatedAt, null);
 });
 test('sets updated_at on updates with jsonSchema and camelCase', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         timestamps: true,
         schema: 1,

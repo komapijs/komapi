@@ -4,18 +4,7 @@
 export default function defaultConfig(env = 'development') {
     return {
         env: env,
-        loggers: [
-            {
-                name: 'stdout',
-                level: (env === 'production') ? 'info' : 'debug',
-                stream: process.stdout
-            },
-            {
-                name: 'stderr',
-                level: 'warn',
-                stream: process.stderr
-            }
-        ],
+        loggers: [],
         name: 'Komapi application',
         proxy: false,
         routePrefix: '/',

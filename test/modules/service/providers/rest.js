@@ -2,12 +2,12 @@
 
 // Dependencies
 import test from 'ava';
-import appFactory from '../../../fixtures/appFactory';
+import Komapi from '../../../../src/index';
 import {agent as request} from 'supertest-as-promised';
 
 // Tests
 test('provides routes for all common rest operations', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     app.use(app.mw.bodyParser());
     let fullBody = {
         key1: 'value1',
@@ -95,14 +95,14 @@ test('provides routes for all common rest operations', async t => {
     t.deepEqual(res.delete, {});
 });
 test('responds 404 by default for an empty response on GET operation', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     app.services('../../../fixtures/services/rest.js');
     app.use(app.mw.route(app.service.Rest.$registerRoutes.bind(app.service.Rest)));
     let res = await request(app.listen()).get('/2');
     t.is(res.status, 404);
 });
 test('provides a default options route with the different schemas', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     app.services('../../../fixtures/services/rest.js');
     app.use(app.mw.route(app.service.Rest.$registerRoutes.bind(app.service.Rest)));
     let res1 = await request(app.listen()).options('/');
@@ -127,7 +127,7 @@ test('provides a default options route with the different schemas', async t => {
     });
 });
 test('options route is disabled if no other routes can be found', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     app.services('../../../fixtures/services/blog.js');
     app.use(app.mw.route(app.service.Blog.$registerRoutes.bind(app.service.Blog)));
     let res = await request(app.listen()).options('/');
@@ -135,7 +135,7 @@ test('options route is disabled if no other routes can be found', async t => {
     t.is(res.headers.allow, undefined);
 });
 test('schemas can be overridden', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     app.services('../../../fixtures/services/comment.js');
     app.use(app.mw.route(app.service.Comment.$registerRoutes.bind(app.service.Comment)));
     let res = await request(app.listen()).options('/');
@@ -164,7 +164,7 @@ test('schemas can be overridden', async t => {
     });
 });
 test('provides data schema validation on create/POST and ignores missing attributes', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     let validData = {
         prop: 1
     };
@@ -194,7 +194,7 @@ test('provides data schema validation on create/POST and ignores missing attribu
     });
 });
 test('provides data schema validation on update/PUT and requires all properties', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     let validData = {
         prop: 1,
         prop2: 2
@@ -244,7 +244,7 @@ test('provides data schema validation on update/PUT and requires all properties'
     });
 });
 test('provides data schema validation on patch/PATCH and ignores missing attributes', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     let validData = {
         prop: 1
     };
@@ -274,7 +274,7 @@ test('provides data schema validation on patch/PATCH and ignores missing attribu
     });
 });
 test('provides query schema validation on find', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     app.services('../../../fixtures/services/rest.js');
     app.use(app.mw.route(app.service.Rest.$registerRoutes.bind(app.service.Rest)));
     let res1 = await request(app.listen()).get('/?$top=7');

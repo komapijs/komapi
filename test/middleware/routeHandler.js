@@ -2,12 +2,12 @@
 
 // Dependencies
 import test from 'ava';
-import appFactory from '../fixtures/appFactory';
+import Komapi from '../../src/index';
 import {agent as request} from 'supertest-as-promised';
 
 // Tests
 test('is enabled through app.mw.route() method using es6 routes', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     app.use(app.mw.route('../fixtures/routes'));
     const res = await request(app.listen())
         .get('/');
@@ -17,7 +17,7 @@ test('is enabled through app.mw.route() method using es6 routes', async t => {
     });
 });
 test('supports es5 routes', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     app.use(app.mw.route('../fixtures/routes'));
     const res = await request(app.listen())
         .get('/es5');
@@ -27,7 +27,7 @@ test('supports es5 routes', async t => {
     });
 });
 test('supports specifying specific route files', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     app.use(app.mw.route('../fixtures/routes/es5.js'));
     const res = await request(app.listen())
         .get('/');
@@ -37,7 +37,7 @@ test('supports specifying specific route files', async t => {
     });
 });
 test('supports using route modules directly', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     app.use(app.mw.route((router) => {
         router.get('/ty', (ctx) => {
             return ctx.body = {
@@ -54,7 +54,7 @@ test('supports using route modules directly', async t => {
     });
 });
 test('supports loading multiple middlewares at once', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     t.plan(6);
     app.use(app.mw.route(...[
         (ctx, next) => {
@@ -85,7 +85,7 @@ test('supports loading multiple middlewares at once', async t => {
     });
 });
 test('supports being mounted', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     t.plan(3);
     app.use('/test', app.mw.route('../fixtures/routes'));
     const res1 = await request(app.listen())
@@ -99,14 +99,14 @@ test('supports being mounted', async t => {
     });
 });
 test('responds with 405 for unallowed methods', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     app.use(app.mw.route('../fixtures/routes'));
     const res = await request(app.listen())
         .post('/');
     t.is(res.status, 405);
 });
 test('responds with 501 for SEARCH', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     app.use(app.mw.route('../fixtures/routes'));
     const res = await request(app.listen())
         .search('/');

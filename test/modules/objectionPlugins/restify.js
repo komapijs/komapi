@@ -2,12 +2,12 @@
 
 // Dependencies
 import test from 'ava';
-import appFactory from '../../fixtures/appFactory';
+import Komapi from '../../../src/index';
 import * as ormFactory from '../../fixtures/ormFactory';
 
 // Tests
 test('is enabled through .restifyFilter method', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10
     });
@@ -16,7 +16,7 @@ test('is enabled through .restifyFilter method', async t => {
     t.is(collection.value.length, 10);
 });
 test('provides helper for getting relevant columns', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10
     });
@@ -26,7 +26,7 @@ test('provides helper for getting relevant columns', async t => {
     ]);
 });
 test('provides helper for getting relevant columns using the jsonSchema', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10,
         schema: 1
@@ -38,7 +38,7 @@ test('provides helper for getting relevant columns using the jsonSchema', async 
     ]);
 });
 test('hides all non-id columns by default', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10
     });
@@ -47,7 +47,7 @@ test('hides all non-id columns by default', async t => {
     t.is(collection.value[0].name, undefined);
 });
 test('hides all relations by default', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10
     });
@@ -56,7 +56,7 @@ test('hides all relations by default', async t => {
     t.is(collection.value[0].reltests, undefined);
 });
 test('supports filter', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10
     });
@@ -70,7 +70,7 @@ test('supports filter', async t => {
     t.is(collection.value[0].name, 'name-3');
 });
 test('supports select', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10
     });
@@ -81,7 +81,7 @@ test('supports select', async t => {
     t.is(collection.value[0].name, 'name-1');
 });
 test('supports expand', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10
     });
@@ -106,7 +106,7 @@ test('supports expand', async t => {
     t.deepEqual(collection2.value[1].reltests, undefined);
 });
 test('supports simple expand and select on simple expand', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10
     });
@@ -132,7 +132,7 @@ test('supports simple expand and select on simple expand', async t => {
     ]);
 });
 test('supports nested expand', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10
     });
@@ -164,7 +164,7 @@ test('supports nested expand', async t => {
     ]);
 });
 test('supports complex expand and select on complex expand', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10
     });
@@ -239,7 +239,7 @@ test('supports complex expand and select on complex expand', async t => {
     t.deepEqual(model.reltests, expected);
 });
 test('supports sort', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10
     });
@@ -260,7 +260,7 @@ test('supports sort', async t => {
     t.is(collection3.value[0].id, 1);
 });
 test('supports limit', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10
     });
@@ -270,7 +270,7 @@ test('supports limit', async t => {
     t.is(collection.value.length, 3);
 });
 test('supports offset', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10
     });
@@ -281,7 +281,7 @@ test('supports offset', async t => {
     t.is(collection.value[0].id, 4);
 });
 test('omits database-only attributes when printing', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10
     });

@@ -2,7 +2,7 @@
 
 // Dependencies
 import test from 'ava';
-import appFactory from '../fixtures/appFactory';
+import Komapi from '../../src/index';
 import {agent as request} from 'supertest-as-promised';
 import Boom from 'boom';
 import _ from 'lodash';
@@ -33,7 +33,7 @@ const schema = {
 
 // Tests
 test('uses JSON as default', async t => {
-    let app = appFactory({
+    let app = new Komapi({
         env: 'production'
     });
     app.use((ctx, next) => {
@@ -46,7 +46,7 @@ test('uses JSON as default', async t => {
     t.deepEqual(res.body, defaultErrorResponse);
 });
 test('supports text when JSON is unacceptable', async t => {
-    let app = appFactory({
+    let app = new Komapi({
         env: 'production'
     });
     app.use((ctx, next) => {
@@ -60,7 +60,7 @@ test('supports text when JSON is unacceptable', async t => {
     t.is(res.text, JSON.stringify(defaultErrorResponse, null, 2));
 });
 test('responds with 406 using text for no acceptable response types', async t => {
-    let app = appFactory({
+    let app = new Komapi({
         env: 'production'
     });
     app.use((ctx, next) => {
@@ -73,7 +73,7 @@ test('responds with 406 using text for no acceptable response types', async t =>
     t.deepEqual(res.text, 'Error: Not Acceptable');
 });
 test('does not provide stacktraces in production', async t => {
-    let app = appFactory({
+    let app = new Komapi({
         env: 'production'
     });
     app.use((ctx, next) => {
@@ -86,7 +86,9 @@ test('does not provide stacktraces in production', async t => {
     t.is(res.body.error.stack, undefined);
 });
 test('provides stacktraces in development', async t => {
-    let app = appFactory();
+    let app = new Komapi({
+        env: 'development'
+    });
     let stack;
     app.use((ctx, next) => {
         const err = new Error('Dummy error');
@@ -102,7 +104,9 @@ test('provides stacktraces in development', async t => {
     t.deepEqual(res.body, defaultError);
 });
 test('handles stacktraces in array format', async t => {
-    let app = appFactory();
+    let app = new Komapi({
+        env: 'development'
+    });
     let stack;
     app.use((ctx, next) => {
         const err = new Error('Dummy error');
@@ -119,7 +123,7 @@ test('handles stacktraces in array format', async t => {
     t.deepEqual(res.body, defaultError);
 });
 test('supports custom headers when using JSON', async t => {
-    let app = appFactory({
+    let app = new Komapi({
         env: 'production'
     });
     app.use((ctx, next) => {
@@ -139,7 +143,7 @@ test('supports custom headers when using JSON', async t => {
     t.is(res.headers['www-authenticate'], 'sample error="invalid password"');
 });
 test('supports custom headers when using text', async t => {
-    let app = appFactory({
+    let app = new Komapi({
         env: 'production'
     });
     app.use((ctx, next) => {
@@ -160,7 +164,7 @@ test('supports custom headers when using text', async t => {
     t.is(res.headers['www-authenticate'], 'sample error="invalid password"');
 });
 test('natively handles schemaValidationError exceptions using 400', async t => {
-    let app = appFactory({
+    let app = new Komapi({
         env: 'production'
     });
     app.use((ctx, next) => {
@@ -188,7 +192,7 @@ test('natively handles schemaValidationError exceptions using 400', async t => {
     });
 });
 test('provides an empty errors array during schemaValidationError exceptions if no details were provided', async t => {
-    let app = appFactory({
+    let app = new Komapi({
         env: 'production'
     });
     app.use(app.mw.ensureSchema(schema));
@@ -205,7 +209,7 @@ test('provides an empty errors array during schemaValidationError exceptions if 
     });
 });
 test('handles invalid error objects gracefully', async t => {
-    let app = appFactory({
+    let app = new Komapi({
         env: 'development'
     });
     class invalidError {

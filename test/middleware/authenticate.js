@@ -2,7 +2,7 @@
 
 // Dependencies
 import test from 'ava';
-import appFactory from '../fixtures/appFactory';
+import Komapi from '../../src/index';
 import {agent as request} from 'supertest-as-promised';
 import {Strategy as LocalStrategy} from 'passport-local';
 import Boom from 'boom';
@@ -11,7 +11,7 @@ import DummyLogger from '../fixtures/dummyLogger';
 // Tests
 test('is initiated through authInit() method', async t => {
     t.plan(4);
-    const app = appFactory();
+    const app = new Komapi();
     t.is(typeof app.context.login, 'undefined');
     app.authInit();
     t.is(typeof app.context.login, 'function');
@@ -24,7 +24,7 @@ test('is initiated through authInit() method', async t => {
     t.is(res.status, 204);
 });
 test('is enabled through app.mw.authenticate() method', async t => {
-    const app = appFactory();
+    const app = new Komapi();
     app.authInit();
     app.use(app.mw.authenticate());
     app.use((ctx, next) => {
@@ -36,7 +36,7 @@ test('is enabled through app.mw.authenticate() method', async t => {
     t.is(res.status, 401);
 });
 test('supports vanilla passport strategies with failures', async t => {
-    const app = appFactory();
+    const app = new Komapi();
     const passportUser = {
         id: 1,
         username: 'test'
@@ -61,7 +61,7 @@ test('supports vanilla passport strategies with failures', async t => {
     t.is(res.status, 302);
 });
 test('supports vanilla passport strategies with success', async t => {
-    const app = appFactory();
+    const app = new Komapi();
     const passportUser = {
         id: 1,
         username: 'test'
@@ -87,7 +87,7 @@ test('supports vanilla passport strategies with success', async t => {
     t.is(res.status, 302);
 });
 test('can be mounted at specific path', async t => {
-    const app = appFactory();
+    const app = new Komapi();
     app.authInit();
     app.use('/testProtected', app.mw.authenticate());
     app.use((ctx, next) => {
@@ -102,20 +102,20 @@ test('can be mounted at specific path', async t => {
     t.is(resUnprotected.status, 204);
 });
 test('cannot be initialized multiple times', async t => {
-    const app = appFactory();
+    const app = new Komapi();
     t.throws(() => {
         app.authInit();
         app.authInit();
     }, 'Cannot initialize authentication more than once');
 });
 test('cannot be enabled without first having been initialized', async t => {
-    const app = appFactory();
+    const app = new Komapi();
     t.throws(() => {
         app.use(app.mw.authenticate());
     }, 'Cannot use authentication middleware without enabling "authInit" first');
 });
 test('refuses invalid credentials', async t => {
-    const app = appFactory();
+    const app = new Komapi();
     const passportUser = {
         id: 1,
         username: 'test'
@@ -143,7 +143,7 @@ test('refuses invalid credentials', async t => {
 });
 test('allows valid credentials', async t => {
     t.plan(2);
-    const app = appFactory();
+    const app = new Komapi();
     const passportUser = {
         id: 1,
         username: 'test'
@@ -169,7 +169,7 @@ test('allows valid credentials', async t => {
     t.is(res.status, 204);
 });
 test('adds username in logs when logged in', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     const passportUser = {
         id: 1,
         username: 'test'
@@ -206,7 +206,7 @@ test('adds username in logs when logged in', async t => {
     t.is(res.status, 204);
 });
 test('does not add username to logs when not logged in', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     const passportUser = {
         id: 1,
         username: 'test'

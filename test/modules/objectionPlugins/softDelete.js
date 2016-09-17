@@ -2,12 +2,12 @@
 
 // Dependencies
 import test from 'ava';
-import appFactory from '../../fixtures/appFactory';
+import Komapi from '../../../src/index';
 import * as ormFactory from '../../fixtures/ormFactory';
 
 // Tests
 test('is not enabled by default', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10
     });
@@ -25,7 +25,7 @@ test('is not enabled by default', async t => {
     t.is(app.orm.Test.systemColumns.indexOf('deletedAt'), -1);
 });
 test('returns all records', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10,
         softDelete: true
@@ -37,7 +37,7 @@ test('returns all records', async t => {
     t.not(app.orm.Test.systemColumns.indexOf('deleted_at'), -1);
 });
 test('returns non-deleted records', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10,
         softDelete: true
@@ -49,7 +49,7 @@ test('returns non-deleted records', async t => {
     t.is(collection[0].id, 2);
 });
 test('returns all records withArchived', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10,
         softDelete: true
@@ -63,7 +63,7 @@ test('returns all records withArchived', async t => {
     t.is(typeof collection[0].deleted_at, 'string');
 });
 test('returns all records with camelCase', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10,
         softDelete: true,
@@ -79,7 +79,7 @@ test('returns all records with camelCase', async t => {
     t.not(app.orm.Test.systemColumns.indexOf('deletedAt'), -1);
 });
 test('can restore records', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10,
         softDelete: true
@@ -96,7 +96,7 @@ test('can restore records', async t => {
     t.is(collection2[0].id, 1);
 });
 test('can restore records with camelCase', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10,
         softDelete: true,
@@ -114,7 +114,7 @@ test('can restore records with camelCase', async t => {
     t.is(collection2[0].id, 1);
 });
 test('can hard-delete records with {force:true}', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10,
         softDelete: true
@@ -126,7 +126,7 @@ test('can hard-delete records with {force:true}', async t => {
     t.is(collection[0].id, 2);
 });
 test('returns all related records', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10,
         softDelete: true
@@ -138,7 +138,7 @@ test('returns all related records', async t => {
     t.is(collection[0].id, 5);
 });
 test('returns non-deleted related records', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10,
         softDelete: true
@@ -151,7 +151,7 @@ test('returns non-deleted related records', async t => {
     t.is(collection[0].id, 6);
 });
 test('returns all related records withArchived', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10,
         softDelete: true
@@ -164,7 +164,7 @@ test('returns all related records withArchived', async t => {
     t.is(collection[0].id, 5);
 });
 test('can restore related records', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10,
         softDelete: true
@@ -182,7 +182,7 @@ test('can restore related records', async t => {
     t.is(collection2[0].id, 5);
 });
 test('can restore related records with camelCase', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10,
         softDelete: true,
@@ -201,7 +201,7 @@ test('can restore related records with camelCase', async t => {
     t.is(collection2[0].id, 5);
 });
 test('can hard-delete related records with {force:true}', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     await ormFactory.createDatabase(app, {
         seed: 10,
         softDelete: true

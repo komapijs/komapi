@@ -2,13 +2,13 @@
 
 // Dependencies
 import test from 'ava';
-import appFactory from '../fixtures/appFactory';
+import Komapi from '../../src/index';
 import {agent as request} from 'supertest-as-promised';
 import DummyLogger from '../fixtures/dummyLogger';
 
 // Tests
 test('is enabled through app.mw.requestLogger() method', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     t.plan(3);
     app.use(app.mw.requestLogger());
     app.log.addStream({
@@ -32,7 +32,7 @@ test('is enabled through app.mw.requestLogger() method', async t => {
     t.is(res.status, 200);
 });
 test('throws on invalid options', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     t.plan(1);
     t.throws(() => {
         app.mw.requestLogger({
@@ -41,7 +41,7 @@ test('throws on invalid options', async t => {
     }, /"logger" must be a Function/);
 });
 test('logs the response status on statuscode >= 500', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     t.plan(4);
     app.use(app.mw.requestLogger());
     app.log.addStream({
@@ -64,7 +64,7 @@ test('logs the response status on statuscode >= 500', async t => {
     t.is(res.status, 500);
 });
 test('logs the request body and hides password on statuscode >= 500', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     let body = {
         username: 'test',
         password: 'asdf'
@@ -98,7 +98,7 @@ test('logs the request body and hides password on statuscode >= 500', async t =>
 });
 
 test('supports options', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     t.plan(3);
     app.use(app.mw.requestLogger({
         logger: (ctx)  => {

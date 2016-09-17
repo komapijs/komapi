@@ -2,25 +2,25 @@
 
 // Dependencies
 import test from 'ava';
-import appFactory from '../fixtures/appFactory';
+import Komapi from '../../src/index';
 
 // Tests
 test('loads services through the services() method', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     app.services('../fixtures/services');
     t.is(Object.keys(app.service).length, 4);
     t.not(app.service.User, undefined);
     t.not(app.service.Comment, undefined);
 });
 test('can load a single service', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     app.services('../fixtures/services/comment.js');
     t.is(Object.keys(app.service).length, 1);
     t.is(app.service.User, undefined);
     t.not(app.service.Comment, undefined);
 });
 test('adds hooks automatically', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     app.services('../fixtures/services');
     let id = 10;
     let res1 = await app.service.User.findWithHooks(id);

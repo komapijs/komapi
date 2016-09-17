@@ -2,7 +2,7 @@
 
 // Dependencies
 import test from 'ava';
-import appFactory from '../fixtures/appFactory';
+import Komapi from '../../src/index';
 import {agent as request} from 'supertest-as-promised';
 
 // Init
@@ -37,7 +37,7 @@ const schema = {
 // Tests
 test('provides middleware to ensure requests adheres to a json schema', async t => {
     t.plan(2);
-    let app = appFactory({
+    let app = new Komapi({
         env: 'production'
     });
     app.use(async(ctx, next) => {
@@ -110,7 +110,7 @@ test('provides middleware to ensure requests adheres to a json schema', async t 
         .get('/');
 });
 test('allows valid requests', async t => {
-    let app = appFactory({
+    let app = new Komapi({
         env: 'production'
     });
     app.use(async(ctx, next) => {
@@ -133,7 +133,7 @@ test('allows valid requests', async t => {
     t.is(res.status, 204);
 });
 test('throws on invalid key', async t => {
-    let app = appFactory({
+    let app = new Komapi({
         env: 'production'
     });
     t.throws(() => {
@@ -141,7 +141,7 @@ test('throws on invalid key', async t => {
     }, `You can not enforce a schema to 'invalid'. Only allowed values are 'body', 'params' or 'query`);
 });
 test('replies with schema on ?$schema by default', async t => {
-    let app = appFactory({
+    let app = new Komapi({
         env: 'production'
     });
     app.use(app.mw.ensureSchema(schema));
@@ -154,7 +154,7 @@ test('replies with schema on ?$schema by default', async t => {
     t.deepEqual(res.body, schema);
 });
 test('support custom schema reply function', async t => {
-    let app = appFactory({
+    let app = new Komapi({
         env: 'production'
     });
     app.use(app.mw.ensureSchema(schema, {
@@ -171,7 +171,7 @@ test('support custom schema reply function', async t => {
     t.deepEqual(res.body, schema);
 });
 test('can be disabled', async t => {
-    let app = appFactory({
+    let app = new Komapi({
         env: 'production'
     });
     app.use(app.mw.ensureSchema(schema, {

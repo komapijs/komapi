@@ -2,12 +2,12 @@
 
 // Dependencies
 import test from 'ava';
-import appFactory from '../fixtures/appFactory';
+import Komapi from '../../src/index';
 import {agent as request} from 'supertest-as-promised';
 
 // Tests
 test('is enabled through app.mw.views() method', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     app.use(app.mw.views(__dirname + '/../fixtures/views', {
         extension: 'hbs',
         map: {

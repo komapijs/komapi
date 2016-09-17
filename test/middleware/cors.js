@@ -2,12 +2,12 @@
 
 // Dependencies
 import test from 'ava';
-import appFactory from '../fixtures/appFactory';
+import Komapi from '../../src/index';
 import {agent as request} from 'supertest-as-promised';
 
 // Tests
 test('is enabled through app.mw.cors() method', async t => {
-    let app = appFactory();
+    let app = new Komapi();
     app.use(app.mw.cors());
     app.use((ctx, next) => {
         ctx.send({

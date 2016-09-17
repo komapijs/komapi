@@ -45,14 +45,16 @@ import objectionTimestamps from './modules/objectionPlugins/timestamps';
 export default class Komapi extends Koa{
 
     /**
-     * Create a Kompai instance
+     * Create a Komapi instance
      *
      * @param {Object=} config
+     * @param {Object=} userConfig this is set directly to app.locals
      */
-    constructor (config = {}) {
+    constructor (config = {}, userConfig = {}) {
         super();
 
         // Set properties
+        this.locals = userConfig;
         this.orm = undefined;
         this.state = {};
         this.config = Object.assign({}, defaultConfig(config.env || process.env.NODE_ENV), config);
