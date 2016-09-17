@@ -23,7 +23,6 @@ Komapi is essentially Koa with some added sugar, which means that you can use an
   - [Mounting Middleware](#mounting-middleware)
   - [Included Middleware](#included-middleware)
     - [Komapi Native Middleware](#komapi-native-middleware)
-      - [app.mw.authenticate(strategies, [options], [callback])](#komapi-middleware-authenticate)
       - [app.mw.ensureAuthenticated()](#komapi-middleware-ensureauthenticated)
       - [app.mw.ensureSchema(schema, [key])](#komapi-middleware-ensureschema)
       - [app.mw.requestLogger([options])](#komapi-middleware-requestlogger)
@@ -56,11 +55,9 @@ $ npm install --save komapi
 const Komapi = require('komapi');
 
 // Init
-const app = new Komapi({
-    env: 'development'
-});
+const app = new Komapi();
 
-// Setup
+// Middlewares
 app.use((ctx) => {
     ctx.body = 'Hello World!';
 });
@@ -171,15 +168,6 @@ Komapi provides built-in middlewares for most use cases. Some of these are just 
 | `app.mw.views(root[, options])` | Use templates | [Template Rendering](#template-rendering), [koa-views](https://github.com/queckezz/koa-views) |
 
 ##### Komapi Native Middleware
-<a name="komapi-middleware-authenticate"></a>
-###### app.mw.authenticate(strategies[, options][, callback])
-Authenticates requests. Based on [Passport](http://passportjs.org/) and requires initialization of authentication strategies through `app.authInit()`
-```js
-app.use(app.mw.authenticate('local'));
-```
-
-For more information, see [authentication](#authentication) and [Passport](http://passportjs.org/).
-
 <a name="komapi-middleware-ensureauthenticated"></a>
 ###### app.mw.ensureAuthenticated()
 Ensures requests are authenticated. If requests are not authenticated, this will throw a 401 response.
@@ -227,51 +215,7 @@ app.use(app.mw.requestLogger());
 ```
 
 ### Authentication
-Authentication is handled by [Passport](http://passportjs.org/) through Komapi provided middlewares. The following middlewares are used for authentication purposes:
-
-| Middleware | Description |
-| --- | --- |
-| `app.mw.authInit(strategies...)` | Initialize and enable authentication strategies. Functions similarly to `passport.use`, with the exception that all strategies must be provided at once. |
-| `app.mw.authenticate(strategies[, options][, callback])` | Only used to authenticate requests (e.g. logging in users). This is usually only used on endpoints where a user is expected to be unauthenticated and requesting authentication. For session based authentication schemes it is only used on the endpoint used to generate the session. For non-session based schemes, it is often used with different strategies on different endpoints. A `/login` endpoint (using `app.mw.authenticate('basic')` may be provided for logging in using username and password to get a JWT for use on all the other endpoints (using `app.mw.authenticate('jwt')`). |
-| `app.mw.ensureAuthenticated()` | This is used to restrict access to endpoints for only authenticated requests. See the example below where authentication is preferred, but not required in the entire application, except for a single endpoint that requires an authenticated request. |
-
-Example:
-```js
-'use strict';
-
-// Dependencies
-const Komapi = require('komapi');
-const BasicStrategy = require('passport-http').BasicStrategy;
-const AnonymousStrategy = require('passport-anonymous').Strategy;
-
-// Init
-const app = new Komapi({
-    env: 'development'
-});
-
-// Initialize authentication and the strategies
-app.authInit(new BasicStrategy(function (userid, password, done) {
-    if (userid === 'test' && password === 'testpw') return done(null, {
-        id: 1
-    });
-    done(null, false);
-}), new AnonymousStrategy());
-
-// Authenticate the request using either BasicStrategy or AnonymousStrategy
-app.use(app.mw.authenticate(['basic', 'anonymous'], {session: false}));
-
-// Requesting /secured will result in a 401, unless you authenticated with BasicStrategy
-app.use('/secured', app.mw.ensureAuthenticated(), (ctx) => {
-    ctx.body = 'Protected resource!';
-});
-// This will always work
-app.use((ctx) => {
-    ctx.body = 'Hello World!';
-});
-
-// Listen
-app.listen(process.env.PORT || 3000);
-```
+Authentication is handled by [komapi-passport](https://github.com/komapijs/komapi-passport).
 
 ### ORM
 Komapi provides built-in support for [Objection.js](https://github.com/Vincit/objection.js). The ORM related functionality is all available through `app.orm`.

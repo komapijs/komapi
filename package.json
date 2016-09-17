@@ -1,7 +1,7 @@
 {
   "name": "komapi",
   "version": "0.0.9",
-  "description": "Komapi.js is an opinionated Node.js framework built on top of Koa 2.0",
+  "description": "Komapi is an opinionated Node.js framework built on top of Koa 2.0",
   "author": "ersims",
   "repository": {
     "type": "git",
@@ -91,6 +91,7 @@
     "eslint-plugin-import": "^1.13.0",
     "eslint-plugin-security": "^1.2.0",
     "handlebars": "^4.0.5",
+    "komapi-passport": "0.0.1",
     "npm-check-updates": "^2.8.0",
     "nsp": "^2.6.1",
     "nyc": "^8.3.0",

@@ -24,7 +24,6 @@ import errorHandler from './middleware/errorHandler';
 import requestLogger from './middleware/requestLogger';
 import routes from './middleware/routeHandler';
 import headers from './middleware/headers';
-import KomapiPassport from './modules/authentication/passport';
 import serve from 'koa-static';
 import views from 'koa-views';
 import compress from 'koa-compress';
@@ -58,7 +57,6 @@ export default class Komapi extends Koa{
         this.orm = undefined;
         this.state = {};
         this.config = Object.assign({}, defaultConfig(config.env || process.env.NODE_ENV), config);
-        this.passport = new KomapiPassport;
         this.service = {};
         this.schema = new Schema({
             useDefaults: true,
@@ -108,7 +106,7 @@ export default class Komapi extends Koa{
                         return clean;
                     }
                     return ({
-                        user: (req._passport && req[req._passport.instance._userProperty]) ? req[req._passport.instance._userProperty] : undefined,
+                        user: req.auth,
                         body: (req.ctx.response.status >= 500) ? sanitize(req.body) : undefined,
                         headers: req.header,
                         method: req.method,
@@ -183,10 +181,6 @@ export default class Komapi extends Koa{
     get mw() {
         const app = this;
         return {
-            authenticate: function authenticate(...args) {
-                if (!app.request.login) throw new Error('Cannot use authentication middleware without enabling "authInit" first');
-                return app.passport.authenticate(...args);
-            },
             bodyParser,
             compress,
             cors,
@@ -235,15 +229,6 @@ export default class Komapi extends Koa{
     }
 
     // Configuration
-    authInit(...strategies) {
-        if (this.request.login) throw new Error('Cannot initialize authentication more than once');
-        KomapiPassport.mutateApp(this);
-
-        // Register strategies
-        strategies.forEach((s) => this.passport.use(s));
-
-        return this.use(this.passport.initialize());
-    }
     models(path) {
         if (!this.orm) throw new Error('Cannot load models before initializing an objection instance. Use `app.objection()` before attempting to load models.');
         return models(path, this);
