@@ -288,10 +288,20 @@ test('provides a helper method (ctx.sendIf) to send the response, statusCode and
     t.is(res.headers['x-tmp'], 'TEST');
     t.is(res.status, 201);
 });
-test('provides a helper method (ctx.sendIf) to send a 404 if the response was not found', async t => {
+test('provides a helper method (ctx.sendIf) to send 404 if the response was not found', async t => {
     let app = new Komapi();
     let reply = null;
     app.use((ctx, next) => ctx.sendIf(reply));
+    const res = await request(app.listen())
+        .get('/');
+    t.is(res.status, 404);
+});
+test('provides a helper method (ctx.sendIf) to send 404 based on custom evaluation expression', async t => {
+    let app = new Komapi();
+    let reply = {
+        data: null
+    };
+    app.use((ctx, next) => ctx.sendIf(reply, undefined, undefined, reply.data !== null));
     const res = await request(app.listen())
         .get('/');
     t.is(res.status, 404);
