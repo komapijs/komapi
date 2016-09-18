@@ -185,12 +185,6 @@ export default class Komapi extends Koa{
             compress,
             cors,
             etag: (opts) => compose([conditional(), etag(opts)]),
-            ensureAuthenticated: function ensureAuthenticated() {
-                return function ensureAuthenticated(ctx, next) {
-                    if (!ctx.isAuthenticated()) throw Boom.unauthorized('Access to this resource requires authentication.');
-                    return next();
-                };
-            },
             ensureSchema: function ensureSchema(schema, opts) {
                 opts = Object.assign({}, {
                     key: 'body',

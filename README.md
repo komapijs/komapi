@@ -23,7 +23,6 @@ Komapi is essentially Koa with some added sugar, which means that you can use an
   - [Mounting Middleware](#mounting-middleware)
   - [Included Middleware](#included-middleware)
     - [Komapi Native Middleware](#komapi-native-middleware)
-      - [app.mw.ensureAuthenticated()](#komapi-middleware-ensureauthenticated)
       - [app.mw.ensureSchema(schema, [key])](#komapi-middleware-ensureschema)
       - [app.mw.requestLogger([options])](#komapi-middleware-requestlogger)
 - [Authentication](#authentication)     
@@ -154,12 +153,10 @@ Komapi provides built-in middlewares for most use cases. Some of these are just 
 
 | Middleware | Description | Reference |
 | --- | --- | --- |
-| `app.mw.authenticate(strategies[, options][, callback])` | Authenticate requets | [authenticate](komapi-middleware-authenticate), [Passport](http://passportjs.org/) |
 | `app.mw.bodyParser([options])` | Parse request body | [koa-bodyparser](https://github.com/koajs/bodyparser) |
 | `app.mw.compress([options])` | Compresses responses | [koa-compress](https://github.com/koajs/compress) |
 | `app.mw.cors([options])` | Set CORS headers | [kcors](https://github.com/koajs/cors) |
 | `app.mw.etag([options])` | Generates ETags | [koa-etag](https://github.com/koajs/etag), [koa-conditional-get](https://github.com/koajs/conditional-get) |
-| `app.mw.ensureAuthenticated()` | Require authentication | [ensureAuthenticated](#komapi-middleware-ensureauthenticated) |
 | `app.mw.ensureSchema(schema[, opts])` | Validate requests | [ensureSchema](#komapi-middleware-ensureschema) |
 | `app.mw.requestLogger([options])` | Log requests | [requestLogger](#komapi-middleware-requestlogger) |
 | `app.mw.route([middlewares ...], path)` | Load route | [Loading Route Modules](#loading-route-modules) |
@@ -168,13 +165,6 @@ Komapi provides built-in middlewares for most use cases. Some of these are just 
 | `app.mw.views(root[, options])` | Use templates | [Template Rendering](#template-rendering), [koa-views](https://github.com/queckezz/koa-views) |
 
 ##### Komapi Native Middleware
-<a name="komapi-middleware-ensureauthenticated"></a>
-###### app.mw.ensureAuthenticated()
-Ensures requests are authenticated. If requests are not authenticated, this will throw a 401 response.
-```js
-app.use(app.mw.ensureAuthenticated());
-```
-
 <a name="komapi-middleware-ensureschema"></a>
 ###### app.mw.ensureSchema(schema[, opts])
 * schema
