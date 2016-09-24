@@ -163,7 +163,7 @@ test('supports custom headers when using text', async t => {
     }, null, 2));
     t.is(res.headers['www-authenticate'], 'sample error="invalid password"');
 });
-test('natively handles schemaValidationError exceptions using 400', async t => {
+test('handles built in schema validation middleware exceptions', async t => {
     let app = new Komapi({
         env: 'production'
     });
@@ -188,23 +188,6 @@ test('natively handles schemaValidationError exceptions using 400', async t => {
                 message: 'should be string',
                 data: []
             }]
-        }
-    });
-});
-test('provides an empty errors array during schemaValidationError exceptions if no details were provided', async t => {
-    let app = new Komapi({
-        env: 'production'
-    });
-    app.use(app.mw.ensureSchema(schema));
-    const res = await request(app.listen())
-        .get('/');
-    t.is(res.status, 400);
-    t.deepEqual(res.body, {
-        error: {
-            code: '',
-            status: 400,
-            message: 'No data provided',
-            errors: []
         }
     });
 });

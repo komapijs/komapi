@@ -1,13 +1,18 @@
 'use strict';
 
 // Dependencies
-import {applySchema} from '../lib/schema';
+import Config from '../lib/config';
+
+// Init
+const configSchema = (Joi) => Joi.object({
+    logger: Joi.func().optional()
+});
 
 // Exports
 export default (options = {}) => {
 
     // Validate options
-    applySchema('requestLogger', options);
+    options = Config(options, configSchema);
 
     if (!options.logger) options.logger = function logger(ctx) {
         return ctx.log.info({

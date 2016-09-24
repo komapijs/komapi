@@ -2,8 +2,8 @@
 
 // Dependencies
 import Koa from 'koa';
-import defaultConfig from './lib/config';
-import Schema, {applySchema} from './lib/schema';
+import Config from './lib/config';
+import Schema from './modules/json-schema/schema';
 import context from './lib/context';
 import request from './lib/request';
 import response from './lib/response';
@@ -34,9 +34,19 @@ import bodyParser from 'koa-bodyparser';
 
 // Objection plugins
 import objectionSoftDelete from './modules/objectionPlugins/softDelete';
-import objectionRestify from './modules/objectionPlugins/restify';
 import objectionTimestamps from './modules/objectionPlugins/timestamps';
 
+// Init
+const configSchema = (Joi) => Joi.object({
+    env: Joi.any().valid(['development', 'production']).default('development'),
+    loggers: Joi.array().items(Joi.object({
+        name: Joi.string().required()
+    }).unknown()).default([]),
+    name: Joi.string().min(1).default('Komapi application'),
+    proxy: Joi.boolean().default(false),
+    routePrefix: Joi.string().min(1).default('/'),
+    subdomainOffset: Joi.number().min(0).default(2)
+});
 
 /**
  * @extends Koa
@@ -56,15 +66,12 @@ export default class Komapi extends Koa{
         this.locals = userConfig;
         this.orm = undefined;
         this.state = {};
-        this.config = Object.assign({}, defaultConfig(config.env || process.env.NODE_ENV), config);
+        this.config = Config(config, configSchema);
         this.service = {};
         this.schema = new Schema({
             useDefaults: true,
             coerceTypes: true
         });
-
-        // Validate config
-        applySchema('komapi', this.config);
 
         // Housekeeping
         process.env.NODE_ENV = this.config.env;
@@ -198,7 +205,7 @@ export default class Komapi extends Koa{
                         else if (ctx.request.method === 'GET' && ctx.request.query[opts.sendSchema] !== undefined && ctx.request.query[opts.sendSchema] !== 'false')  return ctx.send(schema);
                     }
                     let valid = await validate(ctx.request[opts.key]);
-                    if (!valid) throw Schema.parseValidationErrors(validate.errors, schema, undefined, ctx.request[opts.key]);
+                    if (!valid) throw Schema.validationError(validate.errors, schema, undefined, ctx.request[opts.key]);
                     return next();
                 };
             },
@@ -247,7 +254,6 @@ export default class Komapi extends Koa{
         // Patch objection with custom plugins
         [
             objectionSoftDelete,
-            objectionRestify,
             objectionTimestamps
         ].forEach((fn => this.orm.$Model = fn(this.orm.$Model, this)));
     }

@@ -2,9 +2,13 @@
 
 // Dependencies
 import Service from '../../../src/modules/service/providers/rest';
+import RestifyParser from '../../../src/modules/restify/parser';
 
 // Exports
 module.exports = class RestService extends Service {
+    get $querySchema() {
+        return RestifyParser.$defaultSchema;
+    }
     find(params) {
         return {
             method: 'find',

@@ -47,7 +47,7 @@ test('provides middleware to ensure requests adheres to a json schema', async t 
         try {
             return await next();
         } catch (err) {
-            t.is(err.name, 'SchemaValidationError');
+            t.is(err.isBoom, true);
             t.deepEqual(err.errors, [{
                 path: '/enumvalue',
                 keyword: 'required',

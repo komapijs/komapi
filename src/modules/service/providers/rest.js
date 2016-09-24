@@ -3,7 +3,7 @@
 // Dependencies
 import Service from '../service';
 import Boom from 'boom';
-import Schema from '../../../lib/schema';
+import Schema from '../../json-schema/schema';
 
 // Init
 let schema = new Schema({
@@ -28,58 +28,7 @@ export default class RestService extends Service {
      * @returns {Object}
      */
     get $querySchema() {
-        return {
-            $schema: 'http://json-schema.org/draft-04/schema#',
-            title: 'Komapi REST query parameters',
-            type: 'object',
-            properties: {
-                $filter: {
-                    description: 'Filter result set',
-                    type: 'string'
-                },
-                $sort: {
-                    description: 'Sort the result set',
-                    type: 'array',
-                    items: {
-                        type: 'string'
-                    },
-                    uniqueItems: true
-                },
-                $skip: {
-                    description: 'Skip this amount of records (offset)',
-                    type: 'integer',
-                    minimum: 0
-                },
-                $top: {
-                    description: 'Limit number of records to this number',
-                    type: 'integer',
-                    minimum: 1,
-                    maximum: 100,
-                    default: 10
-                },
-                $expand: {
-                    description: 'Expand related objects',
-                    type: 'array',
-                    items: {
-                        type: 'string'
-                    },
-                    uniqueItems: true
-                },
-                $select: {
-                    description: 'Limit returned attributes to these attributes',
-                    type: 'array',
-                    items: {
-                        type: 'string'
-                    },
-                    uniqueItems: true
-                },
-                $count: {
-                    description: 'Add total number of records to response',
-                    type: 'boolean',
-                    default: false
-                }
-            }
-        };
+        return null;
     }
 
     /**
@@ -248,7 +197,7 @@ export default class RestService extends Service {
             if (this.$dataSchema) {
                 let validator = (opts.patch) ? this.$_dataSchema.patch : this.$_dataSchema.full;
                 let valid = validator(args.data);
-                if (!valid) throw Schema.parseValidationErrors(validator.errors, this.$dataSchema, 'Invalid data', args.data);
+                if (!valid) throw Schema.validationError(validator.errors, this.$dataSchema, 'Invalid data', args.data);
             }
             return next();
         };
@@ -261,7 +210,7 @@ export default class RestService extends Service {
         return (args, next) => {
             if (this.$querySchema && args.params) {
                 let valid = this.$_querySchema(args.params.query);
-                if (!valid) throw Schema.parseValidationErrors(this.$_querySchema.errors, this.$querySchema, 'Invalid query parameters', args.params.query);
+                if (!valid) throw Schema.validationError(this.$_querySchema.errors, this.$querySchema, 'Invalid query parameters', args.params.query);
             }
             return next();
         };

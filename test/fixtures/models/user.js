@@ -20,7 +20,7 @@ module.exports = (orm) => {
                 }
             };
         }
-        static jsonSchema() {
+        static get jsonSchema() {
             return {
                 $schema: 'http://json-schema.org/draft-04/schema#',
                 title: 'Schema definition',

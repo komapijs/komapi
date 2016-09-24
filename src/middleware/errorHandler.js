@@ -13,14 +13,8 @@ export default () => {
         } catch (err) {
             let error = err;
 
-            // Is validation error?
-            if (err.name === 'SchemaValidationError') {
-                error = Boom.badRequest(err.message, err);
-                error.output.payload.errors = err.descriptiveErrors();
-            }
-
             // Unknown error?
-            else if (!err.isBoom) {
+            if (!err.isBoom) {
                 try {
                     error = Boom.wrap(err, err.status || 500);
                 } catch (err) {
