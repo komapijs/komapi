@@ -183,7 +183,7 @@ test('provides data schema validation on create/POST and ignores missing attribu
         error: {
             code: '',
             status: 400,
-            message: 'Invalid data',
+            message: 'Invalid data provided',
             errors: [{
                 path: '/prop',
                 keyword: 'type',
@@ -219,7 +219,7 @@ test('provides data schema validation on update/PUT and requires all properties'
         error: {
             code: '',
             status: 400,
-            message: 'Invalid data',
+            message: 'Invalid data provided',
             errors: [{
                 path: '/prop2',
                 keyword: 'required',
@@ -233,7 +233,7 @@ test('provides data schema validation on update/PUT and requires all properties'
         error: {
             code: '',
             status: 400,
-            message: 'Invalid data',
+            message: 'Invalid data provided',
             errors: [{
                 path: '/prop2',
                 keyword: 'type',
@@ -263,7 +263,7 @@ test('provides data schema validation on patch/PATCH and ignores missing attribu
         error: {
             code: '',
             status: 400,
-            message: 'Invalid data',
+            message: 'Invalid data provided',
             errors: [{
                 path: '/prop',
                 keyword: 'type',

@@ -188,7 +188,7 @@ export default class RestService extends Service {
     }
 
     /**
-     * Validate data using the dataschema
+     * Validate data using the data schema
      * @param {Object} opts Options
      * @returns {Function}
      */
@@ -197,13 +197,13 @@ export default class RestService extends Service {
             if (this.$dataSchema) {
                 let validator = (opts.patch) ? this.$_dataSchema.patch : this.$_dataSchema.full;
                 let valid = validator(args.data);
-                if (!valid) throw Schema.validationError(validator.errors, this.$dataSchema, 'Invalid data', args.data);
+                if (!valid) throw Schema.validationError(validator.errors, this.$dataSchema, undefined, args.data);
             }
             return next();
         };
     }
     /**
-     * Validate data using the queryschema
+     * Validate data using the query schema
      * @returns {Function}
      */
     $querySchemaValidator() {
