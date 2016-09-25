@@ -34,6 +34,12 @@ const testSchema = {
             description: 'Current time',
             type: 'string',
             format: 'iso8601'
+        },
+        secretValue: {
+            description: 'Hidden value',
+            type: 'string',
+            message: 'invalid value',
+            enum: ['1234']
         }
     }
 };
@@ -82,6 +88,26 @@ test('provides a descriptive default error messages when no data was present', a
     t.is(err.message, 'No data provided');
     t.is(err.output.payload.statusCode, 400);
     t.deepEqual(err.output.payload.errors, []);
+});
+test('can override the error message and hide enum values', async t => {
+    const schema = new Schema();
+    const data = {
+        name: 'Jeff Smith',
+        counter: 7,
+        secretValue: '12345'
+    };
+    schema.validate(testSchema, data);
+    const err = Schema.validationError(schema.errors, testSchema, undefined, data);
+    t.is(err.isBoom, true);
+    t.is(err.message, 'Invalid data provided');
+    t.is(err.output.payload.statusCode, 400);
+    t.deepEqual(err.output.payload.errors, [{
+        path: '/secretValue',
+        keyword: 'enum',
+        message: 'invalid value',
+        data: '12345',
+        allowedValues: undefined
+    }]);
 });
 test('schema accepts ISO8601 datetime format', async t => {
     let schema = new Schema();

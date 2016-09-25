@@ -50,7 +50,11 @@ export default class Schema extends Ajv {
             data: error.data
         };
         if (mapping[error.keyword]) descriptiveError = mapping[error.keyword](error, descriptiveError);
-        descriptiveError.metadata = error;
+        descriptiveError.metadata = Object.assign({}, error);
+        if (error.parentSchema && error.parentSchema.message) {
+            descriptiveError.allowedValues = undefined;
+            descriptiveError.message = error.parentSchema.message;
+        }
         return descriptiveError;
     }
 }
