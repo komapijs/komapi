@@ -240,9 +240,10 @@ module.exports = (router, app) => {
 #### Objection.js
 Objection is initialized using:
 ```js
-app.objection(options);
+const Knex = require('knex');
+app.objection(Knex(opts));
 ```
-where `options` is a valid [knex](http://knexjs.org/#Installation-client) config object.
+where `Knex(opts)` is a valid [knex](http://knexjs.org/#Installation-client) instance.
 
 ##### Objection Plugins
 Komapi provides a number of default plugins to Objection.
@@ -286,21 +287,6 @@ module.exports = (orm) => {
             static get tableName() { return 'Account'; }
         };
 };
-```
-
-### Optional Dependencies
-##### Database
-Database access requires a database driver supported by `knex`. See [knex documentation](http://knexjs.org/#Installation)
-for more information. This is a short list of supported drivers and how to install them:
-```bash
-$ npm install pg --save
-$ npm install sqlite3 --save
-$ npm install mysql --save
-$ npm install mysql2 --save
-$ npm install mssql --save
-$ npm install mariasql --save
-$ npm install strong-oracle --save
-$ npm install oracle --save
 ```
 
 ### License
