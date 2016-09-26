@@ -7,6 +7,7 @@ Disclaimer: There will be breaking changes and outdated documentation during the
 [![npm](https://img.shields.io/npm/v/komapi.svg)](https://npmjs.org/package/komapi)
 [![Travis](https://img.shields.io/travis/komapijs/komapi/master.svg)](https://travis-ci.org/komapijs/komapi)
 [![Codecov branch](https://img.shields.io/codecov/c/github/komapijs/komapi/master.svg)](https://codecov.io/gh/komapijs/komapi)
+[![David](https://img.shields.io/david/komapijs/komapi.svg)]()
 [![npm](https://img.shields.io/npm/l/komapi.svg)](https://github.com/komapijs/komapi/blob/master/LICENSE.md)
 
 Komapi is essentially Koa with some added sugar, which means that you can use any Koa compatible middleware and use the Koa documentation as reference. Even though it is recommended to follow the conventions defined in the framework, it is entirely possible to override these with your own where necessary.
@@ -151,14 +152,14 @@ Komapi provides some built-in middlewares for most use cases. Some of these are 
 
 | Middleware | Description |
 | --- | --- |
+| [app.mw.ensureSchema](#komapi-middleware-ensureschema) | Validate requests according to JSON Schema |
+| [app.mw.requestLogger](#komapi-middleware-requestlogger) | Log requests |
+| [app.mw.route](#loading-route-modules) | Routing |
 | [koa-bodyparser](https://github.com/koajs/bodyparser) | Parse request body into ctx.request.body |
 | [koa-compress](https://github.com/koajs/compress) | Compress responses |
 | [kcors](https://github.com/koajs/cors) | Set CORS (Cross-Origin Resource Sharing) headers |
 | [koa-etag](https://github.com/koajs/etag) | Set ETags in responses |
-| [app.mw.ensureSchema](#komapi-middleware-ensureschema) | Validate requests according to JSON Schema |
-| [app.mw.requestLogger](#komapi-middleware-requestlogger) | Log requests |
-| [app.mw.route](#loading-route-modules) | Routing |
-| [helmet](https://github.com/helmetjs/helmet) | Set security related response headers |
+| [koa-helmet](https://github.com/venables/koa-helmet) | Set security related response headers |
 | [koa-static](https://github.com/koajs/static) | Serve static files |
 | [koa-views](https://github.com/queckezz/koa-views) | Template rendering |
 

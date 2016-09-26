@@ -9,6 +9,7 @@ export default (context) => {
             if (headers) this.set(headers);
             return this.body;
         },
+
         /**
          *
          * @param body {mixed=}

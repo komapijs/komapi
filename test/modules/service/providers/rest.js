@@ -4,11 +4,12 @@
 import test from 'ava';
 import Komapi from '../../../../src/index';
 import {agent as request} from 'supertest-as-promised';
+import bodyParser from 'koa-bodyparser';
 
 // Tests
 test('provides routes for all common rest operations', async t => {
     let app = new Komapi();
-    app.use(app.mw.bodyParser());
+    app.use(bodyParser());
     let fullBody = {
         key1: 'value1',
         key2: 'value2'
@@ -171,7 +172,7 @@ test('provides data schema validation on create/POST and ignores missing attribu
     let invalidData = {
         prop: 'string'
     };
-    app.use(app.mw.bodyParser());
+    app.use(bodyParser());
     app.services('../../../fixtures/services/comment.js');
     app.use(app.mw.route(app.service.Comment.$registerRoutes.bind(app.service.Comment)));
     let res1 = await request(app.listen()).post('/').send(validData);
@@ -206,7 +207,7 @@ test('provides data schema validation on update/PUT and requires all properties'
         prop: 1,
         prop2: 'string'
     };
-    app.use(app.mw.bodyParser());
+    app.use(bodyParser());
     app.services('../../../fixtures/services/comment.js');
     app.use(app.mw.route(app.service.Comment.$registerRoutes.bind(app.service.Comment)));
     let res1 = await request(app.listen()).put('/1').send(validData);
@@ -251,7 +252,7 @@ test('provides data schema validation on patch/PATCH and ignores missing attribu
     let invalidData = {
         prop: 'string'
     };
-    app.use(app.mw.bodyParser());
+    app.use(bodyParser());
     app.services('../../../fixtures/services/comment.js');
     app.use(app.mw.route(app.service.Comment.$registerRoutes.bind(app.service.Comment)));
     let res1 = await request(app.listen()).patch('/1').send(validData);

@@ -22,14 +22,6 @@ import responseDecorator from './middleware/responseDecorator';
 import errorHandler from './middleware/errorHandler';
 import requestLogger from './middleware/requestLogger';
 import routes from './middleware/routeHandler';
-import headers from './middleware/headers';
-import serve from 'koa-static';
-import views from 'koa-views';
-import compress from 'koa-compress';
-import conditional from 'koa-conditional-get';
-import etag from 'koa-etag';
-import cors from 'kcors';
-import bodyParser from 'koa-bodyparser';
 
 // Objection plugins
 import objectionSoftDelete from './modules/objectionPlugins/softDelete';
@@ -187,10 +179,6 @@ export default class Komapi extends Koa{
     get mw() {
         const app = this;
         return {
-            bodyParser,
-            compress,
-            cors,
-            etag: (opts) => compose([conditional(), etag(opts)]),
             ensureSchema: function ensureSchema(schema, opts) {
                 opts = Object.assign({}, {
                     key: 'body',
@@ -221,10 +209,7 @@ export default class Komapi extends Koa{
                     value: 'routeHandler'
                 });
                 return fn;
-            },
-            headers: headers,
-            static: serve,
-            views
+            }
         };
     }
 

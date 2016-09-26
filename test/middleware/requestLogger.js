@@ -5,6 +5,7 @@ import test from 'ava';
 import Komapi from '../../src/index';
 import {agent as request} from 'supertest-as-promised';
 import DummyLogger from '../fixtures/dummyLogger';
+import bodyParser from 'koa-bodyparser';
 
 // Tests
 test('is enabled through app.mw.requestLogger() method', async t => {
@@ -87,7 +88,7 @@ test('logs the request body and hides password on statuscode >= 500', async t =>
             }
         })
     });
-    app.use(app.mw.bodyParser());
+    app.use(bodyParser());
     app.use((ctx, next) => {
         throw new Error('Test error');
     });
