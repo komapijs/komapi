@@ -83,11 +83,12 @@ test('can apply a restify query to an Objection queryBuilder', async t => {
     let app = new Komapi();
     await ormFactory.createDatabase(app, {
         schema: 1,
+        timestamps: true,
         seed: 10
     });
     let parser = new Parser(app.orm.Test);
     let collection = await parser.apply(app.orm.Test.query(), {
-        $select: 'num',
+        $select: 'num,created_at',
         $skip: 2,
         $top: 3,
         $sort: '-num,+id',
@@ -100,6 +101,7 @@ test('can apply a restify query to an Objection queryBuilder', async t => {
         {
             id: 8,
             num: 8,
+            created_at: null,
             reltests: [
                 {
                     id: 15,
@@ -114,6 +116,7 @@ test('can apply a restify query to an Objection queryBuilder', async t => {
         {
             id: 7,
             num: 7,
+            created_at: null,
             reltests: [
                 {
                     id: 13,
@@ -128,6 +131,7 @@ test('can apply a restify query to an Objection queryBuilder', async t => {
         {
             id: 6,
             num: 6,
+            created_at: null,
             reltests: [
                 {
                     id: 11,
