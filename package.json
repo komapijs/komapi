@@ -78,7 +78,7 @@
     "eslint": "^3.3.0",
     "eslint-plugin-import": "^1.13.0",
     "eslint-plugin-security": "^1.2.0",
-    "knex": "^0.12.1",
+    "knex": "0.11.7",
     "koa-bodyparser": "^3.1.0",
     "npm-check-updates": "^2.8.0",
     "nsp": "^2.6.1",
