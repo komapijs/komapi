@@ -21,7 +21,7 @@ Komapi is essentially Koa with some added sugar, which means that you can use an
   - [Loading Route Modules](#loading-route-modules)
 - [Middleware](#middleware)
   - [Mounting Middleware](#mounting-middleware)
-  - [Included Middleware](#included-middleware)
+  - [Recommended Middleware](#recommended-middleware)
     - [Komapi Native Middleware](#komapi-native-middleware)
       - [app.mw.ensureSchema(schema, [key])](#komapi-middleware-ensureschema)
       - [app.mw.requestLogger([options])](#komapi-middleware-requestlogger)
@@ -36,7 +36,6 @@ Komapi is essentially Koa with some added sugar, which means that you can use an
     - [Example Model](#example-model)
 - [Optional Dependencies](#optional-dependencies)
   - [Database](#database)
-  - [Templates](#templates)
 - [License](#license)
   
 ### Installation
@@ -144,24 +143,24 @@ app.use([mountAt], middlewares, [...]);
 
 Example:
 ```js
-app.use(app.mw.bodyParser());
+app.use(app.mw.requestLogger());
 ```
 
-#### Included Middleware
-Komapi provides built-in middlewares for most use cases. Some of these are just wrappers around existing Koa middleware, but provided for convenience and possible extensions/defaulting later on.
+#### Recommended Middleware
+Komapi provides some built-in middlewares for most use cases. Some of these are just wrappers around existing Koa middleware, but provided for convenience and possible extensions/defaulting later on.
 
-| Middleware | Description | Reference |
-| --- | --- | --- |
-| `app.mw.bodyParser([options])` | Parse request body | [koa-bodyparser](https://github.com/koajs/bodyparser) |
-| `app.mw.compress([options])` | Compresses responses | [koa-compress](https://github.com/koajs/compress) |
-| `app.mw.cors([options])` | Set CORS headers | [kcors](https://github.com/koajs/cors) |
-| `app.mw.etag([options])` | Generates ETags | [koa-etag](https://github.com/koajs/etag), [koa-conditional-get](https://github.com/koajs/conditional-get) |
-| `app.mw.ensureSchema(schema[, opts])` | Validate requests | [ensureSchema](#komapi-middleware-ensureschema) |
-| `app.mw.requestLogger([options])` | Log requests | [requestLogger](#komapi-middleware-requestlogger) |
-| `app.mw.route([middlewares ...], path)` | Load route | [Loading Route Modules](#loading-route-modules) |
-| `app.mw.headers([options])` | Set response headers | [helmet](https://github.com/helmetjs/helmet) |
-| `app.mw.static(root[, options])` | Serve static files | [koa-static](https://github.com/koajs/static) |
-| `app.mw.views(root[, options])` | Use templates | [Template Rendering](#template-rendering), [koa-views](https://github.com/queckezz/koa-views) |
+| Middleware | Description |
+| --- | --- |
+| [koa-bodyparser](https://github.com/koajs/bodyparser) | Parse request body into ctx.request.body |
+| [koa-compress](https://github.com/koajs/compress) | Compress responses |
+| [kcors](https://github.com/koajs/cors) | Set CORS (Cross-Origin Resource Sharing) headers |
+| [koa-etag](https://github.com/koajs/etag) | Set ETags in responses |
+| [app.mw.ensureSchema](#komapi-middleware-ensureschema) | Validate requests according to JSON Schema |
+| [app.mw.requestLogger](#komapi-middleware-requestlogger) | Log requests |
+| [app.mw.route](#loading-route-modules) | Routing |
+| [helmet](https://github.com/helmetjs/helmet) | Set security related response headers |
+| [koa-static](https://github.com/koajs/static) | Serve static files |
+| [koa-views](https://github.com/queckezz/koa-views) | Template rendering |
 
 ##### Komapi Native Middleware
 <a name="komapi-middleware-ensureschema"></a>
@@ -301,16 +300,6 @@ $ npm install mssql --save
 $ npm install mariasql --save
 $ npm install strong-oracle --save
 $ npm install oracle --save
-```
-##### Templates
-Template rendering through `app.mw.views()` requires a template engine supported by `consolidate`. See [consolidate.js documentation](https://github.com/tj/consolidate.js#supported-template-engines)
-for more information. Some common template engines are listed below for convenience:
-```bash
-$ npm install handlebars --save
-$ npm install ejs --save
-$ npm install jade --save
-$ npm install nunjucks --save
-$ npm install twig --save
 ```
 
 ### License

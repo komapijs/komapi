@@ -22,9 +22,7 @@ knex.setMaxListeners(30);
 export function createDatabase(app, opts = {}) {
     const db = opts.db || 'test' + counter++;
     delete require.cache[require.resolve('objection')];
-    app.objection({
-        knex: knex
-    });
+    app.objection(knex);
     return Promise.all([
         app.orm.$Model.knex().schema.createTable(db, (table) => {
             table.increments('id').primary();

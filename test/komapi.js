@@ -410,51 +410,36 @@ test('does not enable orm by default', async t => {
     let app = new Komapi();
     t.is(app.orm, undefined);
 });
-test('orm cannot be enabled more than once', async t => {
+test('orm can be enabled through objection() method using a knex instance', async t => {
     let app = new Komapi();
-    app.objection({
+    app.objection(Knex({
         client: 'sqlite3',
         useNullAsDefault: true,
         connection: {
             filename: ':memory:'
         }
-    });
+    }));
+    t.is(typeof app.orm, 'object');
+    t.is(typeof app.orm.$Model.knex, 'function');
+});
+test('orm cannot be enabled more than once', async t => {
+    let app = new Komapi();
+    app.objection(Knex({
+        client: 'sqlite3',
+        useNullAsDefault: true,
+        connection: {
+            filename: ':memory:'
+        }
+    }));
     t.throws(() => {
-        return app.objection({
+        return app.objection(Knex({
             client: 'sqlite3',
             useNullAsDefault: true,
             connection: {
                 filename: ':memory:'
             }
-        });
+        }));
     }, 'Cannot initialize ORM more than once');
-});
-test('orm can be enabled through objection() method using a config object', async t => {
-    let app = new Komapi();
-    app.objection({
-        client: 'sqlite3',
-        useNullAsDefault: true,
-        connection: {
-            filename: ':memory:'
-        }
-    });
-    t.is(typeof app.orm, 'object');
-    t.is(typeof app.orm.$Model.knex, 'function');
-});
-test('orm can be enabled through objection() method using a knex instance', async t => {
-    let app = new Komapi();
-    let knex = Knex({
-        client: 'sqlite3',
-        useNullAsDefault: true,
-        connection: {
-            filename: ':memory:'
-        }
-    });
-    app.objection({
-        knex: knex
-    });
-    t.is(typeof app.orm, 'object');
-    t.is(typeof app.orm.$Model.knex, 'function');
 });
 test('orm query errors are logged', async t => {
     let app = new Komapi();
@@ -469,13 +454,13 @@ test('orm query errors are logged', async t => {
             t.is(obj.msg, 'ORM Query Error');
         })
     });
-    app.objection({
+    app.objection(Knex({
         client: 'sqlite3',
         useNullAsDefault: true,
         connection: {
             filename: ':memory:'
         }
-    });
+    }));
     try {
         await app.orm.$Model.knex().raw('select * from InvalidTable');
     } catch (err) {
@@ -495,7 +480,7 @@ test('migrations can be run before starting the app', async t => {
             }
         })
     });
-    app.objection({
+    app.objection(Knex({
         client: 'sqlite3',
         useNullAsDefault: true,
         connection: {
@@ -505,7 +490,7 @@ test('migrations can be run before starting the app', async t => {
             directory: 'fixtures/migrations',
             tableName: 'migrations'
         }
-    });
+    }));
     await app.orm.$Model.knex().migrate.latest();
     await app.healthCheck();
     t.pass();
@@ -525,7 +510,7 @@ test('pending migrations are logged', async t => {
             }
         })
     });
-    app.objection({
+    app.objection(Knex({
         client: 'sqlite3',
         useNullAsDefault: true,
         connection: {
@@ -535,7 +520,7 @@ test('pending migrations are logged', async t => {
             directory: 'fixtures/migrations',
             tableName: 'migrations'
         }
-    });
+    }));
     await app.healthCheck();
 });
 test('listen supports callbacks', async t => {

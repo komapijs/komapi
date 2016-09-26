@@ -3,29 +3,30 @@
 // Dependencies
 import test from 'ava';
 import Komapi from '../../src/index';
+import Knex from 'knex';
 
 // Tests
 test('loads models through the models() method', async t => {
     let app = new Komapi();
-    app.objection({
+    app.objection(Knex({
         client: 'sqlite3',
         useNullAsDefault: true,
         connection: {
             filename: ':memory:'
         }
-    });
+    }));
     app.models('../fixtures/models');
     t.is(Object.keys(app.orm).filter((k)=> !k.startsWith('$')).length, 3);
 });
 test('can load a single model', async t => {
     let app = new Komapi();
-    app.objection({
+    app.objection(Knex({
         client: 'sqlite3',
         useNullAsDefault: true,
         connection: {
             filename: ':memory:'
         }
-    });
+    }));
     app.models('../fixtures/models/user.js');
     t.is(Object.keys(app.orm).filter((k)=> !k.startsWith('$')).length, 1);
 });

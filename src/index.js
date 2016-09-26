@@ -12,7 +12,6 @@ import Boom from 'boom';
 import mount from 'koa-mount';
 import compose from 'koa-compose';
 import uuid from 'node-uuid';
-import Knex from 'knex';
 import * as Objection from 'objection';
 import _ from 'lodash';
 import models from './lib/models';
@@ -234,14 +233,14 @@ export default class Komapi extends Koa{
         if (!this.orm) throw new Error('Cannot load models before initializing an objection instance. Use `app.objection()` before attempting to load models.');
         return models(path, this);
     }
-    objection(opts) {
+    objection(knex) {
         if (this.orm) throw new Error('Cannot initialize ORM more than once');
         this.orm = {
             $Model: class KomapiObjectionModel extends Objection.Model {},
             $transaction: Objection.transaction,
             $ValidationError: Objection.ValidationError
         };
-        this.orm.$Model.knex(opts.knex || Knex(opts));
+        this.orm.$Model.knex(knex);
         this.orm.$migrate = this.orm.$Model.knex().migrate;
         this.orm.$Model.knex().on('query-error', (err, obj) => {
             this.log.error({
