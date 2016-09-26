@@ -1,6 +1,6 @@
 {
   "name": "komapi",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Komapi is an opinionated Node.js framework built on top of Koa 2.0",
   "author": "ersims",
   "repository": {
