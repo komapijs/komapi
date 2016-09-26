@@ -4,6 +4,7 @@
 import test from 'ava';
 import Komapi from '../../../src/index';
 import * as ormFactory from '../../fixtures/ormFactory';
+import sleep from 'sleep-promise';
 
 // Tests
 test('is not enabled by default', async t => {
@@ -84,6 +85,7 @@ test('sets updated_at on updates', async t => {
     let ct = person.created_at;
     t.is(person.createdAt, null);
     t.is(person.updated_at, ct);
+    await sleep(10);
     await person.$query().columns('*').patch({name: 'testupdated'}).then();
     person = await person.$query().columns('*').then();
     t.is(person.name, 'testupdated');
@@ -107,6 +109,7 @@ test('sets updated_at on updates with camelCase', async t => {
     let ct = person.createdAt;
     t.is(person.created_at, null);
     t.is(person.updatedAt, ct);
+    await sleep(10);
     await person.$query().columns('*').patch({name: 'testupdated'}).then();
     person = await person.$query().columns('*').then();
     t.is(person.name, 'testupdated');
@@ -132,6 +135,7 @@ test('sets updated_at on updates with jsonSchema', async t => {
     let ct = person.created_at;
     t.is(person.createdAt, null);
     t.is(person.updated_at, ct);
+    await sleep(10);
     await person.$query().columns('*').patch({name: 'testupdated'}).then();
     person = await person.$query().columns('*').then();
     t.is(person.name, 'testupdated');
@@ -156,6 +160,7 @@ test('sets updated_at on updates with jsonSchema and camelCase', async t => {
     let ct = person.createdAt;
     t.is(person.created_at, null);
     t.is(person.updatedAt, ct);
+    await sleep(10);
     await person.$query().columns('*').patch({name: 'testupdated'}).then();
     person = await person.$query().columns('*').then();
     t.is(person.name, 'testupdated');
