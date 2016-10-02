@@ -1,15 +1,13 @@
-'use strict';
-
 // Dependencies
 import test from 'ava';
-import Komapi from '../../src/index';
-import {agent as request} from 'supertest-as-promised';
-import DummyLogger from '../fixtures/dummyLogger';
+import { agent as request } from 'supertest-as-promised';
 import bodyParser from 'koa-bodyparser';
+import Komapi from '../../src/index';
+import DummyLogger from '../fixtures/dummyLogger';
 
 // Tests
-test('is enabled through app.mw.requestLogger() method', async t => {
-    let app = new Komapi();
+test('is enabled through app.mw.requestLogger() method', async (t) => {
+    const app = new Komapi();
     t.plan(3);
     app.use(app.mw.requestLogger());
     app.log.addStream({
@@ -17,32 +15,26 @@ test('is enabled through app.mw.requestLogger() method', async t => {
         level: 'trace',
         type: 'raw',
         stream: new DummyLogger((obj) => {
-            if (obj.context === 'request' && obj.logger == 'requestLogger') {
+            if (obj.context === 'request' && obj.logger === 'requestLogger') {
                 t.is(obj.level, 30);
                 t.is(!!(obj.req_id), true);
             }
-        })
+        }),
     });
-    app.use((ctx, next) => {
-        ctx.send({
-            status: 'ok'
-        });
-    });
+    app.use(ctx => ctx.send({ status: 'ok' }));
     const res = await request(app.listen())
         .get('/');
     t.is(res.status, 200);
 });
-test('throws on invalid options', async t => {
-    let app = new Komapi();
+test('throws on invalid options', async (t) => {
+    const app = new Komapi();
     t.plan(1);
     t.throws(() => {
-        app.mw.requestLogger({
-            logger: true
-        });
+        app.mw.requestLogger({ logger: true });
     }, /"logger" must be a Function/);
 });
-test('logs the response status on statuscode >= 500', async t => {
-    let app = new Komapi();
+test('logs the response status on statuscode >= 500', async (t) => {
+    const app = new Komapi();
     t.plan(4);
     app.use(app.mw.requestLogger());
     app.log.addStream({
@@ -50,25 +42,25 @@ test('logs the response status on statuscode >= 500', async t => {
         level: 'trace',
         type: 'raw',
         stream: new DummyLogger((obj) => {
-            if (obj.context === 'request' && obj.logger == 'requestLogger') {
+            if (obj.context === 'request' && obj.logger === 'requestLogger') {
                 t.is(obj.level, 30);
                 t.is(!!(obj.req_id), true);
                 t.is(obj.response.status, 500);
             }
-        })
+        }),
     });
-    app.use((ctx, next) => {
+    app.use(() => {
         throw new Error('Test error');
     });
     const res = await request(app.listen())
         .get('/');
     t.is(res.status, 500);
 });
-test('logs the request body and hides password on statuscode >= 500', async t => {
-    let app = new Komapi();
-    let body = {
+test('logs the request body and hides password on statuscode >= 500', async (t) => {
+    const app = new Komapi();
+    const body = {
         username: 'test',
-        password: 'asdf'
+        password: 'asdf',
     };
     t.plan(5);
     app.use(app.mw.requestLogger());
@@ -77,19 +69,19 @@ test('logs the request body and hides password on statuscode >= 500', async t =>
         level: 'trace',
         type: 'raw',
         stream: new DummyLogger((obj) => {
-            if (obj.context === 'request' && obj.logger == 'requestLogger') {
+            if (obj.context === 'request' && obj.logger === 'requestLogger') {
                 t.is(obj.level, 30);
                 t.is(!!(obj.req_id), true);
                 t.is(obj.response.status, 500);
                 t.deepEqual(obj.request.body, {
                     username: 'test',
-                    password: '*****'
+                    password: '*****',
                 });
             }
-        })
+        }),
     });
     app.use(bodyParser());
-    app.use((ctx, next) => {
+    app.use(() => {
         throw new Error('Test error');
     });
     const res = await request(app.listen())
@@ -98,32 +90,24 @@ test('logs the request body and hides password on statuscode >= 500', async t =>
     t.is(res.status, 500);
 });
 
-test('supports options', async t => {
-    let app = new Komapi();
+test('supports options', async (t) => {
+    const app = new Komapi();
     t.plan(3);
     app.use(app.mw.requestLogger({
-        logger: (ctx)  => {
-            return ctx.log.trace({
-                isDummy: true
-            });
-        }
+        logger: ctx => ctx.log.trace({ isDummy: true }),
     }));
     app.log.addStream({
         name: 'DummyLogger',
         level: 'trace',
         type: 'raw',
         stream: new DummyLogger((obj) => {
-            if (obj.context === 'request' && obj.isDummy == true) {
+            if (obj.context === 'request' && obj.isDummy === true) {
                 t.is(obj.level, 10);
                 t.is(obj.isDummy, true);
             }
-        })
+        }),
     });
-    app.use((ctx, next) => {
-        ctx.send({
-            status: 'ok'
-        });
-    });
+    app.use(ctx => ctx.send({ status: 'ok' }));
     const res = await request(app.listen())
         .get('/');
     t.is(res.status, 200);

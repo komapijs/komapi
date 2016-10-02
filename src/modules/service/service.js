@@ -1,5 +1,3 @@
-'use strict';
-
 // Dependencies
 import _ from 'lodash';
 
@@ -32,7 +30,7 @@ export default class Service {
      * // };
      * @returns {Object}
      */
-    get $routes() {
+    get $routes() { // eslint-disable-line class-methods-use-this
         return {};
     }
 
@@ -41,9 +39,9 @@ export default class Service {
      * @returns {Router}
      */
     $registerRoutes(router) {
-        _.forOwn(this.$routes, (options, operation) => {
+        _.forOwn(this.$routes, (options) => {
             if (options.enable) {
-                let routes = _.castArray(options.route);
+                const routes = _.castArray(options.route);
                 routes.forEach((route) => {
                     router[options.method.toLowerCase()](route, options.handler);
                 });
@@ -55,7 +53,7 @@ export default class Service {
     /**
      * Bootstrapping code here
      */
-    $setup() {}
+    $setup() {} // eslint-disable-line class-methods-use-this
 
     /**
      * Set or get hooks

@@ -1,28 +1,27 @@
-'use strict';
-
 // Dependencies
-import Knex from 'knex';
+import knex from 'knex';
 
 // Init
 let counter = 0;
-const knex = Knex({
+const knexInstance = knex({
     client: 'sqlite3',
     useNullAsDefault: true,
     connection: {
-        filename: ':memory:'
+        filename: ':memory:',
     },
     migrations: {
-        directory: __dirname + '/migrations',
-        tableName: 'migrations'
-    }
+        directory: `${__dirname}/migrations`,
+        tableName: 'migrations',
+    },
 });
-knex.setMaxListeners(30);
+knexInstance.setMaxListeners(30);
 
 // Exports
-export function createDatabase(app, opts = {}) {
-    const db = opts.db || 'test' + counter++;
+export default function ormFactory(app, opts = {}) {
+    counter += 1;
+    const db = opts.db || `test${counter}`;
     delete require.cache[require.resolve('objection')];
-    app.objection(knex);
+    app.objection(knexInstance);
     return Promise.all([
         app.orm.$Model.knex().schema.createTable(db, (table) => {
             table.increments('id').primary();
@@ -36,7 +35,7 @@ export function createDatabase(app, opts = {}) {
             table.dateTime('createdAt');
             table.dateTime('updatedAt');
         }),
-        app.orm.$Model.knex().schema.createTable('related-' + db , (table) => {
+        app.orm.$Model.knex().schema.createTable(`related-${db}`, (table) => {
             table.increments('id').primary();
             table.integer('test_id');
             table.string('desc');
@@ -48,7 +47,7 @@ export function createDatabase(app, opts = {}) {
             table.dateTime('createdAt');
             table.dateTime('updatedAt');
         }),
-        app.orm.$Model.knex().schema.createTable('related2-' + db , (table) => {
+        app.orm.$Model.knex().schema.createTable(`related2-${db}`, (table) => {
             table.increments('id').primary();
             table.integer('test_id');
             table.string('desc');
@@ -59,43 +58,44 @@ export function createDatabase(app, opts = {}) {
             table.timestamps();
             table.dateTime('createdAt');
             table.dateTime('updatedAt');
-        })
+        }),
     ]).then(() => {
         if (opts.seed) {
-            let rows = [];
-            let relRows = [];
-            let relRows2 = [];
-            for (let i = 1; i <= opts.seed; i++) {
-                let row = {
+            const rows = [];
+            const relRows = [];
+            const relRows2 = [];
+            for (let i = 1; i <= opts.seed; i += 1) {
+                const row = {
                     name: `name-${i}`,
-                    num: i
+                    num: i,
                 };
                 rows.push(row);
                 relRows.push({
                     test_id: i,
-                    desc: `rel-name-${i}-1`
+                    desc: `rel-name-${i}-1`,
                 });
                 relRows.push({
                     test_id: i,
-                    desc: `rel-name-${i}-2`
+                    desc: `rel-name-${i}-2`,
                 });
                 relRows2.push({
                     test_id: i,
-                    desc: `rel2-name-${i}-1`
+                    desc: `rel2-name-${i}-1`,
                 });
                 relRows2.push({
                     test_id: i,
-                    desc: `rel2-name-${i}-2`
+                    desc: `rel2-name-${i}-2`,
                 });
             }
             return Promise.all([
                 app.orm.$Model.knex().batchInsert(db, rows),
-                app.orm.$Model.knex().batchInsert('related-' + db, relRows),
-                app.orm.$Model.knex().batchInsert('related2-' + db, relRows2)
+                app.orm.$Model.knex().batchInsert(`related-${db}`, relRows),
+                app.orm.$Model.knex().batchInsert(`related2-${db}`, relRows2),
             ]);
         }
+        return null;
     }).then(() => {
-        app.orm.Test = class Test extends app.orm.$Model {
+        app.orm.Test = class Test extends app.orm.$Model { // eslint-disable-line no-param-reassign
             static get timestamps() {
                 return (opts.timestamps === true);
             }
@@ -112,12 +112,11 @@ export function createDatabase(app, opts = {}) {
                         title: 'Test Schema',
                         type: 'object',
                         properties: {
-                            name: {type: 'string', minLength: 1, maxLength: 255},
-                            num: {type: 'number'}
-                        }
+                            name: { type: 'string', minLength: 1, maxLength: 255 },
+                            num: { type: 'number' },
+                        },
                     };
-                }
-                else if (opts.schema && typeof opts.schema === 'object') schema = opts.schema;
+                } else if (opts.schema && typeof opts.schema === 'object') schema = opts.schema;
                 return schema;
             }
             static get relationMappings() {
@@ -126,25 +125,25 @@ export function createDatabase(app, opts = {}) {
                         relation: app.orm.$Model.HasManyRelation,
                         modelClass: app.orm.RelTest,
                         join: {
-                            from: db + '.id',
-                            to: 'related-' + db + '.test_id'
-                        }
+                            from: `${db}.id`,
+                            to: `related-${db}.test_id`,
+                        },
                     },
                     reltests2: {
                         relation: app.orm.$Model.HasManyRelation,
                         modelClass: app.orm.RelTest2,
                         join: {
-                            from: db + '.id',
-                            to: 'related2-' + db + '.test_id'
-                        }
-                    }
+                            from: `${db}.id`,
+                            to: `related2-${db}.test_id`,
+                        },
+                    },
                 };
             }
             static get tableName() {
                 return db;
             }
         };
-        app.orm.RelTest = class RelTest extends app.orm.$Model {
+        app.orm.RelTest = class RelTest extends app.orm.$Model { // eslint-disable-line no-param-reassign
             static get timestamps() {
                 return (opts.timestamps === true);
             }
@@ -161,12 +160,11 @@ export function createDatabase(app, opts = {}) {
                         title: 'Test Related Schema',
                         type: 'object',
                         properties: {
-                            test_id: {type: 'integer'},
-                            desc: {type: 'string', minLength: 1, maxLength: 255}
-                        }
+                            test_id: { type: 'integer' },
+                            desc: { type: 'string', minLength: 1, maxLength: 255 },
+                        },
                     };
-                }
-                else if (opts.schema && typeof opts.schema === 'object') schema = opts.schema;
+                } else if (opts.schema && typeof opts.schema === 'object') schema = opts.schema;
                 return schema;
             }
             static get relationMappings() {
@@ -175,17 +173,17 @@ export function createDatabase(app, opts = {}) {
                         relation: app.orm.$Model.BelongsToOneRelation,
                         modelClass: app.orm.Test,
                         join: {
-                            from: 'related-' + db + '.test_id',
-                            to: db + '.id'
-                        }
-                    }
+                            from: `related-${db}.test_id`,
+                            to: `${db}.id`,
+                        },
+                    },
                 };
             }
             static get tableName() {
-                return 'related-' + db;
+                return `related-${db}`;
             }
         };
-        app.orm.RelTest2 = class RelTest2 extends app.orm.$Model {
+        app.orm.RelTest2 = class RelTest2 extends app.orm.$Model { // eslint-disable-line no-param-reassign
             static get timestamps() {
                 return (opts.timestamps === true);
             }
@@ -202,12 +200,11 @@ export function createDatabase(app, opts = {}) {
                         title: 'Test Related Schema',
                         type: 'object',
                         properties: {
-                            test_id: {type: 'integer'},
-                            desc: {type: 'string', minLength: 1, maxLength: 255}
-                        }
+                            test_id: { type: 'integer' },
+                            desc: { type: 'string', minLength: 1, maxLength: 255 },
+                        },
                     };
-                }
-                else if (opts.schema && typeof opts.schema === 'object') schema = opts.schema;
+                } else if (opts.schema && typeof opts.schema === 'object') schema = opts.schema;
                 return schema;
             }
             static get relationMappings() {
@@ -216,14 +213,14 @@ export function createDatabase(app, opts = {}) {
                         relation: app.orm.$Model.BelongsToOneRelation,
                         modelClass: app.orm.Test,
                         join: {
-                            from: 'related2-' + db + '.test_id',
-                            to: db + '.id'
-                        }
-                    }
+                            from: `related2-${db}.test_id`,
+                            to: `${db}.id`,
+                        },
+                    },
                 };
             }
             static get tableName() {
-                return 'related2-' + db;
+                return `related2-${db}`;
             }
         };
     });

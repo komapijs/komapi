@@ -1,20 +1,18 @@
-'use strict';
-
 // Dependencies
 import test from 'ava';
-import Komapi from '../../../src/index';
-import * as ormFactory from '../../fixtures/ormFactory';
 import sleep from 'sleep-promise';
+import Komapi from '../../../src/index';
+import ormFactory from '../../fixtures/ormFactory';
 
 // Tests
-test('is not enabled by default', async t => {
-    let app = new Komapi();
-    await ormFactory.createDatabase(app);
-    let model = {
-        name: 'nametest'
+test('is not enabled by default', async (t) => {
+    const app = new Komapi();
+    await ormFactory(app);
+    const model = {
+        name: 'nametest',
     };
     await app.orm.Test.query().columns('*').insert(model).then();
-    let collection = await app.orm.Test.query().columns('*').then();
+    const collection = await app.orm.Test.query().columns('*').then();
     t.is(collection.length, 1);
     t.is(collection[0].name, 'nametest');
     t.is(collection[0].id, 1);
@@ -29,16 +27,16 @@ test('is not enabled by default', async t => {
     t.is(app.orm.Test.systemColumns.indexOf('createdAt'), -1);
     t.is(app.orm.Test.systemColumns.indexOf('updatedAt'), -1);
 });
-test('is not enabled by default and does not impact schema validation', async t => {
-    let app = new Komapi();
-    await ormFactory.createDatabase(app, {
-        schema: 1
+test('is not enabled by default and does not impact schema validation', async (t) => {
+    const app = new Komapi();
+    await ormFactory(app, {
+        schema: 1,
     });
-    let model = {
-        name: 'nametest'
+    const model = {
+        name: 'nametest',
     };
     await app.orm.Test.query().columns('*').insert(model).then();
-    let collection = await app.orm.Test.query().columns('*').then();
+    const collection = await app.orm.Test.query().columns('*').then();
     t.is(collection.length, 1);
     t.is(collection[0].name, 'nametest');
     t.is(collection[0].id, 1);
@@ -49,16 +47,16 @@ test('is not enabled by default and does not impact schema validation', async t 
     t.is(collection[0].created_at, collection[0].updated_at);
     t.is(collection[0].createdAt, collection[0].updatedAt);
 });
-test('is enabled by setting timestamps property', async t => {
-    let app = new Komapi();
-    await ormFactory.createDatabase(app, {
-        timestamps: true
+test('is enabled by setting timestamps property', async (t) => {
+    const app = new Komapi();
+    await ormFactory(app, {
+        timestamps: true,
     });
-    let model = {
-        name: 'nametest'
+    const model = {
+        name: 'nametest',
     };
     await app.orm.Test.query().columns('*').insert(model).then();
-    let collection = await app.orm.Test.query().columns('*').then();
+    const collection = await app.orm.Test.query().columns('*').then();
     t.is(collection.length, 1);
     t.is(collection[0].name, 'nametest');
     t.is(collection[0].id, 1);
@@ -71,22 +69,22 @@ test('is enabled by setting timestamps property', async t => {
     t.not(app.orm.Test.systemColumns.indexOf('created_at'), -1);
     t.not(app.orm.Test.systemColumns.indexOf('updated_at'), -1);
 });
-test('sets updated_at on updates', async t => {
-    let app = new Komapi();
-    await ormFactory.createDatabase(app, {
-        timestamps: true
+test('sets updated_at on updates', async (t) => {
+    const app = new Komapi();
+    await ormFactory(app, {
+        timestamps: true,
     });
-    let model = {
-        name: 'nametest'
+    const model = {
+        name: 'nametest',
     };
     await app.orm.Test.query().columns('*').insert(model).then();
-    let collection = await app.orm.Test.query().columns('*').then();
+    const collection = await app.orm.Test.query().columns('*').then();
     let person = collection[0];
-    let ct = person.created_at;
+    const ct = person.created_at;
     t.is(person.createdAt, null);
     t.is(person.updated_at, ct);
     await sleep(10);
-    await person.$query().columns('*').patch({name: 'testupdated'}).then();
+    await person.$query().columns('*').patch({ name: 'testupdated' }).then();
     person = await person.$query().columns('*').then();
     t.is(person.name, 'testupdated');
     t.is(person.created_at, ct);
@@ -94,23 +92,23 @@ test('sets updated_at on updates', async t => {
     t.is(typeof person.updated_at, 'string');
     t.is(person.updatedAt, null);
 });
-test('sets updated_at on updates with camelCase', async t => {
-    let app = new Komapi();
-    await ormFactory.createDatabase(app, {
+test('sets updated_at on updates with camelCase', async (t) => {
+    const app = new Komapi();
+    await ormFactory(app, {
         timestamps: true,
-        camelCase: true
+        camelCase: true,
     });
-    let model = {
-        name: 'nametest'
+    const model = {
+        name: 'nametest',
     };
     await app.orm.Test.query().columns('*').insert(model).then();
-    let collection = await app.orm.Test.query().columns('*').then();
+    const collection = await app.orm.Test.query().columns('*').then();
     let person = collection[0];
-    let ct = person.createdAt;
+    const ct = person.createdAt;
     t.is(person.created_at, null);
     t.is(person.updatedAt, ct);
     await sleep(10);
-    await person.$query().columns('*').patch({name: 'testupdated'}).then();
+    await person.$query().columns('*').patch({ name: 'testupdated' }).then();
     person = await person.$query().columns('*').then();
     t.is(person.name, 'testupdated');
     t.is(person.createdAt, ct);
@@ -120,23 +118,23 @@ test('sets updated_at on updates with camelCase', async t => {
     t.not(app.orm.Test.systemColumns.indexOf('createdAt'), -1);
     t.not(app.orm.Test.systemColumns.indexOf('updatedAt'), -1);
 });
-test('sets updated_at on updates with jsonSchema', async t => {
-    let app = new Komapi();
-    await ormFactory.createDatabase(app, {
+test('sets updated_at on updates with jsonSchema', async (t) => {
+    const app = new Komapi();
+    await ormFactory(app, {
         timestamps: true,
-        schema: 1
+        schema: 1,
     });
-    let model = {
-        name: 'nametest'
+    const model = {
+        name: 'nametest',
     };
     await app.orm.Test.query().columns('*').insert(model).then();
-    let collection = await app.orm.Test.query().columns('*').then();
+    const collection = await app.orm.Test.query().columns('*').then();
     let person = collection[0];
-    let ct = person.created_at;
+    const ct = person.created_at;
     t.is(person.createdAt, null);
     t.is(person.updated_at, ct);
     await sleep(10);
-    await person.$query().columns('*').patch({name: 'testupdated'}).then();
+    await person.$query().columns('*').patch({ name: 'testupdated' }).then();
     person = await person.$query().columns('*').then();
     t.is(person.name, 'testupdated');
     t.is(person.created_at, ct);
@@ -144,24 +142,24 @@ test('sets updated_at on updates with jsonSchema', async t => {
     t.is(typeof person.updated_at, 'string');
     t.is(person.updatedAt, null);
 });
-test('sets updated_at on updates with jsonSchema and camelCase', async t => {
-    let app = new Komapi();
-    await ormFactory.createDatabase(app, {
+test('sets updated_at on updates with jsonSchema and camelCase', async (t) => {
+    const app = new Komapi();
+    await ormFactory(app, {
         timestamps: true,
         schema: 1,
-        camelCase: true
+        camelCase: true,
     });
-    let model = {
-        name: 'nametest'
+    const model = {
+        name: 'nametest',
     };
     await app.orm.Test.query().columns('*').insert(model).then();
-    let collection = await app.orm.Test.query().columns('*').then();
+    const collection = await app.orm.Test.query().columns('*').then();
     let person = collection[0];
-    let ct = person.createdAt;
+    const ct = person.createdAt;
     t.is(person.created_at, null);
     t.is(person.updatedAt, ct);
     await sleep(10);
-    await person.$query().columns('*').patch({name: 'testupdated'}).then();
+    await person.$query().columns('*').patch({ name: 'testupdated' }).then();
     person = await person.$query().columns('*').then();
     t.is(person.name, 'testupdated');
     t.is(person.createdAt, ct);

@@ -1,15 +1,13 @@
-'use strict';
-
 // Dependencies
+import { notFound as NotFound } from 'boom';
 import Service from '../service';
-import Boom from 'boom';
 import Schema from '../../json-schema/schema';
 
 // Init
-let schema = new Schema({
+const schema = new Schema({
     useDefaults: true,
     coerceTypes: true,
-    removeAdditional: true
+    removeAdditional: true,
 });
 
 // Exports
@@ -19,16 +17,16 @@ export default class RestService extends Service {
      * A JSON Schema describing and validating the data format
      * @returns {mixed}
      */
-    get $dataSchema() {
-        return null;
+    get $dataSchema() { // eslint-disable-line class-methods-use-this
+        return undefined;
     }
 
     /**
      * A JSON Schema describing and validating the query format
-     * @returns {Object}
+     * @returns {mixed}
      */
-    get $querySchema() {
-        return null;
+    get $querySchema() { // eslint-disable-line class-methods-use-this
+        return undefined;
     }
 
     /**
@@ -39,17 +37,19 @@ export default class RestService extends Service {
         super.$setup(path);
 
         // Add REST hooks
-        let dataMethods = [
+        const dataMethods = [
             'POST',
             'PUT',
-            'PATCH'
+            'PATCH',
         ];
         Object.keys(this.$routes).forEach((operation) => {
-            let opts = this.$routes[operation];
-            let hooks = [this.$outputFormatter(), this.$querySchemaValidator()];
-            if (dataMethods.indexOf(opts.method) > -1) hooks.push(this.$dataSchemaValidator({
-                patch: (opts.method !== 'PUT')
-            }));
+            const opts = this.$routes[operation];
+            const hooks = [this.constructor.$outputFormatter(), this.$querySchemaValidator()];
+            if (dataMethods.indexOf(opts.method) > -1) {
+                hooks.push(this.$dataSchemaValidator({
+                    patch: (opts.method !== 'PUT'),
+                }));
+            }
             this.$hooks(operation, hooks);
         });
 
@@ -57,7 +57,7 @@ export default class RestService extends Service {
         if (this.$dataSchema) {
             this.$_dataSchema = {
                 patch: schema.compile(this.$dataSchema),
-                full: schema.compile(Object.assign({}, this.$dataSchema, {required: Object.keys(this.$dataSchema.properties)}))
+                full: schema.compile(Object.assign({}, this.$dataSchema, { required: Object.keys(this.$dataSchema.properties) })),
             };
         }
         if (this.$querySchema) this.$_querySchema = schema.compile(this.$querySchema);
@@ -80,77 +80,65 @@ export default class RestService extends Service {
                 enable: true,
                 method: 'OPTIONS',
                 route: ['/:id', '/'],
-                handler: this.$optionsRouteHandler()
+                handler: this.$optionsRouteHandler(),
             },
             get: {
                 enable: !!this.get,
                 method: 'GET',
                 route: '/:id',
-                handler: (ctx) => {
-                    return this.get(ctx.params.id, {
-                        user: ctx.request.auth,
-                        query: ctx.request.query
-                    }).then((res) => {
-                        if (!res) throw new Boom.notFound();
-                        return ctx.send(res);
-                    });
-                }
+                handler: ctx => this.get(ctx.params.id, {
+                    user: ctx.request.auth,
+                    query: ctx.request.query,
+                }).then((res) => {
+                    if (!res) throw new NotFound();
+                    return ctx.send(res);
+                }),
             },
             find: {
                 enable: !!this.find,
                 method: 'GET',
                 route: '/',
-                handler: (ctx) => {
-                    return this.find({
-                        user: ctx.request.auth,
-                        query: ctx.request.query
-                    }).then(ctx.send);
-                }
+                handler: ctx => this.find({
+                    user: ctx.request.auth,
+                    query: ctx.request.query,
+                }).then(ctx.send),
             },
             create: {
                 enable: !!this.create,
                 method: 'POST',
                 route: '/',
-                handler: (ctx) => {
-                    return this.create(ctx.request.body, {
-                        user: ctx.request.auth,
-                        query: ctx.request.query
-                    }).then(ctx.send);
-                }
+                handler: ctx => this.create(ctx.request.body, {
+                    user: ctx.request.auth,
+                    query: ctx.request.query,
+                }).then(ctx.send),
             },
             update: {
                 enable: !!this.update,
                 method: 'PUT',
                 route: '/:id',
-                handler: (ctx) => {
-                    return this.update(ctx.params.id, ctx.request.body, {
-                        user: ctx.request.auth,
-                        query: ctx.request.query
-                    }).then(ctx.send);
-                }
+                handler: ctx => this.update(ctx.params.id, ctx.request.body, {
+                    user: ctx.request.auth,
+                    query: ctx.request.query,
+                }).then(ctx.send),
             },
             patch: {
                 enable: !!this.patch,
                 method: 'PATCH',
                 route: '/:id',
-                handler: (ctx) => {
-                    return this.patch(ctx.params.id, ctx.request.body, {
-                        user: ctx.request.auth,
-                        query: ctx.request.query
-                    }).then(ctx.send);
-                }
+                handler: ctx => this.patch(ctx.params.id, ctx.request.body, {
+                    user: ctx.request.auth,
+                    query: ctx.request.query,
+                }).then(ctx.send),
             },
             delete: {
                 enable: !!this.delete,
                 method: 'DELETE',
                 route: '/:id',
-                handler: (ctx) => {
-                    return this.delete(ctx.params.id, {
-                        user: ctx.request.auth,
-                        query: ctx.request.query
-                    }).then(() => ctx.send(null));
-                }
-            }
+                handler: ctx => this.delete(ctx.params.id, {
+                    user: ctx.request.auth,
+                    query: ctx.request.query,
+                }).then(() => ctx.send(null)),
+            },
         };
     }
 
@@ -161,9 +149,9 @@ export default class RestService extends Service {
      */
     $optionsRouteHandler() {
         return (ctx) => {
-            let allMethods = ctx.matched.reduce((prev, cur) => prev.concat(cur.methods.filter((method) => (method !== 'OPTIONS'))), []);
-            let allow = [...new Set(allMethods)];
-            if (allow.length === 0) throw Boom.notFound('Not Found');
+            const allMethods = ctx.matched.reduce((prev, cur) => prev.concat(cur.methods.filter(method => (method !== 'OPTIONS'))), []);
+            const allow = [...new Set(allMethods)];
+            if (allow.length === 0) throw new NotFound('Not Found');
             ctx.set('Allow', allow);
             return this.options().then(ctx.send);
         };
@@ -173,11 +161,11 @@ export default class RestService extends Service {
      * Format the rest response
      * @returns {Function}
      */
-    $outputFormatter() {
+    static $outputFormatter() {
         return (args, next) => {
-            args.$metadata = {};
+            args.$metadata = {}; // eslint-disable-line no-param-reassign
             return next().then((res) => {
-                let metadata = args.$metadata;
+                const metadata = args.$metadata;
                 if (res) {
                     metadata.data = res;
                     return metadata;
@@ -195,8 +183,8 @@ export default class RestService extends Service {
     $dataSchemaValidator(opts) {
         return (args, next) => {
             if (this.$dataSchema) {
-                let validator = (opts.patch) ? this.$_dataSchema.patch : this.$_dataSchema.full;
-                let valid = validator(args.data);
+                const validator = (opts.patch) ? this.$_dataSchema.patch : this.$_dataSchema.full;
+                const valid = validator(args.data);
                 if (!valid) throw Schema.validationError(validator.errors, this.$dataSchema, undefined, args.data);
             }
             return next();
@@ -209,7 +197,7 @@ export default class RestService extends Service {
     $querySchemaValidator() {
         return (args, next) => {
             if (this.$querySchema && args.params) {
-                let valid = this.$_querySchema(args.params.query);
+                const valid = this.$_querySchema(args.params.query);
                 if (!valid) throw Schema.validationError(this.$_querySchema.errors, this.$querySchema, 'Invalid query parameters', args.params.query);
             }
             return next();
@@ -227,8 +215,8 @@ export default class RestService extends Service {
         return Promise.resolve({
             schemas: {
                 query: this.$querySchema || undefined,
-                data: this.$dataSchema || undefined
-            }
+                data: this.$dataSchema || undefined,
+            },
         });
     }
 }

@@ -1,5 +1,3 @@
-'use strict';
-
 // Dependencies
 import path from 'path';
 import Router from 'koa-router';
@@ -7,13 +5,11 @@ import findFiles from '../lib/findFiles';
 
 // Exports
 export default function routeHandler(routePath, app, middlewares) {
-
-    // Prepare
-    let containerRouter = new Router();
+    const containerRouter = new Router();
 
     // Shortcut for route modules
     if (typeof routePath === 'function') {
-        let router = new Router();
+        const router = new Router();
         routePath(router, app);
         containerRouter.use('', ...[...middlewares, router.routes()]);
         return containerRouter;
@@ -24,15 +20,15 @@ export default function routeHandler(routePath, app, middlewares) {
 
     // Handle the files
     files.forEach((file) => {
-        let mountAt = '/' + path.relative(routePath, file)
+        let mountAt = `/${path.relative(routePath, file)}`
                 .split(path.sep)
                 .join('/');
         mountAt = mountAt
             .replace(/\/index.js$/, '')
             .replace(/.js$/, '')
             .replace(/^\/$/, '');
-        let router = new Router();
-        let route = require.main.require(file);
+        const router = new Router();
+        const route = require.main.require(file);
         if (route.default) route.default(router, app);
         else route(router, app);
         containerRouter.use(mountAt, ...[...middlewares, router.routes()]);

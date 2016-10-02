@@ -1,5 +1,3 @@
-'use strict';
-
 // Dependencies
 import test from 'ava';
 import Schema from '../../../src/modules/json-schema/schema';
@@ -11,44 +9,46 @@ const testSchema = {
     type: 'object',
     required: [
         'name',
-        'counter'
+        'counter',
     ],
     properties: {
         name: {
             description: 'Name of person',
-            type: 'string'
+            type: 'string',
         },
         counter: {
             description: 'A counter starting',
             type: 'integer',
             minimum: 1,
             maximum: 100,
-            default: 1
+            default: 1,
         },
         hasEmail: {
             description: 'Has email?',
             type: 'boolean',
-            default: false
+            default: false,
         },
         at: {
             description: 'Current time',
             type: 'string',
-            format: 'iso8601'
+            format: 'iso8601',
         },
         secretValue: {
             description: 'Hidden value',
             type: 'string',
             message: 'invalid value',
-            enum: ['1234']
-        }
-    }
+            enum: [
+                '1234',
+            ],
+        },
+    },
 };
 
 // Tests
-test('can give a descriptive error object', async t => {
+test('can give a descriptive error object', async (t) => {
     const schema = new Schema();
     const data = {
-        name: 'Jeff Smith'
+        name: 'Jeff Smith',
     };
     schema.validate(testSchema, data);
     const err = Schema.validationError(schema.errors, testSchema, 'A custom message', data);
@@ -59,13 +59,13 @@ test('can give a descriptive error object', async t => {
         path: '/counter',
         keyword: 'required',
         message: 'should be present',
-        data: null
+        data: null,
     }]);
 });
-test('provides a descriptive default error message', async t => {
+test('provides a descriptive default error message', async (t) => {
     const schema = new Schema();
     const data = {
-        name: 'Jeff Smith'
+        name: 'Jeff Smith',
     };
     schema.validate(testSchema, data);
     const err = Schema.validationError(schema.errors, testSchema, undefined, data);
@@ -76,10 +76,10 @@ test('provides a descriptive default error message', async t => {
         path: '/counter',
         keyword: 'required',
         message: 'should be present',
-        data: null
+        data: null,
     }]);
 });
-test('provides a descriptive default error messages when no data was present', async t => {
+test('provides a descriptive default error messages when no data was present', async (t) => {
     const schema = new Schema();
     const data = null;
     schema.validate(testSchema, data);
@@ -89,12 +89,12 @@ test('provides a descriptive default error messages when no data was present', a
     t.is(err.output.payload.statusCode, 400);
     t.deepEqual(err.output.payload.errors, []);
 });
-test('can override the error message and hide enum values', async t => {
+test('can override the error message and hide enum values', async (t) => {
     const schema = new Schema();
     const data = {
         name: 'Jeff Smith',
         counter: 7,
-        secretValue: '12345'
+        secretValue: '12345',
     };
     schema.validate(testSchema, data);
     const err = Schema.validationError(schema.errors, testSchema, undefined, data);
@@ -106,32 +106,35 @@ test('can override the error message and hide enum values', async t => {
         keyword: 'enum',
         message: 'invalid value',
         data: '12345',
-        allowedValues: undefined
+        allowedValues: undefined,
     }]);
 });
-test('schema accepts ISO8601 datetime format', async t => {
-    let schema = new Schema();
+test('schema accepts ISO8601 datetime format', async (t) => {
+    const schema = new Schema();
     const data = {
         name: 'Jeff Smith',
         counter: 7,
-        at: '2016-09-23'
+        at: '2016-09-23',
     };
-    let valid = schema.validate(testSchema, data);
+    const valid = schema.validate(testSchema, data);
     t.is(valid, true);
 });
-test('schema rejects non-ISO8601 datetime format', async t => {
-    let schema = new Schema();
+test('schema rejects non-ISO8601 datetime format', async (t) => {
+    const schema = new Schema();
     const data = {
         name: 'Jeff Smith',
         counter: 7,
-        at: '2016/09/23'
+        at: '2016/09/23',
     };
-    let valid = schema.validate(testSchema, data);
+    const valid = schema.validate(testSchema, data);
     t.is(valid, false);
     const err = Schema.validationError(schema.errors, testSchema, 'A custom message', data);
-    t.deepEqual(err.output.payload.errors, [{
-        path: '/at',
-        keyword: 'format',
-        message: 'should match format "iso8601"',
-        data: '2016/09/23'}]);
+    t.deepEqual(err.output.payload.errors, [
+        {
+            path: '/at',
+            keyword: 'format',
+            message: 'should match format "iso8601"',
+            data: '2016/09/23',
+        },
+    ]);
 });

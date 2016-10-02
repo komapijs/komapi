@@ -1,9 +1,7 @@
-'use strict';
-
 // Dependencies
 import test from 'ava';
+import { agent as request } from 'supertest-as-promised';
 import Komapi from '../../src/index';
-import {agent as request} from 'supertest-as-promised';
 
 // Init
 const schema = {
@@ -16,34 +14,32 @@ const schema = {
             type: 'string',
             enum: [
                 'development',
-                'production'
-            ]
+                'production',
+            ],
         },
         stringvalue: {
             description: 'Should be string',
-            type: 'string'
+            type: 'string',
         },
         numbervalue: {
             description: 'Should be string',
-            type: 'string'
-        }
+            type: 'string',
+        },
     },
     additionalProperties: false,
     required: [
-        'stringvalue', 'enumvalue'
-    ]
+        'stringvalue',
+        'enumvalue',
+    ],
 };
 
 // Tests
-test('provides middleware to ensure requests adheres to a json schema', async t => {
+test('provides middleware to ensure requests adheres to a json schema', async (t) => {
     t.plan(2);
-    let app = new Komapi({
-        env: 'production'
-    });
+    const app = new Komapi({ env: 'production' });
     app.use(async(ctx, next) => {
-        ctx.request.body = {
-            stringvalue: []
-        };
+        // eslint-disable-next-line no-param-reassign
+        ctx.request.body = { stringvalue: [] };
         try {
             return await next();
         } catch (err) {
@@ -57,35 +53,43 @@ test('provides middleware to ensure requests adheres to a json schema', async t 
                     keyword: 'required',
                     dataPath: '',
                     schemaPath: '#/required',
-                    params: {missingProperty: 'enumvalue'},
+                    params: { missingProperty: 'enumvalue' },
                     message: 'should have required property \'enumvalue\'',
                     schema: {
                         enumvalue: {
                             description: 'Environment',
                             type: 'string',
-                            enum: ['development', 'production']
+                            enum: [
+                                'development',
+                                'production',
+                            ],
                         },
-                        stringvalue: {description: 'Should be string', type: 'string'},
-                        numbervalue: {description: 'Should be string', type: 'string'}
+                        stringvalue: { description: 'Should be string', type: 'string' },
+                        numbervalue: { description: 'Should be string', type: 'string' },
                     },
                     parentSchema: {
-                        '$schema': 'http://json-schema.org/draft-04/schema#',
+                        $schema: 'http://json-schema.org/draft-04/schema#',
                         title: 'Test schema',
                         type: 'object',
                         properties: {
                             enumvalue: {
                                 description: 'Environment',
                                 type: 'string',
-                                enum: ['development', 'production']
+                                enum: [
+                                    'development',
+                                    'production',
+                                ],
                             },
-                            stringvalue: {description: 'Should be string', type: 'string'},
-                            numbervalue: {description: 'Should be string', type: 'string'}
+                            stringvalue: { description: 'Should be string', type: 'string' },
+                            numbervalue: { description: 'Should be string', type: 'string' },
                         },
                         additionalProperties: false,
-                        required: ['stringvalue', 'enumvalue']
+                        required: ['stringvalue', 'enumvalue'],
                     },
-                    data: {stringvalue: []}
-                }
+                    data: {
+                        stringvalue: [],
+                    },
+                },
             },
             {
                 path: '/stringvalue',
@@ -96,90 +100,71 @@ test('provides middleware to ensure requests adheres to a json schema', async t 
                     keyword: 'type',
                     dataPath: '/stringvalue',
                     schemaPath: '#/properties/stringvalue/type',
-                    params: {type: 'string'},
+                    params: { type: 'string' },
                     message: 'should be string',
                     schema: 'string',
-                    parentSchema: {description: 'Should be string', type: 'string'},
-                    data: []
-                }
+                    parentSchema: { description: 'Should be string', type: 'string' },
+                    data: [],
+                },
             }]);
+            throw err;
         }
     });
     app.use(app.mw.ensureSchema(schema));
     await request(app.listen())
         .get('/');
 });
-test('allows valid requests', async t => {
-    let app = new Komapi({
-        env: 'production'
-    });
+test('allows valid requests', async (t) => {
+    const app = new Komapi({ env: 'production' });
     app.use(async(ctx, next) => {
+        // eslint-disable-next-line no-param-reassign
         ctx.request.body = {
             stringvalue: 'asd',
-            enumvalue: 'development'
+            enumvalue: 'development',
         };
         try {
             return await next();
         } catch (err) {
             t.fail();
+            throw err;
         }
     });
     app.use(app.mw.ensureSchema(schema));
-    app.use((ctx, next) => {
-        ctx.body = null;
-    });
+    app.use(ctx => ctx.send(null));
     const res = await request(app.listen())
         .get('/');
     t.is(res.status, 204);
 });
-test('throws on invalid key', async t => {
-    let app = new Komapi({
-        env: 'production'
-    });
+test('throws on invalid key', async (t) => {
+    const app = new Komapi({ env: 'production' });
     t.throws(() => {
-        app.use(app.mw.ensureSchema(schema, {key: 'invalid'}));
-    }, `You can not enforce a schema to 'invalid'. Only allowed values are 'body', 'params' or 'query`);
+        app.use(app.mw.ensureSchema(schema, { key: 'invalid' }));
+    }, /Invalid config provided/);
 });
-test('replies with schema on ?$schema by default', async t => {
-    let app = new Komapi({
-        env: 'production'
-    });
+test('replies with schema on ?$schema by default', async (t) => {
+    const app = new Komapi({ env: 'production' });
     app.use(app.mw.ensureSchema(schema));
-    app.use((ctx, next) => {
-        ctx.body = null;
-    });
+    app.use(ctx => ctx.send(null));
     const res = await request(app.listen())
         .get('/?$schema');
     t.is(res.status, 200);
     t.deepEqual(res.body, schema);
 });
-test('support custom schema reply function', async t => {
-    let app = new Komapi({
-        env: 'production'
-    });
+test('support custom schema reply function', async (t) => {
+    const app = new Komapi({ env: 'production' });
     app.use(app.mw.ensureSchema(schema, {
-        sendSchema: (ctx) => {
-            return (ctx.request.query['test'] === 'blah');
-        }
+        sendSchema: ctx => (ctx.request.query.test === 'blah'),
     }));
-    app.use((ctx, next) => {
-        ctx.body = null;
-    });
+    app.use(ctx => ctx.send(null));
     const res = await request(app.listen())
         .get('/?test=blah');
     t.is(res.status, 200);
     t.deepEqual(res.body, schema);
 });
-test('can be disabled', async t => {
-    let app = new Komapi({
-        env: 'production'
-    });
-    app.use(app.mw.ensureSchema(schema, {
-        sendSchema: false
-    }));
-    app.use((ctx, next) => {
-        ctx.body = null;
-    });
+test('can be disabled', async (t) => {
+    const app = new Komapi({ env: 'production' });
+    app.use(app.mw.ensureSchema(schema, { sendSchema: false }));
+    app.use(ctx => ctx.send(null));
     const res = await request(app.listen())
         .get('/?$schema');
     t.is(res.status, 400);

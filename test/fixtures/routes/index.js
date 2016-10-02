@@ -1,8 +1,5 @@
-'use strict';
-
+// Exports
 export default (router) => {
-    router.get('/', (ctx) => ctx.send({
-        status: 'index'
-    }));
+    router.get('/', ctx => ctx.send({ status: 'index' }));
     return router;
 };

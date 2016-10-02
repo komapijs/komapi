@@ -1,7 +1,5 @@
-'use strict';
-
 // Exports
-export default (context) => {
+export default function mutateContext(context) {
     Object.assign(context, {
         send: function send(body, status, headers) {
             this.body = body;
@@ -19,13 +17,14 @@ export default (context) => {
          * @returns {*}
          */
         sendIf: function sendIf(body, status, headers, override) {
-            if ((override != undefined && override) || (override == undefined && body)) {
+            if ((override !== undefined && override) || (override === undefined && body)) {
                 this.body = body;
                 if (status) this.status = status;
                 if (headers) this.set(headers);
                 return this.body;
             }
-        }
+            return null;
+        },
     });
     return context;
-};
+}

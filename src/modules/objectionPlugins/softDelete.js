@@ -1,8 +1,26 @@
-'use strict';
+// Functions
+function withArchived(includeArchived = true) {
+    this.context().withArchived = includeArchived;
+    return this;
+}
+function del(opts = {}) {
+    if (this._modelClass.softDelete && !opts.force) return this.softDelete();
+    return this.forceDelete();
+}
+function softDelete() {
+    return this.patch({
+        [this._modelClass.softDeleteColumn]: new Date().toISOString(),
+    });
+}
+function restore() {
+    this.withArchived(true);
+    return this.patch({
+        [this._modelClass.softDeleteColumn]: null,
+    });
+}
 
 // Exports
 export default (BaseModel) => {
-
     // Model
     class Model extends BaseModel {
         static get softDeleteColumn() {
@@ -19,7 +37,7 @@ export default (BaseModel) => {
         constructor(modelClass) {
             super(modelClass);
             if (modelClass.softDeleteColumn) {
-                this.onBuild(builder => {
+                this.onBuild((builder) => {
                     if (!builder.context().withArchived) builder.whereNull(modelClass.softDeleteColumn);
                 });
             }
@@ -31,7 +49,7 @@ export default (BaseModel) => {
         constructor(modelClass) {
             super(modelClass);
             if (modelClass.softDeleteColumn) {
-                this.onBuild(builder => {
+                this.onBuild((builder) => {
                     if (!builder.context().withArchived) {
                         builder.whereNull(modelClass.softDeleteColumn);
                     }
@@ -53,24 +71,3 @@ export default (BaseModel) => {
 
     return Model;
 };
-
-// Functions
-function withArchived(withArchived = true) {
-    this.context().withArchived = withArchived;
-    return this;
-}
-function del(opts = {}) {
-    if (this._modelClass.softDelete && !opts.force) return this.softDelete();
-    return this.forceDelete();
-}
-function softDelete() {
-    return this.patch({
-        [this._modelClass.softDeleteColumn]: new Date().toISOString()
-    });
-}
-function restore() {
-    this.withArchived(true);
-    return this.patch({
-        [this._modelClass.softDeleteColumn]: null
-    });
-}

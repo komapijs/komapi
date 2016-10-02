@@ -1,42 +1,9 @@
-'use strict';
-
 // Dependencies
 import _ from 'lodash';
 import path from 'path';
-import findFiles from './findFiles';
 import compose from 'koa-compose';
 import getParameterNames from 'get-parameter-names';
-
-// Exports
-export default function loadServices(rootPath, app) {
-
-    // Create a list of files
-    const files = findFiles(rootPath);
-
-    // Handle the files
-    files.forEach((file) => {
-        file = path.resolve(file);
-        let relPath = path.relative(rootPath, file)
-                .split(path.sep)
-                .join('/')
-                .replace(/\/index.js$/, '')
-                .replace(/.js$/, '')
-                .replace(/^\/$/, '');
-
-        const Service = require.main.require(file);
-
-        // Bootstrap service
-        let service = new Service(app, relPath);
-        service.$setup();
-        _.forOwn(service.$hooks(), (hooks, operation) => {
-            if (service[operation]) service[operation] = manageOperation(service, operation, service[operation], hooks);
-        });
-
-        // Define name
-        let name = (service.name || Service.name).replace(/Service$/, '');
-        app.service[name] = service;
-    });
-}
+import findFiles from './findFiles';
 
 // Functions
 /**
@@ -44,13 +11,13 @@ export default function loadServices(rootPath, app) {
  * @param {Function} fn
  * @returns {Object}
  */
-function structuredArgs(fn){
-    let parameters = getParameterNames(fn);
+function structureArgs(fn) {
+    const parameters = getParameterNames(fn);
     return {
-        parameters: parameters,
+        parameters,
         curry: function structuredArgs(args) {
             return _.zipObject(parameters, args);
-        }
+        },
     };
 }
 
@@ -63,8 +30,40 @@ function structuredArgs(fn){
  * @returns {Function}
  */
 function manageOperation(service, operation, originalOperation, hooks) {
-    const normalizeArgs = structuredArgs(originalOperation);
-    originalOperation = originalOperation.bind(service);
-    const fn = compose(hooks.concat([(args) => originalOperation(..._.values(_.pick(args, normalizeArgs.parameters)))]));
+    const normalizeArgs = structureArgs(originalOperation);
+    originalOperation = originalOperation.bind(service); // eslint-disable-line no-param-reassign
+    const fn = compose(hooks.concat([args => originalOperation(..._.values(_.pick(args, normalizeArgs.parameters)))]));
     return (...args) => fn(normalizeArgs.curry(args));
+}
+
+// Exports
+export default function loadServices(rootPath, app) {
+    // Create a list of files
+    const files = findFiles(rootPath);
+    const services = {};
+
+    // Handle the files
+    files.forEach((file) => {
+        file = path.resolve(file); // eslint-disable-line no-param-reassign
+        const relPath = path.relative(rootPath, file)
+                .split(path.sep)
+                .join('/')
+                .replace(/\/index.js$/, '')
+                .replace(/.js$/, '')
+                .replace(/^\/$/, '');
+
+        const Service = require.main.require(file);
+
+        // Bootstrap service
+        const service = new Service(app, relPath);
+        service.$setup();
+        _.forOwn(service.$hooks(), (hooks, operation) => {
+            if (service[operation]) service[operation] = manageOperation(service, operation, service[operation], hooks);
+        });
+
+        // Define name
+        const name = (service.name || Service.name).replace(/Service$/, '');
+        services[name] = service;
+    });
+    return services;
 }

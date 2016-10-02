@@ -1,5 +1,3 @@
-'use strict';
-
 // Exports
 export default (BaseModel) => {
     class Model extends BaseModel {
@@ -8,7 +6,7 @@ export default (BaseModel) => {
             return (this.camelCase) ? ['createdAt', 'updatedAt'] : ['created_at', 'updated_at'];
         }
         static get systemColumns() {
-            let systemColumns = super.systemColumns;
+            const systemColumns = super.systemColumns;
             return systemColumns.concat(this.timestampColumns);
         }
         $toDatabaseJson() {
@@ -21,7 +19,7 @@ export default (BaseModel) => {
                 this.constructor.timestampColumns.forEach((column) => {
                     jsonSchema.properties[column] = {
                         type: 'string',
-                        format: 'date-time'
+                        format: 'date-time',
                     };
                 });
             }
@@ -30,7 +28,7 @@ export default (BaseModel) => {
         $beforeInsert(...args) {
             if (this.constructor.timestamps) {
                 const datetime = new Date().toISOString();
-                this.constructor.timestampColumns.forEach((column) => this[column] = datetime);
+                this.constructor.timestampColumns.forEach(column => (this[column] = datetime));
             }
             return super.$beforeInsert(...args);
         }

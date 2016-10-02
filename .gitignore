@@ -4,10 +4,12 @@
 # Exceptions
 !.gitkeep
 !.gitignore
-!.gitlab-ci.yml
+!.gitattributes
 !.travis.yml
 !.babelrc
 !.eslintrc
+!.eslintignore
+!.editorconfig
 !.npmignore
 
 # Generated directories
@@ -22,3 +24,4 @@ bower_components
 ~*
 *.tmp
 *.log
+npm-debug.log*

@@ -1,21 +1,28 @@
-'use strict';
-
 // Dependencies
 import test from 'ava';
+import { agent as request } from 'supertest-as-promised';
+import knex from 'knex';
 import Komapi from '../src/index';
-import {agent as request} from 'supertest-as-promised';
 import DummyLogger from './fixtures/dummyLogger';
-import Knex from 'knex';
+
+// Init
+const connection = {
+    client: 'sqlite3',
+    useNullAsDefault: true,
+    connection: {
+        filename: ':memory:',
+    },
+};
 
 // Tests
-test('accepts default development configuration', async t => {
+test('accepts default development configuration', async (t) => {
     t.plan(4);
     let app;
     delete process.env.NODE_ENV;
     t.notThrows(() => {
         app = new Komapi();
     });
-    app.use((ctx, next) => {
+    app.use((ctx) => {
         t.false(ctx.state.cache);
     });
     await request(app.listen())
@@ -23,15 +30,13 @@ test('accepts default development configuration', async t => {
     t.is(app.env, 'development');
     t.is(app.log.streams.length, 0);
 });
-test('accepts default production configuration', async t => {
+test('accepts default production configuration', async (t) => {
     t.plan(4);
     let app;
     t.notThrows(() => {
-        app = new Komapi({
-            env:'production'
-        });
+        app = new Komapi({ env: 'production' });
     });
-    app.use((ctx, next) => {
+    app.use((ctx) => {
         t.true(ctx.state.cache);
     });
     await request(app.listen())
@@ -39,24 +44,20 @@ test('accepts default production configuration', async t => {
     t.is(app.env, 'production');
     t.is(app.log.streams.length, 0);
 });
-test('throws on invalid configuration', t => {
-    t.throws(() => {
-        return new Komapi({
-            env: 'invalidEnvironment',
-            proxy: 'stringvalue'
-        });
-    }, /("env" must be one of \[development, production\])/);
+test('throws on invalid configuration', async (t) => {
+    t.throws(() => new Komapi({
+        env: 'invalidEnvironment',
+        proxy: 'stringvalue',
+    }), /("env" must be one of \[development, production\])/);
 });
-test('maps Komapi config to Koa config properties', t => {
-
-    // Setup
-    let initialConfig = {
+test('maps Komapi config to Koa config properties', async (t) => {
+    const initialConfig = {
         env: 'production',
         name: 'testname',
         proxy: true,
-        subdomainOffset: 3
+        subdomainOffset: 3,
     };
-    let app = new Komapi(initialConfig);
+    const app = new Komapi(initialConfig);
 
     // Check
     Object.keys(initialConfig).forEach((i) => {
@@ -64,22 +65,20 @@ test('maps Komapi config to Koa config properties', t => {
         t.is(app.config[i], initialConfig[i]);
     });
 });
-test('allows Koa config properties to be set directly and be visible through the Koa properties and the Komapi config object ', t => {
-
-    // Setup
-    let initialConfig = {
+test('allows Koa config properties to be set directly and be visible through the Koa properties and the Komapi config object ', async (t) => {
+    const initialConfig = {
         env: 'production',
         name: 'testname',
         proxy: true,
-        subdomainOffset: 3
+        subdomainOffset: 3,
     };
-    let modifiedConfig = {
+    const modifiedConfig = {
         env: 'development',
         name: 'anothertestname',
         proxy: false,
-        subdomainOffset: 1
+        subdomainOffset: 1,
     };
-    let app = new Komapi(initialConfig);
+    const app = new Komapi(initialConfig);
 
     // Check
     Object.keys(modifiedConfig).forEach((i) => {
@@ -88,22 +87,20 @@ test('allows Koa config properties to be set directly and be visible through the
         t.is(app.config[i], modifiedConfig[i]);
     });
 });
-test('allows config properties to be set on the Komapi config object and be visible through the Koa properties and the Komapi config object', t => {
-
-    // Setup
-    let initialConfig = {
+test('allows config properties to be set on the Komapi config object and be visible through the Koa properties and the Komapi config object', async (t) => {
+    const initialConfig = {
         env: 'production',
         name: 'testname',
         proxy: true,
-        subdomainOffset: 3
+        subdomainOffset: 3,
     };
-    let modifiedConfig = {
+    const modifiedConfig = {
         env: 'development',
         name: 'anothertestname',
         proxy: false,
-        subdomainOffset: 1
+        subdomainOffset: 1,
     };
-    let app = new Komapi(initialConfig);
+    const app = new Komapi(initialConfig);
 
     // Check
     Object.keys(modifiedConfig).forEach((i) => {
@@ -112,39 +109,39 @@ test('allows config properties to be set on the Komapi config object and be visi
         t.is(app.config[i], modifiedConfig[i]);
     });
 });
-test('accepts a 2nd user config parameter that is set to app.locals', async t => {
+test('accepts a 2nd user config parameter that is set to app.locals', async (t) => {
     const userConfig = {
         userConfig: true,
-        a: 'b'
+        a: 'b',
     };
-    let app = new Komapi(undefined, userConfig);
+    const app = new Komapi(undefined, userConfig);
     t.deepEqual(app.locals, userConfig);
 });
-test('gives a simple representation of itself through json', t => {
-    let app = new Komapi();
-    let out = app.toJSON();
+test('gives a simple representation of itself through json', async (t) => {
+    const app = new Komapi();
+    const out = app.toJSON();
     t.deepEqual(Object.keys(out), [
         'config',
-        'state'
+        'state',
     ]);
     t.is(out.config, app.config);
     t.is(out.state, app.state);
 });
-test('emits an error event on errors', async t => {
-    let app = new Komapi();
+test('emits an error event on errors', async (t) => {
+    const app = new Komapi();
     t.plan(2);
-    app.on('error', (err) => {
+    app.on('error', () => {
         t.pass();
     });
-    app.use((ctx, next) => {
+    app.use(() => {
         throw new Error('Uncaught exception');
     });
     const res = await request(app.listen())
         .get('/');
     t.is(res.status, 500);
 });
-test('logs any emitted errors', t => {
-    let app = new Komapi();
+test('logs any emitted errors', async (t) => {
+    const app = new Komapi();
     t.plan(4);
     app.log.addStream({
         name: 'DummyLogger',
@@ -155,14 +152,14 @@ test('logs any emitted errors', t => {
             t.is(obj.level, 50);
             t.is(obj.msg, 'Application Error');
             t.is(obj.err.message, 'Dummy Error');
-        })
+        }),
     });
     app.emit('error', new Error('Dummy Error'));
 });
-test('logs error stack traces (strings) as array', t => {
-    let app = new Komapi();
+test('logs error stack traces', async (t) => {
+    const app = new Komapi();
     const err = new Error('Dummy Error');
-    const expectedStack = err.stack.split('\n');
+    const expectedStack = err.stack;
     t.plan(2);
     app.log.addStream({
         name: 'DummyLogger',
@@ -171,12 +168,12 @@ test('logs error stack traces (strings) as array', t => {
         stream: new DummyLogger((obj) => {
             t.is(obj.err.message, 'Dummy Error');
             t.deepEqual(obj.err.stack, expectedStack);
-        })
+        }),
     });
     app.emit('error', err);
 });
-test('logs error stack traces (array) as array', t => {
-    let app = new Komapi();
+test('logs error stack traces (array) as array', async (t) => {
+    const app = new Komapi();
     const err = new Error('Dummy Error');
     const expectedStack = err.stack = err.stack.split('\n');
     t.plan(2);
@@ -187,16 +184,16 @@ test('logs error stack traces (array) as array', t => {
         stream: new DummyLogger((obj) => {
             t.is(obj.err.message, 'Dummy Error');
             t.deepEqual(obj.err.stack, expectedStack);
-        })
+        }),
     });
     app.emit('error', err);
 });
-test('logs uncaught exceptions and exits with a non-zero exit code', async t => {
+test('logs uncaught exceptions and exits with a non-zero exit code', async (t) => {
     t.plan(5);
-    let listeners = process.listeners('uncaughtException').length;
-    let app = new Komapi();
-    let newListeners = process.listeners('uncaughtException').length;
-    let orgExit = process.exit;
+    const listeners = process.listeners('uncaughtException').length;
+    const app = new Komapi();
+    const newListeners = process.listeners('uncaughtException').length;
+    const orgExit = process.exit;
     t.is(newListeners, listeners + 1);
     app.log.addStream({
         name: 'DummyLogger',
@@ -206,21 +203,21 @@ test('logs uncaught exceptions and exits with a non-zero exit code', async t => 
             t.is(obj.context, 'application');
             t.is(obj.level, 60);
             t.is(obj.msg, 'Uncaught Exception Error');
-        })
+        }),
     });
     process.exit = (code) => {
         process.exit = orgExit;
         t.is(code, 1);
     };
-    let handler = process.listeners('uncaughtException')[listeners];
+    const handler = process.listeners('uncaughtException')[listeners];
     handler.call(app, new Error('Uncaught Exception'));
 });
-test('logs unhandled promise rejections and exits with a non-zero exit code', async t => {
+test('logs unhandled promise rejections and exits with a non-zero exit code', async (t) => {
     t.plan(5);
-    let listeners = process.listeners('unhandledRejection').length;
-    let app = new Komapi();
-    let newListeners = process.listeners('unhandledRejection').length;
-    let orgExit = process.exit;
+    const listeners = process.listeners('unhandledRejection').length;
+    const app = new Komapi();
+    const newListeners = process.listeners('unhandledRejection').length;
+    const orgExit = process.exit;
     t.is(newListeners, listeners + 1);
     app.log.addStream({
         name: 'DummyLogger',
@@ -230,20 +227,20 @@ test('logs unhandled promise rejections and exits with a non-zero exit code', as
             t.is(obj.context, 'application');
             t.is(obj.level, 60);
             t.is(obj.msg, 'Unhandled Rejected Promise');
-        })
+        }),
     });
     process.exit = (code) => {
         process.exit = orgExit;
         t.is(code, 1);
     };
-    let handler = process.listeners('unhandledRejection')[listeners];
-    handler.call(app, new Error('Rejected Promise'), new Promise(()=>{},()=>{}));
+    const handler = process.listeners('unhandledRejection')[listeners];
+    handler.call(app, new Error('Rejected Promise'), new Promise(() => {}, () => {}));
 });
-test('logs a warning when using a high number of middlewares', async t => {
-    let app = new Komapi();
-    let num = 4000 + 1;
-    let defaultmw = app.middleware.length;
-    for (let i = 0;i<(num-defaultmw);i++) {
+test('logs a warning when using a high number of middlewares', async (t) => {
+    const app = new Komapi();
+    const num = 4000 + 1;
+    const defaultmw = app.middleware.length;
+    for (let i = 0; i < (num - defaultmw); i += 1) {
         app.use((ctx, next) => next());
     }
     t.plan(2);
@@ -252,103 +249,95 @@ test('logs a warning when using a high number of middlewares', async t => {
         level: 'info',
         type: 'raw',
         stream: new DummyLogger((obj) => {
-            if (obj.msg === `Komapi was started with ${num} middlewares. Please note that more than 4000 middlewares is not supported and could cause stability and performance issues.`) {
+            if (obj.msg === `Komapi was started with ${num} middlewares. Please note that more than 4000 middlewares is not supported and could cause stability and performance issues.`) { // eslint-disable-line max-len
                 t.is(obj.context, 'application');
                 t.is(obj.level, 40);
             }
-        })
+        }),
     });
     await request(app.listen())
         .get('/');
 });
-test('does not provide a default route', async t => {
-    let app = new Komapi();
+test('does not provide a default route', async (t) => {
+    const app = new Komapi();
     const res = await request(app.listen())
         .get('/');
     t.is(res.status, 404);
 });
-test('provides a helper method (ctx.sendIf) to send the response if found', async t => {
-    let app = new Komapi();
-    let reply = {status:'ok'};
-    app.use((ctx, next) => ctx.sendIf(reply));
+test('provides a helper method (ctx.sendIf) to send the response if found', async (t) => {
+    const app = new Komapi();
+    const reply = { status: 'ok' };
+    app.use(ctx => ctx.sendIf(reply));
     const res = await request(app.listen())
         .get('/');
     t.deepEqual(JSON.stringify(res.body), JSON.stringify(reply));
     t.is(res.status, 200);
 });
-test('provides a helper method (ctx.sendIf) to send the response, statusCode and headers, if found', async t => {
-    let app = new Komapi();
-    let reply = {status:'ok'};
-    app.use((ctx, next) => ctx.sendIf(reply, 201, {
-        'X-TMP': 'TEST'
-    }));
+test('provides a helper method (ctx.sendIf) to send the response, statusCode and headers, if found', async (t) => {
+    const app = new Komapi();
+    const reply = { status: 'ok' };
+    app.use(ctx => ctx.sendIf(reply, 201, { 'X-TMP': 'TEST' }));
     const res = await request(app.listen())
         .get('/');
     t.deepEqual(JSON.stringify(res.body), JSON.stringify(reply));
     t.is(res.headers['x-tmp'], 'TEST');
     t.is(res.status, 201);
 });
-test('provides a helper method (ctx.sendIf) to send 404 if the response was not found', async t => {
-    let app = new Komapi();
-    let reply = null;
-    app.use((ctx, next) => ctx.sendIf(reply));
+test('provides a helper method (ctx.sendIf) to send 404 if the response was not found', async (t) => {
+    const app = new Komapi();
+    const reply = null;
+    app.use(ctx => ctx.sendIf(reply));
     const res = await request(app.listen())
         .get('/');
     t.is(res.status, 404);
 });
-test('provides a helper method (ctx.sendIf) to send 404 based on custom evaluation expression', async t => {
-    let app = new Komapi();
-    let reply = {
-        data: null
-    };
-    app.use((ctx, next) => ctx.sendIf(reply, undefined, undefined, reply.data !== null));
+test('provides a helper method (ctx.sendIf) to send 404 based on custom evaluation expression', async (t) => {
+    const app = new Komapi();
+    const reply = { data: null };
+    app.use(ctx => ctx.sendIf(reply, undefined, undefined, reply.data !== null));
     const res = await request(app.listen())
         .get('/');
     t.is(res.status, 404);
 });
-test('provides a helper method (ctx.send) to send the response', async t => {
-    let app = new Komapi();
-    let reply = {status:'ok'};
-    app.use((ctx, next) => ctx.send(reply));
+test('provides a helper method (ctx.send) to send the response', async (t) => {
+    const app = new Komapi();
+    const reply = { status: 'ok' };
+    app.use(ctx => ctx.send(reply));
     const res = await request(app.listen())
         .get('/');
     t.deepEqual(JSON.stringify(res.body), JSON.stringify(reply));
     t.is(res.status, 200);
 });
-test('provides a helper method (ctx.send) to send the response, statusCode and headers', async t => {
-    let app = new Komapi();
-    let reply = null;
-    app.use((ctx, next) => ctx.send(reply, 201, {
-        'X-TMP': 'TEST'
-    }));
+test('provides a helper method (ctx.send) to send the response, statusCode and headers', async (t) => {
+    const app = new Komapi();
+    const reply = null;
+    app.use(ctx => ctx.send(reply, 201, { 'X-TMP': 'TEST' }));
     const res = await request(app.listen())
         .get('/');
     t.deepEqual(JSON.stringify(res.body), JSON.stringify({}));
     t.is(res.headers['x-tmp'], 'TEST');
     t.is(res.status, 201);
 });
-test('provides a helper method (ctx.send) to send the response even if it was not found', async t => {
-    let app = new Komapi();
-    let reply = null;
-    app.use((ctx, next) => ctx.send(reply));
+test('provides a helper method (ctx.send) to send the response even if it was not found', async (t) => {
+    const app = new Komapi();
+    const reply = null;
+    app.use(ctx => ctx.send(reply));
     const res = await request(app.listen())
         .get('/');
     t.deepEqual(JSON.stringify(res.body), JSON.stringify({}));
     t.is(res.status, 204);
 });
-test('is mountable with a route prefix', async t => {
-    let app = new Komapi({
-        routePrefix: '/test'
-    });
-    app.use((ctx, next) => ctx.send({status:'ok'}));
+test('is mountable with a route prefix', async (t) => {
+    const app = new Komapi({ routePrefix: '/test' });
+    app.use(ctx => ctx.send({ status: 'ok' }));
     const res = await request(app.listen());
     const res1 = await res.get('/');
     const res2 = await res.get('/test');
     t.is(res1.status, 404);
     t.is(res2.status, 200);
 });
-test('supports adding multiple middlewares at once', async t => {
-    let app = new Komapi();
+test('supports adding multiple middlewares at once', async (t) => {
+    const app = new Komapi();
     t.plan(5);
 
     app.use(...[
@@ -371,13 +360,13 @@ test('supports adding multiple middlewares at once', async t => {
         (ctx, next) => {
             t.pass();
             return next();
-        }
+        },
     ]);
     await request(app.listen())
         .get('/');
 });
-test('supports mounting middleware at specific routes', async t => {
-    let app = new Komapi();
+test('supports mounting middleware at specific routes', async (t) => {
+    const app = new Komapi();
     t.plan(3);
     app.use('/route1', ...[
         (ctx, next) => {
@@ -387,7 +376,7 @@ test('supports mounting middleware at specific routes', async t => {
         (ctx, next) => {
             t.pass();
             return next();
-        }
+        },
     ]);
     app.use('/route2', ...[
         (ctx, next) => {
@@ -401,48 +390,28 @@ test('supports mounting middleware at specific routes', async t => {
         (ctx, next) => {
             t.pass();
             return next();
-        }
+        },
     ]);
     await request(app.listen())
         .get('/route2');
 });
-test('does not enable orm by default', async t => {
-    let app = new Komapi();
+test('does not enable orm by default', async (t) => {
+    const app = new Komapi();
     t.is(app.orm, undefined);
 });
-test('orm can be enabled through objection() method using a knex instance', async t => {
-    let app = new Komapi();
-    app.objection(Knex({
-        client: 'sqlite3',
-        useNullAsDefault: true,
-        connection: {
-            filename: ':memory:'
-        }
-    }));
+test('orm can be enabled through objection() method using a knex instance', async (t) => {
+    const app = new Komapi();
+    app.objection(knex(connection));
     t.is(typeof app.orm, 'object');
     t.is(typeof app.orm.$Model.knex, 'function');
 });
-test('orm cannot be enabled more than once', async t => {
-    let app = new Komapi();
-    app.objection(Knex({
-        client: 'sqlite3',
-        useNullAsDefault: true,
-        connection: {
-            filename: ':memory:'
-        }
-    }));
-    t.throws(() => {
-        return app.objection(Knex({
-            client: 'sqlite3',
-            useNullAsDefault: true,
-            connection: {
-                filename: ':memory:'
-            }
-        }));
-    }, 'Cannot initialize ORM more than once');
+test('orm cannot be enabled more than once', async (t) => {
+    const app = new Komapi();
+    app.objection(knex(connection));
+    t.throws(() => app.objection(knex(connection)), 'Cannot initialize ORM more than once');
 });
-test('orm query errors are logged', async t => {
-    let app = new Komapi();
+test('orm query errors are logged', async (t) => {
+    const app = new Komapi();
     t.plan(4);
     app.log.addStream({
         name: 'DummyLogger',
@@ -452,23 +421,23 @@ test('orm query errors are logged', async t => {
             t.is(obj.context, 'orm');
             t.is(obj.level, 50);
             t.is(obj.msg, 'ORM Query Error');
-        })
+        }),
     });
-    app.objection(Knex({
-        client: 'sqlite3',
-        useNullAsDefault: true,
-        connection: {
-            filename: ':memory:'
-        }
-    }));
+    app.objection(knex(connection));
     try {
         await app.orm.$Model.knex().raw('select * from InvalidTable');
     } catch (err) {
         t.pass();
     }
 });
-test('migrations can be run before starting the app', async t => {
-    let app = new Komapi();
+test('migrations can be run before starting the app', async (t) => {
+    const app = new Komapi();
+    const migr = Object.assign({
+        migrations: {
+            directory: 'fixtures/migrations',
+            tableName: 'migrations',
+        },
+    }, connection);
     t.plan(1);
     app.log.addStream({
         name: 'DummyLogger',
@@ -478,25 +447,21 @@ test('migrations can be run before starting the app', async t => {
             if (/migration/.test(obj.msg)) {
                 t.fail();
             }
-        })
+        }),
     });
-    app.objection(Knex({
-        client: 'sqlite3',
-        useNullAsDefault: true,
-        connection: {
-            filename: ':memory:'
-        },
-        migrations: {
-            directory: 'fixtures/migrations',
-            tableName: 'migrations'
-        }
-    }));
+    app.objection(knex(migr));
     await app.orm.$Model.knex().migrate.latest();
     await app.healthCheck();
     t.pass();
 });
-test('pending migrations are logged', async t => {
-    let app = new Komapi();
+test('pending migrations are logged', async (t) => {
+    const app = new Komapi();
+    const migr = Object.assign({
+        migrations: {
+            directory: 'fixtures/migrations',
+            tableName: 'migrations',
+        },
+    }, connection);
     t.plan(3);
     app.log.addStream({
         name: 'DummyLogger',
@@ -508,70 +473,52 @@ test('pending migrations are logged', async t => {
                 t.is(obj.level, 40);
                 t.is(obj.msg, 'There are pending migrations! Run `app.orm.$migrate.latest()` to run all pending migrations.');
             }
-        })
+        }),
     });
-    app.objection(Knex({
-        client: 'sqlite3',
-        useNullAsDefault: true,
-        connection: {
-            filename: ':memory:'
-        },
-        migrations: {
-            directory: 'fixtures/migrations',
-            tableName: 'migrations'
-        }
-    }));
+    app.objection(knex(migr));
     await app.healthCheck();
 });
-test('listen supports callbacks', async t => {
-    let app = new Komapi();
+test('listen supports callbacks', async (t) => {
+    const app = new Komapi();
     t.plan(2);
-    app.use((ctx, next) => {
-        ctx.body = null;
-    });
+    app.use(ctx => ctx.send(null));
     const res = await request(await app.listen(() => t.pass()))
         .get('/');
     t.is(res.status, 204);
 });
-test('adding middlewares with missing dependency results in normal behaviour', async t => {
-    let app = new Komapi();
-    function dummyMiddleware(){}
+test('adding middlewares with missing dependency results in normal behaviour', async (t) => {
+    const app = new Komapi();
+    function dummyMiddleware() {}
     dummyMiddleware.registerBefore = 'non-existant-mw';
     app.use(dummyMiddleware);
     t.deepEqual(app.middleware[app.middleware.length - 1], dummyMiddleware);
 });
-test('ignores X-Request-ID from untrusted proxy', async t => {
-    let app = new Komapi();
-    let reqId = '1234';
-    let res = await request(app.listen())
+test('ignores X-Request-ID from untrusted proxy', async (t) => {
+    const app = new Komapi();
+    const reqId = '1234';
+    const res = await request(app.listen())
         .get('/')
-        .set({
-            'X-Request-ID': reqId
-        });
+        .set({ 'X-Request-ID': reqId });
     t.not(res.headers['x-request-id'], reqId);
 });
-test('respects X-Request-ID from trusted proxy', async t => {
-    let app = new Komapi({
-        proxy: true
-    });
-    let reqId = '1234';
-    let res = await request(app.listen())
+test('respects X-Request-ID from trusted proxy', async (t) => {
+    const app = new Komapi({ proxy: true });
+    const reqId = '1234';
+    const res = await request(app.listen())
         .get('/')
-        .set({
-            'X-Request-ID': reqId
-        });
+        .set({ 'X-Request-ID': reqId });
     t.is(res.headers['x-request-id'], reqId);
 });
-test('provides ctx.request.auth property that resolves to the passport property', async t => {
+test('provides ctx.request.auth property that resolves to the passport property', async (t) => {
     t.plan(2);
-    let app = new Komapi();
+    const app = new Komapi();
     app.use((ctx, next) => {
         t.is(ctx.request.auth, null);
-        ctx.request.dummy = true;
-        ctx.request._passport = {
+        ctx.request.dummy = true; // eslint-disable-line no-param-reassign
+        ctx.request._passport = { // eslint-disable-line no-param-reassign
             instance: {
-                _userProperty: 'dummy'
-            }
+                _userProperty: 'dummy',
+            },
         };
         t.is(ctx.request.auth, true);
         return next();

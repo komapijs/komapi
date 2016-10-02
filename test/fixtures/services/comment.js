@@ -1,11 +1,9 @@
-'use strict';
-
 // Dependencies
 import Service from '../../../src/modules/service/providers/rest';
 
 // Exports
 module.exports = class CommentService extends Service {
-    get $dataSchema() {
+    get $dataSchema() { // eslint-disable-line class-methods-use-this
         return {
             $schema: 'http://json-schema.org/draft-04/schema#',
             title: 'Test Schema',
@@ -13,31 +11,28 @@ module.exports = class CommentService extends Service {
             properties: {
                 prop: {
                     description: 'Dummy prop',
-                    type: 'integer'
+                    type: 'integer',
                 },
                 prop2: {
                     description: 'Dummy prop2',
-                    type: 'integer'
-                }
-            }
+                    type: 'integer',
+                },
+            },
         };
     }
-    get $querySchema() {
-        return null;
-    }
-    find(params) {
+    find(params) { // eslint-disable-line class-methods-use-this
         return params;
     }
-    get(id) {
+    get(id) { // eslint-disable-line class-methods-use-this
         return id;
     }
-    create(data) {
+    create(data) { // eslint-disable-line class-methods-use-this
         return data;
     }
-    update(id, data) {
+    update(id, data) { // eslint-disable-line class-methods-use-this
         return data;
     }
-    patch(id, data) {
+    patch(id, data) { // eslint-disable-line class-methods-use-this
         return data;
     }
 };

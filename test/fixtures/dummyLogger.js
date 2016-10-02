@@ -1,5 +1,3 @@
-'use strict';
-
 // Dependencies
 import Stream from 'stream';
 

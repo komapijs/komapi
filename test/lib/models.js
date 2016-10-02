@@ -1,38 +1,33 @@
-'use strict';
-
 // Dependencies
 import test from 'ava';
+import knex from 'knex';
 import Komapi from '../../src/index';
-import Knex from 'knex';
+
+// Init
+const connection = {
+    client: 'sqlite3',
+    useNullAsDefault: true,
+    connection: {
+        filename: ':memory:',
+    },
+};
 
 // Tests
-test('loads models through the models() method', async t => {
-    let app = new Komapi();
-    app.objection(Knex({
-        client: 'sqlite3',
-        useNullAsDefault: true,
-        connection: {
-            filename: ':memory:'
-        }
-    }));
+test('loads models through the models() method', async (t) => {
+    const app = new Komapi();
+    app.objection(knex(connection));
     app.models('../fixtures/models');
-    t.is(Object.keys(app.orm).filter((k)=> !k.startsWith('$')).length, 3);
+    t.is(Object.keys(app.orm).filter(k => !k.startsWith('$')).length, 3);
 });
-test('can load a single model', async t => {
-    let app = new Komapi();
-    app.objection(Knex({
-        client: 'sqlite3',
-        useNullAsDefault: true,
-        connection: {
-            filename: ':memory:'
-        }
-    }));
+test('can load a single model', async (t) => {
+    const app = new Komapi();
+    app.objection(knex(connection));
     app.models('../fixtures/models/user.js');
-    t.is(Object.keys(app.orm).filter((k)=> !k.startsWith('$')).length, 1);
+    t.is(Object.keys(app.orm).filter(k => !k.startsWith('$')).length, 1);
 });
-test('does not allow loading models without an objection instance', async t => {
-    let app = new Komapi();
+test('does not allow loading models without an objection instance', async (t) => {
+    const app = new Komapi();
     t.throws(() => {
         app.models('../fixtures/models');
-    }, 'Cannot load models before initializing an objection instance. Use `app.objection()` before attempting to load models.');
+    }, 'Use `app.objection()` before attempting to load models!');
 });

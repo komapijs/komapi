@@ -1,65 +1,61 @@
-'use strict';
-
 // Dependencies
 import Service from '../../../src/modules/service/providers/rest';
 import RestifyParser from '../../../src/modules/restify/parser';
 
 // Exports
 module.exports = class RestService extends Service {
-    get $querySchema() {
+    get $querySchema() { // eslint-disable-line class-methods-use-this
         return RestifyParser.$defaultSchema;
     }
-    find(params) {
+    find(params) { // eslint-disable-line class-methods-use-this
         return {
             method: 'find',
-            args: {
-                params: params
-            }
+            args: { params },
         };
     }
-    get(id, params) {
-        id = parseInt(id, 10);
+    get(stringId, params) { // eslint-disable-line class-methods-use-this
+        const id = Number(stringId);
         if (id === 2) return null;
         return {
             method: 'get',
             args: {
-                id: id,
-                params: params
-            }
+                id,
+                params,
+            },
         };
     }
-    create(data, params) {
+    create(data, params) { // eslint-disable-line class-methods-use-this
         return {
             method: 'create',
             args: {
-                data: data,
-                params: params
-            }
+                data,
+                params,
+            },
         };
     }
-    update(id, data, params) {
-        id = parseInt(id, 10);
+    update(stringId, data, params) { // eslint-disable-line class-methods-use-this
+        const id = Number(stringId);
         return {
             method: 'update',
             args: {
-                id: id,
-                data: data,
-                params: params
-            }
+                id,
+                data,
+                params,
+            },
         };
     }
-    patch(id, data, params) {
-        id = parseInt(id, 10);
+    patch(stringId, data, params) { // eslint-disable-line class-methods-use-this
+        const id = Number(stringId);
         return {
             method: 'patch',
             args: {
-                id: id,
-                data: data,
-                params: params
-            }
+                id,
+                data,
+                params,
+            },
         };
     }
-    delete() {
+    delete() { // eslint-disable-line class-methods-use-this
         return null;
     }
 };

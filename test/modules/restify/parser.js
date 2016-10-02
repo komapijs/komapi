@@ -1,9 +1,7 @@
-'use strict';
-
 // Dependencies
 import test from 'ava';
+import { Model } from 'objection';
 import Parser from '../../../src/modules/restify/parser';
-import {Model} from 'objection';
 
 // Init
 class Min extends Model {
@@ -15,16 +13,16 @@ class User extends Model {
         return {
             roles: {
                 relation: Model.ManyToManyRelation,
-                modelClass: Role,
+                modelClass: Role, // eslint-disable-line no-use-before-define
                 join: {
                     from: 'User.id',
                     through: {
                         from: 'roles_users.user_id',
-                        to: 'roles_users.role_id'
+                        to: 'roles_users.role_id',
                     },
-                    to: 'Role.id'
-                }
-            }
+                    to: 'Role.id',
+                },
+            },
         };
     }
     static get jsonSchema() {
@@ -32,15 +30,15 @@ class User extends Model {
             $schema: 'http://json-schema.org/draft-04/schema#',
             title: 'Schema definition',
             required: [
-                'username'
+                'username',
             ],
             type: 'object',
             properties: {
                 username: {
                     description: 'Username',
-                    type: 'string'
-                }
-            }
+                    type: 'string',
+                },
+            },
         };
     }
 }
@@ -55,18 +53,18 @@ class Role extends Model {
                     from: 'Role.id',
                     through: {
                         from: 'roles_users.role_id',
-                        to: 'roles_users.user_id'
+                        to: 'roles_users.user_id',
                     },
-                    to: 'User.id'
-                }
-            }
+                    to: 'User.id',
+                },
+            },
         };
     }
 }
 
 // Tests
-test('loads options from an Objection model by default', async t => {
-    let parser = new Parser(User);
+test('loads options from an Objection model by default', async (t) => {
+    const parser = new Parser(User);
     const properties = {
         $filter: Parser.$defaultSchema.properties.$filter,
         $sort: {
@@ -78,10 +76,10 @@ test('loads options from an Objection model by default', async t => {
                     '+id',
                     '-id',
                     '+username',
-                    '-username'
-                ]
+                    '-username',
+                ],
             },
-            uniqueItems: true
+            uniqueItems: true,
         },
         $skip: Parser.$defaultSchema.properties.$skip,
         $top: Parser.$defaultSchema.properties.$top,
@@ -91,10 +89,10 @@ test('loads options from an Objection model by default', async t => {
             items: {
                 type: 'string',
                 enum: [
-                    'roles'
-                ]
+                    'roles',
+                ],
             },
-            uniqueItems: true
+            uniqueItems: true,
         },
         $select: {
             description: 'Limit returned attributes to these attributes',
@@ -103,17 +101,17 @@ test('loads options from an Objection model by default', async t => {
                 type: 'string',
                 enum: [
                     'id',
-                    'username'
-                ]
+                    'username',
+                ],
             },
-            uniqueItems: true
+            uniqueItems: true,
         },
-        $count: Parser.$defaultSchema.properties.$count
+        $count: Parser.$defaultSchema.properties.$count,
     };
     t.deepEqual(parser.$schema.properties, properties);
 });
-test('supports minimal models', async t => {
-    let parser = new Parser(Min);
+test('supports minimal models', async (t) => {
+    const parser = new Parser(Min);
     const properties = {
         $filter: Parser.$defaultSchema.properties.$filter,
         $sort: Parser.$defaultSchema.properties.$sort,
@@ -121,18 +119,18 @@ test('supports minimal models', async t => {
         $top: Parser.$defaultSchema.properties.$top,
         $expand: Parser.$defaultSchema.properties.$expand,
         $select: Parser.$defaultSchema.properties.$select,
-        $count: Parser.$defaultSchema.properties.$count
+        $count: Parser.$defaultSchema.properties.$count,
     };
     t.deepEqual(parser.$schema.properties, properties);
 });
-test('can manually override options', async t => {
-    let customSchema = Parser.$defaultSchema;
+test('can manually override options', async (t) => {
+    const customSchema = Parser.$defaultSchema;
     delete customSchema.properties.$filter;
-    let parser = new Parser(User, {
+    const parser = new Parser(User, {
         querySchema: customSchema,
         $select: ['firstname', 'lastname'],
         $sort: ['created_at', 'company'],
-        $expand: ['friends', 'cars']
+        $expand: ['friends', 'cars'],
     });
     const properties = {
         $sort: {
@@ -144,10 +142,10 @@ test('can manually override options', async t => {
                     '+created_at',
                     '-created_at',
                     '+company',
-                    '-company'
-                ]
+                    '-company',
+                ],
             },
-            uniqueItems: true
+            uniqueItems: true,
         },
         $skip: Parser.$defaultSchema.properties.$skip,
         $top: Parser.$defaultSchema.properties.$top,
@@ -158,10 +156,10 @@ test('can manually override options', async t => {
                 type: 'string',
                 enum: [
                     'friends',
-                    'cars'
-                ]
+                    'cars',
+                ],
             },
-            uniqueItems: true
+            uniqueItems: true,
         },
         $select: {
             description: 'Limit returned attributes to these attributes',
@@ -170,20 +168,20 @@ test('can manually override options', async t => {
                 type: 'string',
                 enum: [
                     'firstname',
-                    'lastname'
-                ]
+                    'lastname',
+                ],
             },
-            uniqueItems: true
+            uniqueItems: true,
         },
-        $count: Parser.$defaultSchema.properties.$count
+        $count: Parser.$defaultSchema.properties.$count,
     };
     t.deepEqual(parser.$schema.properties, properties);
 });
-test('parses a simple query to a standard format', async t => {
-    let parser = new Parser(User);
-    let parseOutput = parser.parse({
+test('parses a simple query to a standard format', async (t) => {
+    const parser = new Parser(User);
+    const parseOutput = parser.parse({
         $select: 'username',
-        $expand: 'roles'
+        $expand: 'roles',
     });
     t.deepEqual(parseOutput, {
         filter: undefined,
@@ -193,17 +191,17 @@ test('parses a simple query to a standard format', async t => {
         expand: ['roles'],
         expandSelect: {},
         select: ['username'],
-        count: false
+        count: false,
     });
 });
-test('parses a complex query to a standard format', async t => {
-    let parser = new Parser(User);
-    let parseOutput = parser.parse({
+test('parses a complex query to a standard format', async (t) => {
+    const parser = new Parser(User);
+    const parseOutput = parser.parse({
         $select: 'username',
         '$select[roles]': 'role_id',
         $expand: 'roles',
         $sort: '-username',
-        $count: 'true'
+        $count: 'true',
     });
     t.deepEqual(parseOutput, {
         filter: undefined,
@@ -212,14 +210,14 @@ test('parses a complex query to a standard format', async t => {
         limit: 10,
         expand: ['roles'],
         expandSelect: {
-            roles: ['role_id']
+            roles: ['role_id'],
         },
         select: ['username'],
-        count: true
+        count: true,
     });
 });
-test('parses a blank queries', async t => {
-    let parser = new Parser(User);
+test('parses a blank queries', async (t) => {
+    const parser = new Parser(User);
     const expected = {
         filter: undefined,
         sort: undefined,
@@ -228,18 +226,18 @@ test('parses a blank queries', async t => {
         expand: undefined,
         expandSelect: null,
         select: undefined,
-        count: false
+        count: false,
     };
-    let parseOutput = parser.parse({});
-    let parseOutput2 = parser.parse();
+    const parseOutput = parser.parse({});
+    const parseOutput2 = parser.parse();
     t.deepEqual(parseOutput, expected);
     t.deepEqual(parseOutput2, expected);
 });
-test('throws on invalid query', async t => {
-    let parser = new Parser(User);
+test('throws on invalid query', async (t) => {
+    const parser = new Parser(User);
     t.throws(() => {
         parser.parse({
-            $select: 'invalidField'
+            $select: 'invalidField',
         });
     }, 'Invalid query parameters');
 });
