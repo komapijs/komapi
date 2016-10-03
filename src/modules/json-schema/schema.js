@@ -8,7 +8,7 @@ import { badRequest as BadRequest } from 'boom';
 const defaultOpts = {
     allErrors: true,
     verbose: true,
-    formats: { iso8601: v => moment(v, moment.ISO_8601, true).isValid() },
+    formats: { 'date-time': v => moment(v, moment.ISO_8601, true).isValid() },
     messages: true,
     jsonPointers: true,
     format: 'full',

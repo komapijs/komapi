@@ -31,7 +31,7 @@ const testSchema = {
         at: {
             description: 'Current time',
             type: 'string',
-            format: 'iso8601',
+            format: 'date-time',
         },
         secretValue: {
             description: 'Hidden value',
@@ -109,7 +109,7 @@ test('can override the error message and hide enum values', async (t) => {
         allowedValues: undefined,
     }]);
 });
-test('schema accepts ISO8601 datetime format', async (t) => {
+test('schema accepts ISO8601 date-time format', async (t) => {
     const schema = new Schema();
     const data = {
         name: 'Jeff Smith',
@@ -119,7 +119,7 @@ test('schema accepts ISO8601 datetime format', async (t) => {
     const valid = schema.validate(testSchema, data);
     t.is(valid, true);
 });
-test('schema rejects non-ISO8601 datetime format', async (t) => {
+test('schema rejects non-ISO8601 date-time format', async (t) => {
     const schema = new Schema();
     const data = {
         name: 'Jeff Smith',
@@ -133,7 +133,7 @@ test('schema rejects non-ISO8601 datetime format', async (t) => {
         {
             path: '/at',
             keyword: 'format',
-            message: 'should match format "iso8601"',
+            message: 'should match format "date-time"',
             data: '2016/09/23',
         },
     ]);
