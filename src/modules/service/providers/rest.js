@@ -1,161 +1,9 @@
 // Dependencies
-import { notFound as NotFound } from 'boom';
+import bodyParser from 'koa-bodyparser';
 import Service from '../service';
-import Schema from '../../json-schema/schema';
-
-// Init
-const schema = new Schema({
-    useDefaults: true,
-    coerceTypes: true,
-    removeAdditional: true,
-});
 
 // Exports
 export default class RestService extends Service {
-
-    /**
-     * A JSON Schema describing and validating the data format
-     * @returns {mixed}
-     */
-    get $dataSchema() { // eslint-disable-line class-methods-use-this
-        return undefined;
-    }
-
-    /**
-     * A JSON Schema describing and validating the query format
-     * @returns {mixed}
-     */
-    get $querySchema() { // eslint-disable-line class-methods-use-this
-        return undefined;
-    }
-
-    /**
-     * Bootstrapping code here
-     * @param {string} path
-     */
-    $setup(path) {
-        super.$setup(path);
-
-        // Add REST hooks
-        const dataMethods = [
-            'POST',
-            'PUT',
-            'PATCH',
-        ];
-        Object.keys(this.$routes).forEach((operation) => {
-            const opts = this.$routes[operation];
-            const hooks = [this.constructor.$outputFormatter(), this.$querySchemaValidator()];
-            if (dataMethods.indexOf(opts.method) > -1) {
-                hooks.push(this.$dataSchemaValidator({
-                    patch: (opts.method !== 'PUT'),
-                }));
-            }
-            this.$hooks(operation, hooks);
-        });
-
-        // Store compiled schemas
-        if (this.$dataSchema) {
-            this.$_dataSchema = {
-                patch: schema.compile(this.$dataSchema),
-                full: schema.compile(Object.assign({}, this.$dataSchema, { required: Object.keys(this.$dataSchema.properties) })),
-            };
-        }
-        if (this.$querySchema) this.$_querySchema = schema.compile(this.$querySchema);
-    }
-
-    /**
-     * All public routes and their options
-     * @example
-     * // return {
-     * //     find: (ctx) => this.find({
-     * //         user: ctx.request.auth,
-     * //         query: ctx.request.query
-     * //     })
-     * // };
-     * @returns {Object}
-     */
-    get $routes() {
-        return {
-            options: {
-                enable: true,
-                method: 'OPTIONS',
-                route: ['/:id', '/'],
-                handler: this.$optionsRouteHandler(),
-            },
-            get: {
-                enable: !!this.get,
-                method: 'GET',
-                route: '/:id',
-                handler: ctx => this.get(ctx.params.id, {
-                    user: ctx.request.auth,
-                    query: ctx.request.query,
-                }).then((res) => {
-                    if (!res) throw new NotFound();
-                    return ctx.send(res);
-                }),
-            },
-            find: {
-                enable: !!this.find,
-                method: 'GET',
-                route: '/',
-                handler: ctx => this.find({
-                    user: ctx.request.auth,
-                    query: ctx.request.query,
-                }).then(ctx.send),
-            },
-            create: {
-                enable: !!this.create,
-                method: 'POST',
-                route: '/',
-                handler: ctx => this.create(ctx.request.body, {
-                    user: ctx.request.auth,
-                    query: ctx.request.query,
-                }).then(ctx.send),
-            },
-            update: {
-                enable: !!this.update,
-                method: 'PUT',
-                route: '/:id',
-                handler: ctx => this.update(ctx.params.id, ctx.request.body, {
-                    user: ctx.request.auth,
-                    query: ctx.request.query,
-                }).then(ctx.send),
-            },
-            patch: {
-                enable: !!this.patch,
-                method: 'PATCH',
-                route: '/:id',
-                handler: ctx => this.patch(ctx.params.id, ctx.request.body, {
-                    user: ctx.request.auth,
-                    query: ctx.request.query,
-                }).then(ctx.send),
-            },
-            delete: {
-                enable: !!this.delete,
-                method: 'DELETE',
-                route: '/:id',
-                handler: ctx => this.delete(ctx.params.id, {
-                    user: ctx.request.auth,
-                    query: ctx.request.query,
-                }).then(() => ctx.send(null)),
-            },
-        };
-    }
-
-    // Internal methods
-    /**
-     * Options route handler
-     * @returns {Function}
-     */
-    $optionsRouteHandler() {
-        return (ctx) => {
-            const allMethods = ctx.matched.reduce((prev, cur) => prev.concat(cur.methods.filter(method => (method !== 'OPTIONS'))), []);
-            const allow = [...new Set(allMethods)];
-            if (allow.length === 0) throw new NotFound('Not Found');
-            ctx.set('Allow', allow);
-            return this.options().then(ctx.send);
-        };
-    }
 
     /**
      * Format the rest response
@@ -176,47 +24,104 @@ export default class RestService extends Service {
     }
 
     /**
-     * Validate data using the data schema
-     * @param {Object} opts Options
-     * @returns {Function}
+     * Bootstrapping code here
+     * @param {string} path
      */
-    $dataSchemaValidator(opts) {
-        return (args, next) => {
-            if (this.$dataSchema) {
-                const validator = (opts.patch) ? this.$_dataSchema.patch : this.$_dataSchema.full;
-                const valid = validator(args.data);
-                if (!valid) throw Schema.validationError(validator.errors, this.$dataSchema, undefined, args.data);
-            }
-            return next();
-        };
-    }
-    /**
-     * Validate data using the query schema
-     * @returns {Function}
-     */
-    $querySchemaValidator() {
-        return (args, next) => {
-            if (this.$querySchema && args.params) {
-                const valid = this.$_querySchema(args.params.query);
-                if (!valid) throw Schema.validationError(this.$_querySchema.errors, this.$querySchema, 'Invalid query parameters', args.params.query);
-            }
-            return next();
-        };
+    $setup(path) {
+        super.$setup(path);
+        this.$hooks(null, this.constructor.$outputFormatter());
     }
 
-    // Operations
+    /**
+     * Route handler for GET /:id
+     * @param {ctx} ctx Koa context object
+     */
+    $get(ctx) {
+        return this.get(ctx.params.id, {
+            auth: ctx.request.auth,
+            query: ctx.request.query,
+        }).then(res => ctx.sendIf(res, null, null, !!(res && res.data)));
+    }
+
+    /**
+     * Route handler for GET /
+     * @param {ctx} ctx Koa context object
+     */
+    $find(ctx) {
+        return this.find({
+            auth: ctx.request.auth,
+            query: ctx.request.query,
+        }).then(ctx.send);
+    }
+
+    /**
+     * Route handler for POST /
+     * @param {ctx} ctx Koa context object
+     */
+    $create(ctx) {
+        return this.create(ctx.request.body, {
+            auth: ctx.request.auth,
+            query: ctx.request.query,
+        }).then(ctx.send);
+    }
+
+    /**
+     * Route handler for PUT /:id
+     * @param {ctx} ctx Koa context object
+     */
+    $update(ctx) {
+        return this.update(ctx.params.id, ctx.request.body, {
+            auth: ctx.request.auth,
+            query: ctx.request.query,
+        }).then(ctx.send);
+    }
+
+    /**
+     * Route handler for PATCH /:id
+     * @param {ctx} ctx Koa context object
+     */
+    $patch(ctx) {
+        return this.patch(ctx.params.id, ctx.request.body, {
+            auth: ctx.request.auth,
+            query: ctx.request.query,
+        }).then(ctx.send);
+    }
+
+    /**
+     * Route handler for DELETE /:id
+     * @param {ctx} ctx Koa context object
+     */
+    $delete(ctx) {
+        return this.delete(ctx.params.id, {
+            auth: ctx.request.auth,
+            query: ctx.request.query,
+        }).then(() => ctx.send(null));
+    }
+
+    /**
+     * Helper function for automatically registering routes
+     * @param {Router=} router Router instance to use
+     * @returns {Router}
+     */
+    $getRoutes(...args) {
+        const router = super.$getRoutes(...args);
+
+        // Routes
+        if (this.get) router.get('/:id', this.$get.bind(this));
+        if (this.find) router.get('/', this.$find.bind(this));
+        if (this.create) router.post('/', bodyParser(), this.$create.bind(this));
+        if (this.update) router.put('/:id', bodyParser(), this.$update.bind(this));
+        if (this.patch) router.patch('/:id', bodyParser(), this.$patch.bind(this));
+        if (this.delete) router.delete('/:id', this.$delete.bind(this));
+
+        return router;
+    }
+
+    // Methods to implement
     // find(params = {}) {}
     // get(id, params = {}) {}
     // create(data, params = {}) {}
     // update(id, data = {} params = {}) {}
     // patch(id, data = {}, params = {}) {}
     // delete(id, params = {}) {}
-    options() {
-        return Promise.resolve({
-            schemas: {
-                query: this.$querySchema || undefined,
-                data: this.$dataSchema || undefined,
-            },
-        });
-    }
 }

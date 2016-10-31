@@ -1,5 +1,5 @@
 // Dependencies
-import _ from 'lodash';
+import Router from 'koa-router';
 
 // Exports
 export default class Service {
@@ -15,54 +15,32 @@ export default class Service {
     }
 
     /**
-     * All public routes and their options
-     * @example
-     * // return {
-     * //     find: {
-     * //         enable: !!this.find,
-     * //         method: 'GET',
-     * //         route: '/',
-     * //         handler: (ctx) => this.find({
-     * //             user: ctx.request.auth,
-     * //             query: ctx.request.query
-     * //         })
-     * //     }
-     * // };
-     * @returns {Object}
-     */
-    get $routes() { // eslint-disable-line class-methods-use-this
-        return {};
-    }
-
-    /**
-     * Helper function for automatically registering routes
-     * @returns {Router}
-     */
-    $registerRoutes(router) {
-        _.forOwn(this.$routes, (options) => {
-            if (options.enable) {
-                const routes = _.castArray(options.route);
-                routes.forEach((route) => {
-                    router[options.method.toLowerCase()](route, options.handler);
-                });
-            }
-        });
-        return router;
-    }
-
-    /**
      * Bootstrapping code here
      */
     $setup() {} // eslint-disable-line class-methods-use-this
 
     /**
      * Set or get hooks
-     * @param {String=} operation The operation to get or set hooks for
-     * @param {Array=} hooks An object containing all hooks
+     * @param {String=} method The method to get or set hooks for
+     * @param {Array|Object=} hooks An array or object containing all hooks
      */
-    $hooks(operation, hooks) {
-        if (!operation) return this.hooks;
-        if (hooks) this.hooks[operation] = this.$hooks(operation).concat(hooks);
-        return this.hooks[operation] || [];
+    $hooks(method, hooks) {
+        if (method && hooks) this.hooks[method] = this.$hooks(method).concat(hooks);
+        else if (!method && hooks) {
+            Object.getOwnPropertyNames(Object.getPrototypeOf(this)).forEach((k) => {
+                if (['$', '_'].indexOf(k[0]) === -1 && k !== 'constructor') this.hooks[k] = this.$hooks(k).concat(hooks);
+            });
+        }
+        if (!method) return this.hooks;
+        return this.hooks[method] || [];
+    }
+
+    /**
+     * Helper function for automatically registering routes
+     * @param {Router=} router Router instance to use
+     * @returns {Router}
+     */
+    $getRoutes(router) {  // eslint-disable-line class-methods-use-this
+        return router || new Router();
     }
 }

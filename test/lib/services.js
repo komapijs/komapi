@@ -21,8 +21,8 @@ test('adds hooks automatically', async (t) => {
     const app = new Komapi();
     app.services('../fixtures/services');
     const id = 10;
-    const res1 = await app.service.User.findWithHooks(id);
-    const res2 = await app.service.User.find(id);
+    const res1 = await app.service.User.getWithHooks(id);
+    const res2 = await app.service.User.get(id);
     t.is(res1, id + 2);
     t.is(res2, id);
 });
