@@ -61,7 +61,7 @@ export default class ObjectionDriver {
                 queryBuilder.filterEager(k, qb =>
                     qb.select(this.getDefaultColumns(qb))
                         .omit(this.getBelongsToOneColumns(qb))
-                        .columns(v));
+                        .columns(v || []));
             });
         }
         if (query.select) queryBuilder.columns(query.select);

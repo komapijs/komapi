@@ -48,7 +48,7 @@ test('throws on invalid configuration', async (t) => {
     t.throws(() => new Komapi({
         env: 'invalidEnvironment',
         proxy: 'stringvalue',
-    }), /("env" must be one of \[development, production\])/);
+    }), /("env" must be one of \[development, production])/);
 });
 test('maps Komapi config to Koa config properties', async (t) => {
     const initialConfig = {
