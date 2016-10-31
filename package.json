@@ -31,7 +31,6 @@
   "scripts": {
     "prebuild": "npm run clean --silent",
     "build": "babel -q -D -s true ./src/ --out-dir ./dist/",
-    "check-deps": "nsp check --output summary && ncu --packageFile ./package.json",
     "clean": "del-cli ./dist ./coverage ./.nyc_output",
     "coverage": "nyc report --reporter=text --reporter=text-summary --reporter=html && nyc check-coverage --lines=100 --functions=100 --branches=100 --statements=100",
     "lint": "eslint index.js src/ test/",
@@ -39,7 +38,6 @@
     "test": "nyc --reporter=lcov ava --require babel-core/register --timeout 180s --concurrency=25",
     "posttest": "npm run coverage --silent",
     "prepublish": "npm run build",
-    "update-deps": "ncu --packageFile ./package.json -u --upgradeAll",
     "watch": "ava --require babel-core/register --watch --serial --verbose"
   },
   "dependencies": {
@@ -77,15 +75,13 @@
     "babel-plugin-transform-runtime": "^6.12.0",
     "del-cli": "^0.2.0",
     "eslint": "^3.6.1",
-    "eslint-config-airbnb-base": "^8.0.0",
-    "eslint-plugin-import": "^1.16.0",
+    "eslint-config-airbnb-base": "^9.0.0",
+    "eslint-plugin-import": "^2.0.1",
     "eslint-plugin-security": "^1.2.0",
-    "knex": "0.12.1",
-    "npm-check-updates": "^2.8.0",
-    "nsp": "^2.6.1",
+    "knex": "0.12.5",
     "nyc": "^8.3.0",
     "sleep-promise": "^2.0.0",
-    "sqlite3": "^3.1.4",
+    "sqlite3": "^3.1.8",
     "supertest": "^2.0.0",
     "supertest-as-promised": "^4.0.0"
   },

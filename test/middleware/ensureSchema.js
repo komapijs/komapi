@@ -37,7 +37,7 @@ const schema = {
 test('provides middleware to ensure requests adheres to a json schema', async (t) => {
     t.plan(2);
     const app = new Komapi({ env: 'production' });
-    app.use(async(ctx, next) => {
+    app.use(async (ctx, next) => {
         // eslint-disable-next-line no-param-reassign
         ctx.request.body = { stringvalue: [] };
         try {
@@ -116,7 +116,7 @@ test('provides middleware to ensure requests adheres to a json schema', async (t
 });
 test('allows valid requests', async (t) => {
     const app = new Komapi({ env: 'production' });
-    app.use(async(ctx, next) => {
+    app.use(async (ctx, next) => {
         // eslint-disable-next-line no-param-reassign
         ctx.request.body = {
             stringvalue: 'asd',
