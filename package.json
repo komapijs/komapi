@@ -78,7 +78,7 @@
     "eslint-config-airbnb-base": "^9.0.0",
     "eslint-plugin-import": "^2.0.1",
     "eslint-plugin-security": "^1.2.0",
-    "knex": "0.12.5",
+    "knex": "0.12.6",
     "nyc": "^8.3.0",
     "sleep-promise": "^2.0.0",
     "sqlite3": "^3.1.8",
