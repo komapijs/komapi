@@ -1,25 +1,26 @@
 // Dependencies
 import test from 'ava';
+import path from 'path';
 import Komapi from '../../src/index';
 
 // Tests
 test('loads services through the services() method', async (t) => {
     const app = new Komapi();
-    app.services('../fixtures/services');
+    app.services(path.join(__dirname, '../fixtures/services'));
     t.is(Object.keys(app.service).length, 4);
     t.not(app.service.User, undefined);
     t.not(app.service.Comment, undefined);
 });
 test('can load a single service', async (t) => {
     const app = new Komapi();
-    app.services('../fixtures/services/comment.js');
+    app.services(path.join(__dirname, '../fixtures/services/comment.js'));
     t.is(Object.keys(app.service).length, 1);
     t.is(app.service.User, undefined);
     t.not(app.service.Comment, undefined);
 });
 test('adds hooks automatically', async (t) => {
     const app = new Komapi();
-    app.services('../fixtures/services');
+    app.services(path.join(__dirname, '../fixtures/services'));
     const id = 10;
     const res1 = await app.service.User.getWithHooks(id);
     const res2 = await app.service.User.get(id);
