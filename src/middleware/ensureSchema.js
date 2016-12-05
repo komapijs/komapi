@@ -11,7 +11,7 @@ const configSchema = Joi => Joi.object({
     key: Joi.any().valid(['body', 'params', 'query']).default('body'),
     sendSchema: Joi.alternatives().try(
         Joi.string().min(1),
-        Joi.func().arity(1), Joi.any().valid(false)
+        Joi.func().arity(1), Joi.any().valid(false),
     ).default('$schema'),
 });
 
