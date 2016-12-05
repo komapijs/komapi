@@ -4,7 +4,7 @@ import bunyan from 'bunyan';
 import { notImplemented as NotImplemented, methodNotAllowed as MethodNotAllowed } from 'boom';
 import mount from 'koa-mount';
 import compose from 'koa-compose';
-import uuid from 'node-uuid';
+import uuid from 'uuid';
 import * as Objection from 'objection';
 import _ from 'lodash';
 import loadModels from './lib/models';
