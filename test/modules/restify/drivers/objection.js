@@ -79,7 +79,7 @@ test('can handle a blank query to Objection queryBuilder', async (t) => {
     });
     const collection = await parser.apply(app.orm.Test.query());
     t.is(collection.length, 10);
-    t.deepEqual(collection[4], { id: 5 });
+    t.deepEqual(collection[4].toJSON(), { id: 5 });
 });
 test('can apply a restify query to an Objection queryBuilder', async (t) => {
     const app = new Komapi();
@@ -99,7 +99,7 @@ test('can apply a restify query to an Objection queryBuilder', async (t) => {
         $count: true,
     });
     t.is(collection.length, 3);
-    t.deepEqual(collection, [
+    t.deepEqual(collection.map(v => v.toJSON()), [
         {
             id: 8,
             num: 8,
@@ -160,7 +160,7 @@ test('can apply a restify nested expand', async (t) => {
         $expand: 'reltests/test/reltests2,reltests/test/reltests,reltests2/test',
     });
     t.is(collection.length, 10);
-    t.deepEqual(collection[0], {
+    t.deepEqual(collection[0].toJSON(), {
         id: 1,
         reltests: [
             {

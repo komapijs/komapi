@@ -2,6 +2,7 @@
 import test from 'ava';
 import { agent as request } from 'supertest-as-promised';
 import knex from 'knex';
+import path from 'path';
 import Komapi from '../src/index';
 import DummyLogger from './fixtures/dummyLogger';
 
@@ -434,7 +435,7 @@ test('migrations can be run before starting the app', async (t) => {
     const app = new Komapi();
     const migr = Object.assign({
         migrations: {
-            directory: 'fixtures/migrations',
+            directory: path.join(__dirname, 'fixtures/migrations'),
             tableName: 'migrations',
         },
     }, connection);
@@ -458,7 +459,7 @@ test('pending migrations are logged', async (t) => {
     const app = new Komapi();
     const migr = Object.assign({
         migrations: {
-            directory: 'fixtures/migrations',
+            directory: path.join(__dirname, 'fixtures/migrations'),
             tableName: 'migrations',
         },
     }, connection);

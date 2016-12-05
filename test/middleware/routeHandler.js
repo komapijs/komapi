@@ -1,12 +1,13 @@
 // Dependencies
 import test from 'ava';
 import { agent as request } from 'supertest-as-promised';
+import path from 'path';
 import Komapi from '../../src/index';
 
 // Tests
 test('is enabled through app.mw.route() method using es6 routes', async (t) => {
     const app = new Komapi();
-    app.use(app.mw.route('../fixtures/routes'));
+    app.use(app.mw.route(path.join(__dirname, '../fixtures/routes')));
     const res = await request(app.listen())
         .get('/');
     t.is(res.status, 200);
@@ -16,7 +17,7 @@ test('is enabled through app.mw.route() method using es6 routes', async (t) => {
 });
 test('supports es5 routes', async (t) => {
     const app = new Komapi();
-    app.use(app.mw.route('../fixtures/routes'));
+    app.use(app.mw.route(path.join(__dirname, '../fixtures/routes')));
     const res = await request(app.listen())
         .get('/es5');
     t.is(res.status, 200);
@@ -26,7 +27,7 @@ test('supports es5 routes', async (t) => {
 });
 test('supports specifying specific route files', async (t) => {
     const app = new Komapi();
-    app.use(app.mw.route('../fixtures/routes/es5.js'));
+    app.use(app.mw.route(path.join(__dirname, '../fixtures/routes/es5.js')));
     const res = await request(app.listen())
         .get('/');
     t.is(res.status, 200);
@@ -71,7 +72,7 @@ test('supports loading multiple middlewares at once', async (t) => {
             t.pass();
             return next();
         },
-    ], '../fixtures/routes'));
+    ], path.join(__dirname, '../fixtures/routes')));
     const res = await request(app.listen())
         .get('/es5');
     t.deepEqual(res.body, {
@@ -81,7 +82,7 @@ test('supports loading multiple middlewares at once', async (t) => {
 test('supports being mounted', async (t) => {
     const app = new Komapi();
     t.plan(3);
-    app.use('/test', app.mw.route('../fixtures/routes'));
+    app.use('/test', app.mw.route(path.join(__dirname, '../fixtures/routes')));
     const res1 = await request(app.listen())
         .get('/es5');
     const res2 = await request(app.listen())
@@ -94,14 +95,14 @@ test('supports being mounted', async (t) => {
 });
 test('responds with 405 for unallowed methods', async (t) => {
     const app = new Komapi();
-    app.use(app.mw.route('../fixtures/routes'));
+    app.use(app.mw.route(path.join(__dirname, '../fixtures/routes')));
     const res = await request(app.listen())
         .post('/');
     t.is(res.status, 405);
 });
 test('responds with 501 for SEARCH', async (t) => {
     const app = new Komapi();
-    app.use(app.mw.route('../fixtures/routes'));
+    app.use(app.mw.route(path.join(__dirname, '../fixtures/routes')));
     const res = await request(app.listen())
         .search('/');
     t.is(res.status, 501);
