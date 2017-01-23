@@ -35,10 +35,10 @@
     "coverage": "nyc report --reporter=text --reporter=text-summary --reporter=html && nyc check-coverage --lines=100 --functions=100 --branches=100 --statements=100",
     "lint": "eslint index.js src/ test/",
     "pretest": "npm run clean --silent && npm run lint --silent",
-    "test": "nyc --reporter=lcov ava --timeout 180s --concurrency=25",
+    "test": "nyc --reporter=lcov ava",
     "posttest": "npm run coverage --silent",
     "prepublish": "npm run build",
-    "watch": "ava --watch --serial --verbose"
+    "watch": "ava --watch --serial"
   },
   "dependencies": {
     "ajv": "^4.7.5",
@@ -91,6 +91,10 @@
     "src"
   ],
   "ava": {
+    "timeout": "180s",
+    "verbose": true,
+    "failFast": true,
+    "concurrency": 2,
     "require": [
       "babel-register"
     ]
