@@ -47,8 +47,6 @@ $ npm install --save komapi
 
 ### Hello World
 ```js
-'use strict';
-
 // Dependencies
 const Komapi = require('komapi');
 
@@ -94,8 +92,6 @@ Note that even though it is possible to return a different [koa-router](https://
 Komapi provides two helpful functions when creating routes, namely `ctx.send` and `ctx.sendIf`. These are bound to `ctx` which means that you can just add `.then(ctx.send)` to your promise chain to send the result. `ctx.sendIf` sends a 404 if your result is not truthy. This is particularly useful when requesting single resources in a REST API. 
 ##### Example Route Module
 ```js
-'use strict';
-
 // Export route
 module.exports = (router, app) => {
 
@@ -222,8 +218,6 @@ Properties prefixed by `$` in `app.orm` are required default properties, while p
 
 This is an example of how to use the ORM in a route module
 ```js
-'use strict';
-
 // Export route
 module.exports = (router, app) => {
 
@@ -279,8 +273,6 @@ This loads every model into `app.orm[Modelname]`, which is accessible throughout
 
 ##### Example Model
 ```js
-'use strict';
-
 // Export model
 module.exports = (orm) => {
     return class Account extends orm.$Model {
