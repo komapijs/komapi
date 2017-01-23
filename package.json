@@ -24,10 +24,12 @@
   },
   "homepage": "https://github.com/komapijs/komapi#README.md",
   "engines": {
-    "node": ">= 4.4.5",
-    "npm": ">= 2.15.5"
+    "node": ">= 6.9.4",
+    "npm": ">= 3.10.10"
   },
   "main": "index.js",
+  "module": "src/index.js",
+  "jsnext:main": "src/index.js",
   "scripts": {
     "prebuild": "npm run clean --silent",
     "build": "babel -q -D -s true ./src/ --out-dir ./dist/",
@@ -35,15 +37,14 @@
     "coverage": "nyc report --reporter=text --reporter=text-summary --reporter=html && nyc check-coverage --lines=100 --functions=100 --branches=100 --statements=100",
     "lint": "eslint index.js src/ test/",
     "pretest": "npm run clean --silent && npm run lint --silent",
-    "test": "nyc --reporter=lcov ava --timeout 180s --concurrency=25",
+    "test": "nyc --reporter=lcov ava",
     "posttest": "npm run coverage --silent",
     "prepublish": "npm run build",
-    "watch": "ava --watch --serial --verbose"
+    "watch": "ava --watch --serial"
   },
   "dependencies": {
     "ajv": "^4.7.5",
     "babel-runtime": "^6.11.6",
-    "bluebird": "^3.4.1",
     "boom": "^4.1.0",
     "bunyan": "^1.8.1",
     "file-exists": "^2.0.0",
@@ -68,10 +69,7 @@
     "babel-eslint": "^7.0.0",
     "babel-plugin-syntax-async-functions": "^6.13.0",
     "babel-plugin-transform-async-to-generator": "^6.16.0",
-    "babel-plugin-transform-es2015-destructuring": "^6.16.0",
     "babel-plugin-transform-es2015-modules-commonjs": "^6.16.0",
-    "babel-plugin-transform-es2015-parameters": "^6.16.0",
-    "babel-plugin-transform-es2015-spread": "^6.8.0",
     "babel-plugin-transform-runtime": "^6.12.0",
     "babel-register": "^6.18.0",
     "del-cli": "^0.2.0",
@@ -79,7 +77,7 @@
     "eslint-config-airbnb-base": "^11.0.0",
     "eslint-plugin-import": "^2.0.1",
     "eslint-plugin-security": "^1.2.0",
-    "knex": "0.12.6",
+    "knex": "^0.12.6",
     "nyc": "^10.0.0",
     "sleep-promise": "^2.0.0",
     "sqlite3": "^3.1.8",
@@ -91,6 +89,10 @@
     "src"
   ],
   "ava": {
+    "timeout": "180s",
+    "verbose": true,
+    "failFast": true,
+    "concurrency": 2,
     "require": [
       "babel-register"
     ]

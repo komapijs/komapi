@@ -25,4 +25,3 @@ bower_components
 *.tmp
 *.log
 npm-debug.log*
-yarn.lock

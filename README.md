@@ -14,12 +14,14 @@ Komapi is essentially Koa with some added sugar, which means that you can use an
 
 ## Usage
 - [Installation](#installation)
+- [Configuration](#configuration)
 - [Hello World](#hello-world)
 - [Example Project Structure](#example-project-structure)
 - [Routing](#routing)
   - [Route Modules](#route-modules)
     - [Example Route Modules](#example-route-module)
   - [Loading Route Modules](#loading-route-modules)
+- [Logging](#logging)
 - [Middleware](#middleware)
   - [Mounting Middleware](#mounting-middleware)
   - [Recommended Middleware](#recommended-middleware)
@@ -37,6 +39,7 @@ Komapi is essentially Koa with some added sugar, which means that you can use an
     - [Example Model](#example-model)
 - [Optional Dependencies](#optional-dependencies)
   - [Database](#database)
+- [Tips](#tips)
 - [License](#license)
   
 ### Installation
@@ -45,10 +48,22 @@ Install through npm and require it in your `index.js` file.
 $ npm install --save komapi
 ```
 
+### Configuration
+Komapi accepts a configuration object during instantiation
+
+```js
+const app = new Komapi({
+  env: process.env.NODE_ENV, // Default: process.env.NODE_ENV || 'development'
+  name: 'Name of application', // Default: 'Komapi application'
+  loggers: [], // Default: [], Array of bunyan loggers. See the logging chapter for more information
+  proxy: false, // Default: false, trust proxy headers such as X-Forwarded-For?
+  routePrefix: '/', // Default: '/', Add a route prefix for all middlewares
+  subdomainOffset: 2, // Default: 2, See the koa documentation on this setting
+});
+```
+
 ### Hello World
 ```js
-'use strict';
-
 // Dependencies
 const Komapi = require('komapi');
 
@@ -94,18 +109,16 @@ Note that even though it is possible to return a different [koa-router](https://
 Komapi provides two helpful functions when creating routes, namely `ctx.send` and `ctx.sendIf`. These are bound to `ctx` which means that you can just add `.then(ctx.send)` to your promise chain to send the result. `ctx.sendIf` sends a 404 if your result is not truthy. This is particularly useful when requesting single resources in a REST API. 
 ##### Example Route Module
 ```js
-'use strict';
-
 // Export route
 module.exports = (router, app) => {
 
-    /**
-     * GET /
-     * Always replies: 200 "Hello World!"
-     */
-    router.get('/', (ctx) => ctx.body = 'Hello World!');
-    
-    return router;
+  /**
+   * GET /
+   * Always replies: 200 "Hello World!"
+   */
+  router.get('/', (ctx) => ctx.body = 'Hello World!');
+  
+  return router;
 };
 ```
 
@@ -125,6 +138,41 @@ All route modules will be mounted on a path relative to the provided `path`. Thi
 | `app.mw.route('./src/route')` | `GET /v1/example` |
 | `app.mw.route('./src/route/v1')` | `GET /example` |
 | `app.mw.route('./src/route/v1/example.js')` | `GET /` |
+
+### Logging
+Komapi comes with [bunyan](https://github.com/trentm/node-bunyan/tree/master/) pre-configured, but without any loggers enabled. The [bunyan](https://github.com/trentm/node-bunyan/tree/master/) instance is available through `app.log`.
+#### Logging setup
+For most users, this will be sufficient. You can pass in the loggers you need in the Komapi configuration.
+
+See the [bunyan](https://github.com/trentm/node-bunyan/tree/master/) documentation for more information how to configure logging.  
+```js
+// Dependencies
+const Komapi = require('komapi');
+
+// Init
+const app = new Komapi({
+  loggers: [
+    {
+      level: 'info',
+      stream: process.stdout, // Log info-level (and above) to stdout
+    },
+    {
+      level: 'error',
+      stream: process.stderr, // Log error-level (and above) to stderr
+    },
+  ]
+});
+
+// Middlewares
+app.use((ctx) => {
+    ctx.body = 'Hello World!';
+});
+
+// Listen
+app.listen(process.env.PORT || 3000);
+};
+```
+  
 
 ### Middleware
 #### Mounting Middleware
@@ -222,8 +270,6 @@ Properties prefixed by `$` in `app.orm` are required default properties, while p
 
 This is an example of how to use the ORM in a route module
 ```js
-'use strict';
-
 // Export route
 module.exports = (router, app) => {
 
@@ -279,8 +325,6 @@ This loads every model into `app.orm[Modelname]`, which is accessible throughout
 
 ##### Example Model
 ```js
-'use strict';
-
 // Export model
 module.exports = (orm) => {
     return class Account extends orm.$Model {
@@ -288,6 +332,9 @@ module.exports = (orm) => {
         };
 };
 ```
+
+### Tips
+1. For better performance, add the following line before any import statements in your main application file `global.Promise = require('babel-runtime/core-js/promise').default = require('bluebird');`. This enables usage of Bluebird promises by default and significantly improves performance.
 
 ### License
 
