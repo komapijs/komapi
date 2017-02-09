@@ -1495,9 +1495,9 @@ file-entry-cache@^2.0.0:
     flat-cache "^1.2.1"
     object-assign "^4.0.1"
 
-file-exists@^2.0.0:
-  version "2.0.0"
-  resolved "https://registry.yarnpkg.com/file-exists/-/file-exists-2.0.0.tgz#a24150665150e62d55bc5449281d88d2b0810dca"
+file-exists@^3.0.1:
+  version "3.0.1"
+  resolved "https://registry.yarnpkg.com/file-exists/-/file-exists-3.0.1.tgz#aaf6cd50cd2370233252f4fcb48a1a521965b22e"
 
 filename-regex@^2.0.0:
   version "2.0.0"
@@ -2314,8 +2314,8 @@ jodid25519@^1.0.0:
     jsbn "~0.1.0"
 
 joi@^10.0.5:
-  version "10.2.1"
-  resolved "https://registry.yarnpkg.com/joi/-/joi-10.2.1.tgz#f3a5f6a492d311735f17b109487646c2194aa92d"
+  version "10.2.2"
+  resolved "https://registry.yarnpkg.com/joi/-/joi-10.2.2.tgz#dc5a792b7b4c6fffa562242a95b55d9d3f077e24"
   dependencies:
     hoek "4.x.x"
     isemail "2.x.x"
