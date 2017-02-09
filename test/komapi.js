@@ -1,6 +1,6 @@
 // Dependencies
 import test from 'ava';
-import { agent as request } from 'supertest-as-promised';
+import { agent as request } from 'supertest';
 import knex from 'knex';
 import path from 'path';
 import os from 'os';
