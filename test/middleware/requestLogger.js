@@ -1,6 +1,6 @@
 // Dependencies
 import test from 'ava';
-import { agent as request } from 'supertest-as-promised';
+import { agent as request } from 'supertest';
 import bodyParser from 'koa-bodyparser';
 import Komapi from '../../src/index';
 import DummyLogger from '../fixtures/dummyLogger';
