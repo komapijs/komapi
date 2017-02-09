@@ -47,7 +47,7 @@
     "babel-runtime": "^6.11.6",
     "boom": "^4.1.0",
     "bunyan": "^1.8.1",
-    "file-exists": "^2.0.0",
+    "file-exists": "^3.0.0",
     "get-parameter-names": "^0.3.0",
     "joi": "^10.0.5",
     "koa": "^2.0.0-alpha.7",
