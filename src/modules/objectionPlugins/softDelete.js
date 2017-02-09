@@ -61,10 +61,14 @@ export default (BaseModel) => {
   // Extend
   QueryBuilder.prototype.forceDelete = QueryBuilder.prototype.delete;
   RelatedQueryBuilder.prototype.forceDelete = RelatedQueryBuilder.prototype.delete;
-  QueryBuilder.prototype.withArchived = RelatedQueryBuilder.prototype.withArchived = withArchived;
-  QueryBuilder.prototype.delete = RelatedQueryBuilder.prototype.delete = del;
-  QueryBuilder.prototype.softDelete = RelatedQueryBuilder.prototype.softDelete = softDelete;
-  QueryBuilder.prototype.restore = RelatedQueryBuilder.prototype.restore = restore;
+  QueryBuilder.prototype.withArchived = withArchived;
+  RelatedQueryBuilder.prototype.withArchived = QueryBuilder.prototype.withArchived;
+  QueryBuilder.prototype.delete = del;
+  RelatedQueryBuilder.prototype.delete = QueryBuilder.prototype.delete;
+  QueryBuilder.prototype.softDelete = softDelete;
+  RelatedQueryBuilder.prototype.softDelete = QueryBuilder.prototype.softDelete;
+  QueryBuilder.prototype.restore = restore;
+  RelatedQueryBuilder.prototype.restore = QueryBuilder.prototype.restore;
 
   Model.QueryBuilder = QueryBuilder;
   Model.RelatedQueryBuilder = RelatedQueryBuilder;

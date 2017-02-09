@@ -214,7 +214,8 @@ test('logs error stack traces', async (t) => {
 test('logs error stack traces (array) as array', async (t) => {
   const app = new Komapi({ loggers: [] });
   const err = new Error('Dummy Error');
-  const expectedStack = err.stack = err.stack.split('\n');
+  const expectedStack = err.stack.split('\n');
+  err.stack = expectedStack;
   t.plan(2);
   app.log.addStream({
     name: 'DummyLogger',
