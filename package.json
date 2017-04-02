@@ -50,7 +50,7 @@
     "file-exists": "^3.0.1",
     "get-parameter-names": "^0.3.0",
     "joi": "^10.0.5",
-    "koa": "^2.0.0-alpha.7",
+    "koa": "^2.2.0",
     "koa-bodyparser": "^3.1.0",
     "koa-compose": "^3.1.0",
     "koa-mount": "^2.0.0",
