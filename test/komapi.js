@@ -73,7 +73,8 @@ test('throws on invalid configuration', async (t) => {
 });
 test('can listen to a pipe and logs it', async (t) => {
   t.plan(4);
-  const socket = path.join(os.tmpdir(), `komapiTestPipe.${uuid.v4()}.sock`);
+  // Listen to a named pipe on windows
+  const socket = process.platform === 'win32' ? path.join('\\\\?\\pipe', process.cwd(), `komapiTestPipe.${uuid.v4()}`) : path.join(os.tmpdir(), `komapiTestPipe.${uuid.v4()}.sock`);
   const app = new Komapi({
     loggers: [{
       name: 'DummyLogger',
