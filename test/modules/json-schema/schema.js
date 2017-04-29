@@ -3,8 +3,48 @@ import test from 'ava';
 import Schema from '../../../src/modules/json-schema/schema';
 
 // Init
-const testSchema = {
+const test04Schema = {
   $schema: 'http://json-schema.org/draft-04/schema#',
+  title: 'Test schema',
+  type: 'object',
+  required: [
+    'name',
+    'counter',
+  ],
+  properties: {
+    name: {
+      description: 'Name of person',
+      type: 'string',
+    },
+    counter: {
+      description: 'A counter starting',
+      type: 'integer',
+      minimum: 1,
+      maximum: 100,
+      default: 1,
+    },
+    hasEmail: {
+      description: 'Has email?',
+      type: 'boolean',
+      default: false,
+    },
+    at: {
+      description: 'Current time',
+      type: 'string',
+      format: 'date-time',
+    },
+    secretValue: {
+      description: 'Hidden value',
+      type: 'string',
+      message: 'invalid value',
+      enum: [
+        '1234',
+      ],
+    },
+  },
+};
+const testSchema = {
+  $schema: 'http://json-schema.org/draft-06/schema#',
   title: 'Test schema',
   type: 'object',
   required: [
@@ -137,4 +177,21 @@ test('schema rejects non-ISO8601 date-time format', async (t) => {
       data: '2016/09/23',
     },
   ]);
+});
+test('supports draft-04 schemas', async (t) => {
+  const schema = new Schema();
+  const data = {
+    name: 'Jeff Smith',
+  };
+  schema.validate(test04Schema, data);
+  const err = Schema.validationError(schema.errors, test04Schema, 'A custom message', data);
+  t.is(err.isBoom, true);
+  t.is(err.output.payload.statusCode, 400);
+  t.is(err.message, 'A custom message');
+  t.deepEqual(err.output.payload.errors, [{
+    path: '/counter',
+    keyword: 'required',
+    message: 'should be present',
+    data: null,
+  }]);
 });

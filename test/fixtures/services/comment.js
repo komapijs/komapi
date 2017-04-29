@@ -5,7 +5,7 @@ import Service from '../../../src/modules/service/providers/rest';
 module.exports = class CommentService extends Service {
   get $dataSchema() { // eslint-disable-line class-methods-use-this
     return {
-      $schema: 'http://json-schema.org/draft-04/schema#',
+      $schema: 'http://json-schema.org/draft-06/schema#',
       title: 'Test Schema',
       type: 'object',
       properties: {

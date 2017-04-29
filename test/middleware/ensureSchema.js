@@ -5,7 +5,7 @@ import Komapi from '../../src/index';
 
 // Init
 const schema = {
-  $schema: 'http://json-schema.org/draft-04/schema#',
+  $schema: 'http://json-schema.org/draft-06/schema#',
   title: 'Test schema',
   type: 'object',
   properties: {
@@ -68,7 +68,7 @@ test('provides middleware to ensure requests adheres to a json schema', async (t
             numbervalue: { description: 'Should be string', type: 'string' },
           },
           parentSchema: {
-            $schema: 'http://json-schema.org/draft-04/schema#',
+            $schema: 'http://json-schema.org/draft-06/schema#',
             title: 'Test schema',
             type: 'object',
             properties: {
