@@ -14,7 +14,7 @@ const defaultErrorResponse = {
   },
 };
 const schema = {
-  $schema: 'http://json-schema.org/draft-04/schema#',
+  $schema: 'http://json-schema.org/draft-06/schema#',
   title: 'Test schema',
   type: 'object',
   properties: {

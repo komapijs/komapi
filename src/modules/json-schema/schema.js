@@ -3,6 +3,7 @@ import Ajv from 'ajv';
 import { defaultsDeep, map, pick } from 'lodash';
 import moment from 'moment';
 import { badRequest as BadRequest } from 'boom';
+import draft04Schema from 'ajv/lib/refs/json-schema-draft-04.json';
 
 // Init
 const defaultOpts = {
@@ -32,6 +33,7 @@ const mapping = {
 export default class Schema extends Ajv {
   constructor(opts) {
     super(defaultsDeep(defaultOpts, opts));
+    this.addMetaSchema(draft04Schema);
   }
   static validationError(errors, schema, message, data) {
     const msg = message || ((data) ? 'Invalid data provided' : 'No data provided');
