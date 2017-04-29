@@ -56,11 +56,13 @@ test('logs the response status on statuscode >= 500', async (t) => {
     .get('/');
   t.is(res.status, 500);
 });
-test('logs the request body and hides password on statuscode >= 500', async (t) => {
+test('logs the request body and hides sensitive information on statuscode >= 500', async (t) => {
   const app = new Komapi();
   const body = {
     username: 'test',
     password: 'asdf',
+    'credit-card': 'cc',
+    creditCard: 'cc',
   };
   t.plan(5);
   app.use(app.mw.requestLogger());
@@ -76,6 +78,8 @@ test('logs the request body and hides password on statuscode >= 500', async (t) 
         t.deepEqual(obj.request.body, {
           username: 'test',
           password: '*****',
+          'credit-card': '*****',
+          creditCard: '*****',
         });
       }
     }),
@@ -89,7 +93,39 @@ test('logs the request body and hides password on statuscode >= 500', async (t) 
     .send(body);
   t.is(res.status, 500);
 });
-
+test('logs the request body successfully without sensitive information >= 500', async (t) => {
+  const app = new Komapi();
+  const body = {
+    username: 'test',
+    dummy: 'testdummy',
+  };
+  t.plan(5);
+  app.use(app.mw.requestLogger());
+  app.log.addStream({
+    name: 'DummyLogger',
+    level: 'trace',
+    type: 'raw',
+    stream: new DummyLogger((obj) => {
+      if (obj.context === 'request' && obj.logger === 'requestLogger') {
+        t.is(obj.level, 30);
+        t.is(!!(obj.req_id), true);
+        t.is(obj.response.status, 500);
+        t.deepEqual(obj.request.body, {
+          username: 'test',
+          dummy: 'testdummy',
+        });
+      }
+    }),
+  });
+  app.use(bodyParser());
+  app.use(() => {
+    throw new Error('Test error');
+  });
+  const res = await request(app.listen())
+    .post('/')
+    .send(body);
+  t.is(res.status, 500);
+});
 test('supports options', async (t) => {
   const app = new Komapi();
   t.plan(3);
