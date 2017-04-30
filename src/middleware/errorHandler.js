@@ -5,7 +5,6 @@ import Boom from 'boom';
 export default () => async function errorHandler(ctx, next) {
   try {
     await next();
-    if (ctx.status >= 400) ctx.throw(ctx.status);
   } catch (err) {
     let error = err;
 

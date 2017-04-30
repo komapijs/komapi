@@ -188,3 +188,16 @@ test('handles invalid error objects gracefully', async (t) => {
   t.is(res.body.error.message, 'An internal server error occurred');
   t.is(res.body.error.stack[0], 'Error: Cannot wrap non-Error object');
 });
+test('allows error status codes', async (t) => {
+  const app = new Komapi({ env: 'production' });
+  const customResponse = 'Custom Text';
+  app.use((ctx) => {
+    ctx.status = 400;
+    ctx.body = customResponse;
+  });
+  const res = await request(app.listen())
+    .get('/')
+    .set('Accept', '*/*');
+  t.is(res.status, 400);
+  t.deepEqual(res.text, customResponse);
+});
