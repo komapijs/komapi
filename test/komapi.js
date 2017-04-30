@@ -71,6 +71,26 @@ test('throws on invalid configuration', async (t) => {
     proxy: 'stringvalue',
   }), /("env" must be one of \[development, production])/);
 });
+test('supports loggers without name', async (t) => {
+  t.plan(2);
+  let app;
+  t.notThrows(() => {
+    app = new Komapi({
+      loggers: [{
+        level: 'info',
+        type: 'raw',
+        stream: new DummyLogger(),
+      }],
+    });
+  });
+  t.notThrows(() => {
+    app.log.addStream({
+      level: 'info',
+      type: 'raw',
+      stream: new DummyLogger(),
+    });
+  });
+});
 test('can listen to a pipe and logs it', async (t) => {
   t.plan(4);
   // Listen to a named pipe on windows

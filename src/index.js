@@ -29,7 +29,7 @@ import objectionTimestamps from './modules/objectionPlugins/timestamps';
 const configSchema = Joi => Joi.object({
   env: Joi.any().valid(['development', 'production']).default('development'),
   loggers: Joi.array().items(Joi.object({
-    name: Joi.string().required(),
+    name: Joi.string(),
   }).unknown()).default([]),
   name: Joi.string().min(1).default('Komapi application'),
   proxy: Joi.boolean().default(false),
