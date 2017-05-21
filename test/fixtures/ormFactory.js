@@ -21,7 +21,7 @@ export default function ormFactory(app, opts = {}) {
   counter += 1;
   const db = opts.db || `test${counter}`;
   delete require.cache[require.resolve('objection')];
-  app.objection(knexInstance);
+  app.knex(knexInstance);
   return Promise.all([
     app.orm.$Model.knex().schema.createTable(db, (table) => {
       table.increments('id').primary();

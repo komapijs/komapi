@@ -284,11 +284,11 @@ module.exports = (router, app) => {
 ```
 
 #### Objection.js
-Objection is initialized using:
+Objection.js is a part of Komapi and requires a knex instance. Initialize Objection.js by providing a valid knex configuration or instance:
 ```js
-app.objection(opts);
+app.knex(opts); // or app.knex(Knex(opts))
 ```
-where `opt)` is either a valid knex configuration object or a valid [knex](http://knexjs.org/#Installation-client) instance.
+where `opts` is either a valid knex configuration object or a valid [knex](http://knexjs.org/#Installation-client) instance.
 
 #### Models
 Models are modules exporting an [Objection](https://github.com/Vincit/objection.js) model. The ORM and app objects are injected into the module and provides access to the Objection classes necessary to create the Objection model. 

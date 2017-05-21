@@ -193,13 +193,13 @@ export default class Komapi extends Koa {
 
   // Configuration
   models(path) {
-    if (!this.orm) throw new Error('Use `app.objection()` before attempting to load models!');
+    if (!this.orm) throw new Error('Use `app.knex()` before attempting to load models!');
     const models = loadModels(path, this);
     Object.assign(this.orm, models);
     return models;
   }
 
-  objection(knex) {
+  knex(knex) {
     if (this.orm) throw new Error('Cannot initialize ORM more than once');
     this.orm = {
       $Model: Objection.Model,

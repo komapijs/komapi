@@ -462,22 +462,22 @@ test('does not enable orm by default', async (t) => {
   const app = new Komapi({ loggers: [] });
   t.is(app.orm, undefined);
 });
-test('orm can be enabled through objection() method using a knex instance', async (t) => {
+test('orm can be enabled through knex() method using a knex instance', async (t) => {
   const app = new Komapi({ loggers: [] });
-  app.objection(knex(connection));
+  app.knex(knex(connection));
   t.is(typeof app.orm, 'object');
   t.is(typeof app.orm.$Model.knex, 'function');
 });
-test('orm can be enabled through objection() method using a knex configuration objecte', async (t) => {
+test('orm can be enabled through knex() method using a knex configuration objecte', async (t) => {
   const app = new Komapi({ loggers: [] });
-  app.objection(connection);
+  app.knex(connection);
   t.is(typeof app.orm, 'object');
   t.is(typeof app.orm.$Model.knex, 'function');
 });
 test('orm cannot be enabled more than once', async (t) => {
   const app = new Komapi({ loggers: [] });
-  app.objection(knex(connection));
-  t.throws(() => app.objection(knex(connection)), 'Cannot initialize ORM more than once');
+  app.knex(connection);
+  t.throws(() => app.knex(connection), 'Cannot initialize ORM more than once');
 });
 test('orm query errors are logged', async (t) => {
   const app = new Komapi({ loggers: [] });
@@ -492,7 +492,7 @@ test('orm query errors are logged', async (t) => {
       t.is(obj.msg, 'ORM Query Error');
     }),
   });
-  app.objection(knex(connection));
+  app.knex(connection);
   try {
     await app.orm.$Model.knex().raw('select * from InvalidTable');
   } catch (err) {
@@ -518,7 +518,7 @@ test('migrations can be run before starting the app', async (t) => {
       }
     }),
   });
-  app.objection(knex(migr));
+  app.knex(migr);
   await app.orm.$Model.knex().migrate.latest();
   await app.healthCheck();
   t.pass();
@@ -544,7 +544,7 @@ test('pending migrations are logged', async (t) => {
       }
     }),
   });
-  app.objection(knex(migr));
+  app.knex(migr);
   await app.healthCheck();
 });
 test('listen supports callbacks', async (t) => {
