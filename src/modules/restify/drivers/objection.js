@@ -35,7 +35,6 @@ export default class ObjectionDriver {
     let cols = (Model.restSchema && Object.keys(Model.restSchema.properties))
       || (Model.jsonSchema && Object.keys(Model.jsonSchema.properties));
     if (cols) cols = Model.getIdColumnArray().concat(cols);
-    if (Model.timestampColumns) cols = cols.concat(Model.timestampColumns);
     return {
       querySchema: Model.querySchema,
       $select: cols,

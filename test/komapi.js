@@ -468,6 +468,12 @@ test('orm can be enabled through objection() method using a knex instance', asyn
   t.is(typeof app.orm, 'object');
   t.is(typeof app.orm.$Model.knex, 'function');
 });
+test('orm can be enabled through objection() method using a knex configuration objecte', async (t) => {
+  const app = new Komapi({ loggers: [] });
+  app.objection(connection);
+  t.is(typeof app.orm, 'object');
+  t.is(typeof app.orm.$Model.knex, 'function');
+});
 test('orm cannot be enabled more than once', async (t) => {
   const app = new Komapi({ loggers: [] });
   app.objection(knex(connection));

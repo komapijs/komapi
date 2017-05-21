@@ -6,6 +6,7 @@ import mount from 'koa-mount';
 import compose from 'koa-compose';
 import uuid from 'uuid';
 import * as Objection from 'objection';
+import Knex from 'knex';
 import _ from 'lodash';
 import loadModels from './lib/models';
 import loadServices from './lib/services';
@@ -20,10 +21,6 @@ import errorHandler from './middleware/errorHandler';
 import requestLogger from './middleware/requestLogger';
 import routes from './middleware/routeHandler';
 import ensureSchema from './middleware/ensureSchema';
-
-// Objection plugins
-import objectionSoftDelete from './modules/objectionPlugins/softDelete';
-import objectionTimestamps from './modules/objectionPlugins/timestamps';
 
 // Init
 const configSchema = Joi => Joi.object({
@@ -209,7 +206,7 @@ export default class Komapi extends Koa {
       $transaction: Objection.transaction,
       $ValidationError: Objection.ValidationError,
     };
-    this.orm.$Model.knex(knex);
+    this.orm.$Model.knex(typeof knex === 'object' ? Knex(knex) : knex);
     this.orm.$migrate = this.orm.$Model.knex().migrate;
     this.orm.$Model.knex().on('query-error', (err, obj) => {
       this.log.error({
@@ -218,12 +215,6 @@ export default class Komapi extends Koa {
         context: 'orm',
       }, 'ORM Query Error');
     });
-
-    // Patch objection with custom plugins
-    [
-      objectionSoftDelete,
-      objectionTimestamps,
-    ].forEach((fn => (this.orm.$Model = fn(this.orm.$Model, this))));
   }
 
   services(path) {

@@ -90,7 +90,7 @@ test('can apply a restify query to an Objection queryBuilder', async (t) => {
   });
   const parser = new Parser(app.orm.Test);
   const collection = await parser.apply(app.orm.Test.query(), {
-    $select: 'num,created_at',
+    $select: 'num',
     $skip: 2,
     $top: 3,
     $sort: '-num,+id',
@@ -103,7 +103,6 @@ test('can apply a restify query to an Objection queryBuilder', async (t) => {
     {
       id: 8,
       num: 8,
-      created_at: null,
       reltests: [
         {
           id: 15,
@@ -118,7 +117,6 @@ test('can apply a restify query to an Objection queryBuilder', async (t) => {
     {
       id: 7,
       num: 7,
-      created_at: null,
       reltests: [
         {
           id: 13,
@@ -133,7 +131,6 @@ test('can apply a restify query to an Objection queryBuilder', async (t) => {
     {
       id: 6,
       num: 6,
-      created_at: null,
       reltests: [
         {
           id: 11,

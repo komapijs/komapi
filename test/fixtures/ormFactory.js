@@ -27,37 +27,16 @@ export default function ormFactory(app, opts = {}) {
       table.increments('id').primary();
       table.string('name');
       table.integer('num');
-
-      table.dateTime('deleted_at');
-      table.dateTime('deletedAt');
-
-      table.timestamps();
-      table.dateTime('createdAt');
-      table.dateTime('updatedAt');
     }),
     app.orm.$Model.knex().schema.createTable(`related-${db}`, (table) => {
       table.increments('id').primary();
       table.integer('test_id');
       table.string('desc');
-
-      table.dateTime('deleted_at');
-      table.dateTime('deletedAt');
-
-      table.timestamps();
-      table.dateTime('createdAt');
-      table.dateTime('updatedAt');
     }),
     app.orm.$Model.knex().schema.createTable(`related2-${db}`, (table) => {
       table.increments('id').primary();
       table.integer('test_id');
       table.string('desc');
-
-      table.dateTime('deleted_at');
-      table.dateTime('deletedAt');
-
-      table.timestamps();
-      table.dateTime('createdAt');
-      table.dateTime('updatedAt');
     }),
   ]).then(() => {
     if (opts.seed) {
@@ -96,15 +75,6 @@ export default function ormFactory(app, opts = {}) {
     return null;
   }).then(() => {
     app.orm.Test = class Test extends app.orm.$Model { // eslint-disable-line no-param-reassign
-      static get timestamps() {
-        return (opts.timestamps === true);
-      }
-      static get camelCase() {
-        return (opts.camelCase === true);
-      }
-      static get softDelete() {
-        return (opts.softDelete === true);
-      }
       static get jsonSchema() {
         let schema = null;
         if (opts.schema === 1) {
@@ -144,15 +114,6 @@ export default function ormFactory(app, opts = {}) {
       }
     };
     app.orm.RelTest = class RelTest extends app.orm.$Model { // eslint-disable-line no-param-reassign
-      static get timestamps() {
-        return (opts.timestamps === true);
-      }
-      static get camelCase() {
-        return (opts.camelCase === true);
-      }
-      static get softDelete() {
-        return (opts.softDelete === true);
-      }
       static get jsonSchema() {
         let schema = null;
         if (opts.schema === 1) {
@@ -184,15 +145,6 @@ export default function ormFactory(app, opts = {}) {
       }
     };
     app.orm.RelTest2 = class RelTest2 extends app.orm.$Model { // eslint-disable-line no-param-reassign
-      static get timestamps() {
-        return (opts.timestamps === true);
-      }
-      static get camelCase() {
-        return (opts.camelCase === true);
-      }
-      static get softDelete() {
-        return (opts.softDelete === true);
-      }
       static get jsonSchema() {
         let schema = null;
         if (opts.schema === 1) {

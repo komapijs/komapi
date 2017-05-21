@@ -286,33 +286,9 @@ module.exports = (router, app) => {
 #### Objection.js
 Objection is initialized using:
 ```js
-const Knex = require('knex');
-app.objection(Knex(opts));
+app.objection(opts);
 ```
-where `Knex(opts)` is a valid [knex](http://knexjs.org/#Installation-client) instance.
-
-##### Objection Plugins
-Komapi provides a number of default plugins to Objection.
-
-###### Soft Delete
-Add `static get softDelete() { return true; }` to your models to enable soft delete. Note that this requires a `deleted_at` column in your schema. 
-
-Usage when enabled
-```js
-model.delete(); // Model is soft-deleted
-model.$query(); // Not found
-model.$query().withArchived(); // Found again
-model.$query().withArchived().restore(); // Undeleted
-model.$query(); // Found
-model.delete({force:true}); // Model is hard-deleted
-model.$query().withArchived(); // Not found
-```
-
-###### Timestamps
-Add `static get timestamps() { return true; }` to your models to enable timestamps. This will automatically set `created_at` and `updated_at`. Note that this requires `created_at` and `updated_at` columns in your schema. Currently not supported for N:M intersection tables (missing lifecycle hooks from Objection.js)
-
-###### camelCase
-Add `static get camelCase() { return true; }` to your models to enable camelCase for system columns like `deleted_at`, `created_at` and `updated_at`.
+where `opt)` is either a valid knex configuration object or a valid [knex](http://knexjs.org/#Installation-client) instance.
 
 #### Models
 Models are modules exporting an [Objection](https://github.com/Vincit/objection.js) model. The ORM and app objects are injected into the module and provides access to the Objection classes necessary to create the Objection model. 
