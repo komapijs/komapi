@@ -6,15 +6,13 @@ export default () => async function errorHandler(ctx, next) {
   try {
     await next();
   } catch (err) {
-    let error = err;
+    let error;
 
-    // Unknown error?
-    if (!err.isBoom) {
-      try {
-        error = Boom.wrap(err, err.status || 500);
-      } catch (subErr) {
-        error = Boom.wrap(subErr, 500);
-      }
+    // Normalize error object
+    try {
+      error = Boom.wrap(err, err.status || undefined);
+    } catch (subError) {
+      error = Boom.wrap(subError);
     }
 
     // Set defaults
