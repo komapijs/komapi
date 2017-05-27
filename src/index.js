@@ -5,10 +5,9 @@ import { notImplemented as NotImplemented, methodNotAllowed as MethodNotAllowed 
 import mount from 'koa-mount';
 import compose from 'koa-compose';
 import uuid from 'uuid';
-import * as Objection from 'objection';
+import { Model, transaction, ValidationError } from 'objection';
 import Knex from 'knex';
 import _ from 'lodash';
-import loadModels from './lib/models';
 import loadServices from './lib/services';
 import validateConfig from './lib/config';
 import Schema from './modules/json-schema/schema';
@@ -192,9 +191,8 @@ export default class Komapi extends Koa {
   }
 
   // Configuration
-  models(path) {
+  models(models) {
     if (!this.orm) throw new Error('Use `app.knex()` before attempting to load models!');
-    const models = loadModels(path, this);
     Object.assign(this.orm, models);
     return models;
   }
@@ -202,9 +200,9 @@ export default class Komapi extends Koa {
   knex(knex) {
     if (this.orm) throw new Error('Cannot initialize ORM more than once');
     this.orm = {
-      $Model: Objection.Model,
-      $transaction: Objection.transaction,
-      $ValidationError: Objection.ValidationError,
+      $Model: Model,
+      $transaction: transaction,
+      $ValidationError: ValidationError,
     };
     this.orm.$Model.knex(typeof knex === 'object' ? Knex(knex) : knex);
     this.orm.$migrate = this.orm.$Model.knex().migrate;

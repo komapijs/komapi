@@ -31,10 +31,6 @@ Komapi is essentially Koa with some added sugar, which means that you can use an
 - [Authentication](#authentication)     
 - [ORM](#orm)
   - [Objection.js](#objectionjs)
-    - [Objection Plugins](#objection-plugins)
-      - [Soft Delete](#soft-delete)
-      - [Timestamps](#timestamps)
-      - [camelCase](#camelcase)
   - [Models](#models)
     - [Example Model](#example-model)
 - [Optional Dependencies](#optional-dependencies)
@@ -291,22 +287,28 @@ app.knex(opts); // or app.knex(Knex(opts))
 where `opts` is either a valid knex configuration object or a valid [knex](http://knexjs.org/#Installation-client) instance.
 
 #### Models
-Models are modules exporting an [Objection](https://github.com/Vincit/objection.js) model. The ORM and app objects are injected into the module and provides access to the Objection classes necessary to create the Objection model. 
+Models are objection models. See [Objection.js](https://github.com/Vincit/objection.js) [model documentation](http://vincit.github.io/objection.js/#models) for more information. 
+It is recommended to create your own base model and inherit from that (or from `app.orm.$Model`) instead of inheriting directly from the Objection model in case you need to add plugins or adjust model behaviour later.
 
-Models can automatically be loaded by adding the following line to your application `index.js` file, where `path` is the path to your model directory.
+Models are assign to `app.orm` by providing an object of your models to `app.models()`:
 ```js
-app.models(path);
+import User from './models/User';
+import Post from './models/Post';
+import Comment from './models/Comment';
+
+const applicationModels = { User, Post, Comment };
+app.models(applicationModels);
 ```
-This loads every model into `app.orm[Modelname]`, which is accessible throughout your application. Note that it is the name of the model class exported from the module that will be used to access the model
+This loads every model into `app.orm[Modelname]`, which is accessible throughout your application.
 
 ##### Example Model
 ```js
 // Export model
-module.exports = (orm) => {
-    return class Account extends orm.$Model {
-            static get tableName() { return 'Account'; }
-        };
-};
+import { Model } from 'objection';
+
+export default class UserModel extends Model {
+  static tableName = 'users';
+}
 ```
 
 ### Tips

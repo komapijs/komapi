@@ -7,6 +7,9 @@ import os from 'os';
 import uuid from 'uuid';
 import Komapi from '../src/index';
 import DummyLogger from './fixtures/dummyLogger';
+import user from './fixtures/models/user';
+import permission from './fixtures/models/permission';
+import role from './fixtures/models/role';
 
 // Init
 const connection = {
@@ -498,6 +501,21 @@ test('orm query errors are logged', async (t) => {
   } catch (err) {
     t.pass();
   }
+});
+test('models cannot be loaded before orm has been initialized', async (t) => {
+  const app = new Komapi();
+  t.throws(() => app.models({}), 'Use `app.knex()` before attempting to load models!');
+});
+test('models are loaded through app.models() and assigned to app.orm', async (t) => {
+  const app = new Komapi();
+  const orm = { $Model: class DummyModel {} };
+  const models = { User: user(orm), Role: role(orm), Permission: permission(orm) };
+  app.knex(connection);
+  app.models(models);
+  t.is(typeof app.orm, 'object');
+  t.is(app.orm.User, models.User);
+  t.is(app.orm.Role, models.Role);
+  t.is(app.orm.Permission, models.Permission);
 });
 test('migrations can be run before starting the app', async (t) => {
   const app = new Komapi({ loggers: [] });
