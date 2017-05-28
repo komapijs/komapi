@@ -196,7 +196,7 @@ export default class Komapi extends Koa {
   models(models) {
     if (!this.orm) throw new Error('Use `app.knex()` before attempting to load models!');
     Object.assign(this.orm, models);
-    return models;
+    return this;
   }
 
   knex(knex) {
@@ -215,12 +215,12 @@ export default class Komapi extends Koa {
         context: 'orm',
       }, 'ORM Query Error');
     });
+    return this;
   }
 
-  services(path) {
-    const services = loadServices(path, this);
-    Object.assign(this.service, services);
-    return services;
+  services(services) {
+    Object.assign(this.service, loadServices(services, this));
+    return this;
   }
 
   // Private overrides of Koa's methods
@@ -259,7 +259,7 @@ export default class Komapi extends Koa {
       }
     }
 
-    return fn;
+    return this;
   }
 
   createContext(req, res) {

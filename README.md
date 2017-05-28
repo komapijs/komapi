@@ -1,6 +1,6 @@
 # KomAPI
 
-Komapi is an opinionated Node.js framework built on top of Koa 2.2 and requires Node.js v7.8.0 or higher.
+Komapi is an opinionated Node.js framework built on top of Koa v2.2 and requires Node.js v7.8.0 or higher.
  
 Disclaimer: There will be breaking changes and outdated documentation during the pre-v1.0.0 cycles.
 
@@ -33,8 +33,7 @@ Komapi is essentially Koa with some added sugar, which means that you can use an
   - [Objection.js](#objectionjs)
   - [Models](#models)
     - [Example Model](#example-model)
-- [Optional Dependencies](#optional-dependencies)
-  - [Database](#database)
+- [Services](#services)
 - [Tips](#tips)
 - [License](#license)
   
@@ -314,6 +313,8 @@ export default class UserModel extends Model {
   static tableName = 'users';
 }
 ```
+### Services
+Komapi provides a framework of creating reusable services with minimal boilerplate. For more information, see test for examples. Note that the API is not final - hence the lack of documentation.
 
 ### Tips
 1. For better performance, add the following line before any import statements in your main application file `global.Promise = require('babel-runtime/core-js/promise').default = require('bluebird');`. This enables usage of Bluebird promises by default and significantly improves performance.

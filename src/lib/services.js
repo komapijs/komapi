@@ -1,9 +1,7 @@
 // Dependencies
-import _ from 'lodash';
-import path from 'path';
+import { zipObject, values, pick, forOwn, mapValues } from 'lodash';
 import compose from 'koa-compose';
 import getParameterNames from 'get-parameter-names';
-import findFiles from './findFiles';
 
 // Functions
 /**
@@ -16,7 +14,7 @@ function structureArgs(fn) {
   return {
     parameters,
     curry: function structuredArgs(args) {
-      return _.zipObject(parameters, args);
+      return zipObject(parameters, args);
     },
   };
 }
@@ -32,38 +30,19 @@ function structureArgs(fn) {
 function manageOperation(service, operation, originalOperation, hooks) {
   const normalizeArgs = structureArgs(originalOperation);
   originalOperation = originalOperation.bind(service); // eslint-disable-line no-param-reassign
-  const fn = compose(hooks.concat([args => originalOperation(..._.values(_.pick(args, normalizeArgs.parameters)))]));
+  const fn = compose(hooks.concat([args => originalOperation(...values(pick(args, normalizeArgs.parameters)))]));
   return (...args) => fn(normalizeArgs.curry(args));
 }
 
 // Exports
-export default function loadServices(rootPath, app) {
-  // Create a list of files
-  const files = findFiles(rootPath);
-  const services = {};
-
-  // Handle the files
-  files.forEach((file) => {
-    file = path.resolve(file); // eslint-disable-line no-param-reassign
-    const relPath = path.relative(rootPath, file)
-        .split(path.sep)
-        .join('/')
-        .replace(/\/index.js$/, '')
-        .replace(/.js$/, '')
-        .replace(/^\/$/, '');
-
-    const Service = require.main.require(file);
-
+export default function loadServices(services, app) {
+  return mapValues(services, (Service, name) => {
     // Bootstrap service
-    const service = new Service(app, relPath);
+    const service = new Service(app, name);
     service.$setup();
-    _.forOwn(service.$hooks(), (hooks, operation) => {
+    forOwn(service.$hooks(), (hooks, operation) => {
       if (service[operation]) service[operation] = manageOperation(service, operation, service[operation], hooks);
     });
-
-    // Define name
-    const name = (service.name || Service.name).replace(/Service$/, '');
-    services[name] = service;
+    return service;
   });
-  return services;
 }

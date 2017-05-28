@@ -47,7 +47,6 @@
     "babel-runtime": "^6.11.6",
     "boom": "^5.0.0",
     "bunyan": "^1.8.1",
-    "file-exists": "^3.0.1",
     "get-parameter-names": "^0.3.0",
     "joi": "^10.5.0",
     "knex": "^0.13.0",
@@ -59,7 +58,6 @@
     "lodash": "^4.15.0",
     "moment": "^2.14.1",
     "objection": "^0.8.1",
-    "recursive-readdir-sync": "^1.0.6",
     "source-map-support": "^0.4.14",
     "uuid": "^3.0.0"
   },
