@@ -18,8 +18,7 @@ Komapi is essentially Koa with some added sugar, which means that you can use an
 - [Hello World](#hello-world)
 - [Example Project Structure](#example-project-structure)
 - [Routing](#routing)
-  - [Route Modules](#route-modules)
-    - [Example Route Modules](#example-route-module)
+  - [Example Route Module (routes.js)](#example-route-module)
   - [Loading Route Modules](#loading-route-modules)
 - [Logging](#logging)
 - [Middleware](#middleware)
@@ -28,6 +27,7 @@ Komapi is essentially Koa with some added sugar, which means that you can use an
     - [Komapi Native Middleware](#komapi-native-middleware)
       - [app.mw.ensureSchema(schema, [key])](#komapi-middleware-ensureschema)
       - [app.mw.requestLogger([options])](#komapi-middleware-requestlogger)
+      - [app.mw.notFound()](#komapi-middleware-notfound)
 - [Authentication](#authentication)     
 - [ORM](#orm)
   - [Objection.js](#objectionjs)
@@ -97,43 +97,40 @@ app
 ```
 
 ### Routing
-#### Route Modules
-Komapi encourages using separate files for routes and provides an easy to use way of creating decoupled routes. A Komapi route file is a module exporting a [koa-router](https://github.com/alexmingoia/koa-router/tree/master/) instance.
-The route module is provided with an instance of [koa-router](https://github.com/alexmingoia/koa-router/tree/master/), and the app instance. The app instance is most often used for route specific middlewares as seen in the [authentication](#authentication) example.
-Note that even though it is possible to return a different [koa-router](https://github.com/alexmingoia/koa-router/tree/master/) instance than the injected instance, it is recommended to use the provided instance for future proofing.
+Komapi supports all routers compatible with Koa and allows the developer to make their own choice in how to implement routing.
 
-Komapi provides two helpful functions when creating routes, namely `ctx.send` and `ctx.sendIf`. These are bound to `ctx` which means that you can just add `.then(ctx.send)` to your promise chain to send the result. `ctx.sendIf` sends a 404 if your result is not truthy. This is particularly useful when requesting single resources in a REST API. 
-##### Example Route Module
+It is often advisable to separate routes in modules and exporting a router for related routes. This can be easily be done using [koa-router](https://github.com/alexmingoia/koa-router/tree/master/).
+Komapi has a helper method for registering routes which ensures proper handling of unknown methods when using [koa-router](https://github.com/alexmingoia/koa-router/tree/master/).
+
+Komapi provides two helpful functions when creating routes, namely `ctx.send` and `ctx.sendIf`. These are bound to `ctx` which means that you can add `.then(ctx.send)` to your promise chain to send the result. `ctx.sendIf` sends a 404 if your result is not truthy. This is particularly useful when requesting single resources in a REST API. 
+#### Example Route Module
+`routes.js`
 ```js
-// Export route
-module.exports = (router, app) => {
+// Dependencies
+import Router from 'koa-router';
 
-  /**
-   * GET /
-   * Always replies: 200 "Hello World!"
-   */
-  router.get('/', (ctx) => ctx.body = 'Hello World!');
-  
-  return router;
-};
+// Init
+const router = new Router();
+router.get('/', ctx => ctx.send({ status: 'ok' }));
+
+// Exports
+export default router.routes();
 ```
-
-#### Loading Route Modules
-Route modules (or a collection of route modules) are loaded as a single middleware, encapsulating any middlewares specific to that group of route modules. A group of route modules refers to all route modules loaded at the same time. 
-It is possible load a single route module by specifying the path to the route module with the extension `.js`, or recursively load every route module in a directory.
-Route modules are loaded through:
+This can then be used in your `index.js` application file
 ```js
-app.mw.route([middlewares ...], path)
+// Dependencies
+import Komapi from 'komapi';
+import routes from './routes';
+
+// Init
+const app = new Komapi();
+
+// Add routes
+app.route(routes);
+
+// Listen
+app.listen(process.env.PORT || 3000);
 ```
-This will return a middleware which can be mounted to the application as any other [middleware](#mounting-middleware).
-
-All route modules will be mounted on a path relative to the provided `path`. This means that if the [Example Route Module](#example-route-model) above resides in `./src/route/v1/example.js`, it will respond `Hello World!` to the following endpoints, depending on how you load it:
-
-| Loaded with | Endpoint |
-| --- | --- |
-| `app.mw.route('./src/route')` | `GET /v1/example` |
-| `app.mw.route('./src/route/v1')` | `GET /example` |
-| `app.mw.route('./src/route/v1/example.js')` | `GET /` |
 
 ### Logging
 Komapi comes with [bunyan](https://github.com/trentm/node-bunyan/tree/master/) pre-configured, but without any loggers enabled. The [bunyan](https://github.com/trentm/node-bunyan/tree/master/) instance is available through `app.log`.
@@ -198,7 +195,7 @@ Komapi provides some built-in middlewares for most use cases. Some of these are 
 | --- | --- |
 | [app.mw.ensureSchema](#komapi-middleware-ensureschema) | Validate requests according to JSON Schema |
 | [app.mw.requestLogger](#komapi-middleware-requestlogger) | Log requests |
-| [app.mw.route](#loading-route-modules) | Routing |
+| [app.mw.notFound](#komapi-middleware-notfound) | Handle 404 not found |
 | [koa-bodyparser](https://github.com/koajs/bodyparser) | Parse request body into ctx.request.body |
 | [koa-compress](https://github.com/koajs/compress) | Compress responses |
 | [kcors](https://github.com/koajs/cors) | Set CORS (Cross-Origin Resource Sharing) headers |
@@ -245,6 +242,13 @@ app.use(app.mw.ensureSchema(loginSchema));
 Logs request data. This will always be mounted at the top of the middleware stack if mounted directly on the application using `app.use`
 ```js
 app.use(app.mw.requestLogger());
+```
+
+<a name="komapi-middleware-notfound"></a>
+###### app.mw.notFound()
+A simple middleware for handling Not Found errors. This should be added as the first middleware.
+```js
+app.use(app.mw.notFound());
 ```
 
 ### Authentication

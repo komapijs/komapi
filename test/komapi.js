@@ -10,6 +10,7 @@ import DummyLogger from './fixtures/dummyLogger';
 import user from './fixtures/models/user';
 import permission from './fixtures/models/permission';
 import role from './fixtures/models/role';
+import router from './fixtures/routes';
 
 // Init
 const connection = {
@@ -612,4 +613,52 @@ test('provides ctx.request.auth property that resolves to the passport property'
   });
   await request(app.listen())
     .get('/');
+});
+test('supports managed routes', async (t) => {
+  const app = new Komapi();
+  app.route(router.routes());
+  const req = request(app.listen());
+  const res200 = await req.get('/');
+  const res404 = await req.get('/not-found');
+  t.is(res200.status, 200);
+  t.deepEqual(res200.body, { status: 'ok' });
+  t.is(res404.status, 404);
+});
+test('supports managed routes mounted at different path', async (t) => {
+  const app = new Komapi();
+  app.route('/test', router.routes());
+  const req = request(app.listen());
+  const res200 = await req.get('/test');
+  const res404 = await req.get('/');
+  t.is(res200.status, 200);
+  t.deepEqual(res200.body, { status: 'ok' });
+  t.is(res404.status, 404);
+});
+test('managed routes responds with 405 for unallowed methods', async (t) => {
+  const app = new Komapi();
+  app.route(router.routes());
+  const res = await request(app.listen())
+    .post('/');
+  t.is(res.status, 405);
+  t.deepEqual(res.body, {
+    error: {
+      code: '',
+      status: 405,
+      message: 'Method Not Allowed',
+    },
+  });
+});
+test('managed routes responds with 501 for SEARCH', async (t) => {
+  const app = new Komapi();
+  app.route(router.routes());
+  const res = await request(app.listen())
+    .search('/');
+  t.is(res.status, 501);
+  t.deepEqual(res.body, {
+    error: {
+      code: '',
+      status: 501,
+      message: 'Not Implemented',
+    },
+  });
 });

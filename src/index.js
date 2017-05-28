@@ -8,6 +8,7 @@ import uuid from 'uuid';
 import { Model, transaction, ValidationError } from 'objection';
 import Knex from 'knex';
 import _ from 'lodash';
+import Router from 'koa-router';
 import loadServices from './lib/services';
 import validateConfig from './lib/config';
 import Schema from './modules/json-schema/schema';
@@ -18,8 +19,8 @@ import request from './lib/request';
 import responseDecorator from './middleware/responseDecorator';
 import errorHandler from './middleware/errorHandler';
 import requestLogger from './middleware/requestLogger';
-import routes from './middleware/routeHandler';
 import ensureSchema from './middleware/ensureSchema';
+import notFound from './middleware/notFound';
 
 // Init
 const configSchema = Joi => Joi.object({
@@ -169,28 +170,29 @@ export default class Komapi extends Koa {
   }
 
   // Helper middlewares
-  get mw() {
-    const app = this;
+  get mw() { // eslint-disable-line class-methods-use-this
     return {
       ensureSchema,
       requestLogger,
-      route: function route(...middlewares) {
-        const path = middlewares.pop();
-        const router = routes(path, app, middlewares);
-        const fn = compose([router.routes(), router.allowedMethods({
-          throw: true,
-          notImplemented: () => new NotImplemented('Not Implemented'),
-          methodNotAllowed: () => new MethodNotAllowed('Method Not Allowed'),
-        })]);
-        Object.defineProperty(fn, 'name', {
-          value: 'routeHandler',
-        });
-        return fn;
-      },
+      notFound,
     };
   }
 
   // Configuration
+  route(...middlewares) {
+    const path = typeof middlewares[0] === 'string' ? middlewares.shift() : '/';
+    const router = new Router();
+    router.use('', ...middlewares);
+    const fn = compose([router.routes(), router.allowedMethods({
+      throw: true,
+      notImplemented: () => new NotImplemented('Not Implemented'),
+      methodNotAllowed: () => new MethodNotAllowed('Method Not Allowed'),
+    })]);
+    Object.defineProperty(fn, 'name', {
+      value: `komapiRouter::${path}`,
+    });
+    return this.use(path, fn);
+  }
   models(models) {
     if (!this.orm) throw new Error('Use `app.knex()` before attempting to load models!');
     Object.assign(this.orm, models);

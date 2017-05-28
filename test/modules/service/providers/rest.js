@@ -18,7 +18,7 @@ test('provides routes for all common rest operations', async (t) => {
     key2: 'value2',
   };
   app.services(path.join(__dirname, '../../../fixtures/services/rest.js'));
-  app.use(app.mw.route(app.service.Rest.$getRoutes.bind(app.service.Rest)));
+  app.route(app.service.Rest.$getRoutes().routes());
   const r = request(app.listen());
   const res = {
     find: await r.get('/').then(b => b.body),
@@ -79,14 +79,14 @@ test('provides routes for all common rest operations', async (t) => {
 test('responds 404 by default for an empty response on GET operation', async (t) => {
   const app = new Komapi();
   app.services(path.join(__dirname, '../../../fixtures/services/rest.js'));
-  app.use(app.mw.route(app.service.Rest.$getRoutes.bind(app.service.Rest)));
+  app.route(app.service.Rest.$getRoutes().routes());
   const res = await request(app.listen()).get('/2');
   t.is(res.status, 404);
 });
 test('options route is disabled if no other routes can be found', async (t) => {
   const app = new Komapi();
   app.services(path.join(__dirname, '../../../fixtures/services/blog.js'));
-  app.use(app.mw.route(app.service.Blog.$getRoutes.bind(app.service.Blog)));
+  app.route(app.service.Blog.$getRoutes().routes());
   const res = await request(app.listen()).options('/');
   t.is(res.status, 404);
   t.is(res.headers.allow, undefined);
