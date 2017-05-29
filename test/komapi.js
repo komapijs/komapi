@@ -51,7 +51,7 @@ test('accepts default production configuration', async (t) => {
   t.is(app.env, 'production');
   t.is(app.log.streams.length, 0);
 });
-test('defaults to NODE_ENV=development', async (t) => {
+test('env defaults to development for NODE_ENV=development', async (t) => {
   t.plan(2);
   let app;
   process.env.NODE_ENV = 'development';
@@ -60,7 +60,7 @@ test('defaults to NODE_ENV=development', async (t) => {
   });
   t.is(app.env, 'development');
 });
-test('defaults to NODE_ENV=production', async (t) => {
+test('env defaults production for NODE_ENV=production', async (t) => {
   t.plan(2);
   let app;
   process.env.NODE_ENV = 'production';
