@@ -24,8 +24,8 @@
   },
   "homepage": "https://github.com/komapijs/komapi#README.md",
   "engines": {
-    "node": ">= 7.8.0",
-    "npm": ">= 4.2.0"
+    "node": ">= 8.0.0",
+    "npm": ">= 5.0.0"
   },
   "main": "index.js",
   "module": "src/index.js",
@@ -39,7 +39,7 @@
     "pretest": "npm run clean --silent && npm run lint --silent",
     "test": "nyc --reporter=lcov ava",
     "posttest": "npm run coverage --silent",
-    "prepublish": "npm run build",
+    "prepare": "npm run build",
     "watch": "ava --watch --serial"
   },
   "dependencies": {
