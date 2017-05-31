@@ -283,11 +283,23 @@ module.exports = (router, app) => {
 ```
 
 #### Objection.js
-Objection.js is a part of Komapi and requires a knex instance. Initialize Objection.js by providing a valid knex configuration or instance:
+Objection.js is a part of Komapi and requires a [knex](http://knexjs.org/#Installation-client) instance. Initialize Objection.js by providing a valid knex instance:
 ```js
-app.knex(opts); // or app.knex(Knex(opts))
+// Dependencies
+import Komapi from 'komapi';
+import Knex from 'knex';
+
+// Init
+const app = new Komapi();
+const knex = Knex({
+  client: 'sqlite3',
+  useNullAsDefault: true,
+  connection: {
+    filename: 'example.db'
+  }
+});
+app.knex(knex);
 ```
-where `opts` is either a valid knex configuration object or a valid [knex](http://knexjs.org/#Installation-client) instance.
 
 #### Models
 Models are objection models. See [Objection.js](https://github.com/Vincit/objection.js) [model documentation](http://vincit.github.io/objection.js/#models) for more information. 

@@ -49,7 +49,6 @@
     "bunyan": "^1.8.1",
     "get-parameter-names": "^0.3.0",
     "joi": "^10.5.1",
-    "knex": "^0.13.0",
     "koa": "^2.2.0",
     "koa-bodyparser": "^4.0.0",
     "koa-compose": "^4.0.0",
@@ -74,9 +73,13 @@
     "eslint-config-airbnb-base": "^11.2.0",
     "eslint-plugin-import": "^2.3.0",
     "eslint-plugin-security": "^1.2.0",
+    "knex": "0.x",
     "nyc": "^10.3.2",
     "sqlite3": "^3.1.8",
     "supertest": "^3.0.0"
+  },
+  "peerDependencies": {
+    "knex": "0.x"
   },
   "files": [
     "dist",

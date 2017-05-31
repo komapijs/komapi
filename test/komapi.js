@@ -472,16 +472,10 @@ test('orm can be enabled through knex() method using a knex instance', async (t)
   t.is(typeof app.orm, 'object');
   t.is(typeof app.orm.$Model.knex, 'function');
 });
-test('orm can be enabled through knex() method using a knex configuration objecte', async (t) => {
-  const app = new Komapi({ loggers: [] });
-  app.knex(connection);
-  t.is(typeof app.orm, 'object');
-  t.is(typeof app.orm.$Model.knex, 'function');
-});
 test('orm cannot be enabled more than once', async (t) => {
   const app = new Komapi({ loggers: [] });
-  app.knex(connection);
-  t.throws(() => app.knex(connection), 'Cannot initialize ORM more than once');
+  app.knex(knex(connection));
+  t.throws(() => app.knex(knex(connection)), 'Cannot initialize ORM more than once');
 });
 test('orm query errors are logged', async (t) => {
   const app = new Komapi({ loggers: [] });
@@ -496,7 +490,7 @@ test('orm query errors are logged', async (t) => {
       t.is(obj.msg, 'ORM Query Error');
     }),
   });
-  app.knex(connection);
+  app.knex(knex(connection));
   try {
     await app.orm.$Model.knex().raw('select * from InvalidTable');
   } catch (err) {
@@ -511,7 +505,7 @@ test('models are loaded through app.models() and assigned to app.orm', async (t)
   const app = new Komapi();
   const orm = { $Model: class DummyModel {} };
   const models = { User: user(orm), Role: role(orm), Permission: permission(orm) };
-  app.knex(connection);
+  app.knex(knex(connection));
   app.models(models);
   t.is(typeof app.orm, 'object');
   t.is(app.orm.User, models.User);
@@ -537,7 +531,7 @@ test('migrations can be run before starting the app', async (t) => {
       }
     }),
   });
-  app.knex(migr);
+  app.knex(knex(migr));
   await app.orm.$Model.knex().migrate.latest();
   await app.healthCheck();
   t.pass();
@@ -563,7 +557,7 @@ test('pending migrations are logged', async (t) => {
       }
     }),
   });
-  app.knex(migr);
+  app.knex(knex(migr));
   await app.healthCheck();
 });
 test('listen supports callbacks', async (t) => {
