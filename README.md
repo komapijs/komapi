@@ -44,7 +44,8 @@ $ npm install --save komapi
 ```
 
 ### Configuration
-Komapi accepts a configuration object during instantiation
+Komapi accepts a configuration object during instantiation.
+Note that like most frameworks and libraries, Komapi sets `NODE_ENV=development` unless `NODE_ENV=production` or Komapi is instantiated with `new Komapi({ env: 'production' })`. It is very important to do either for production applications. Failure to do so will result in leaking stacktraces and reduced performance.
 
 ```js
 const app = new Komapi({
