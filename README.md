@@ -255,56 +255,38 @@ app.use(app.mw.notFound());
 Authentication is handled by [komapi-passport](https://github.com/komapijs/komapi-passport).
 
 ### ORM
-Komapi provides built-in support for [Objection.js](https://github.com/Vincit/objection.js). The ORM related functionality is all available through `app.orm`.
-Note that a [database driver](#database-access) is required.
-
-Properties prefixed by `$` in `app.orm` are required default properties, while properties without `$` are the application [models](#models).
-```js
-{
-    $Model // Objection base model
-    $transaction // Objection transaction object
-    $ValidationError // Objection validation error class
-    $migrate // Knex migrate
-}
-```
-
-This is an example of how to use the ORM in a route module
-```js
-// Export route
-module.exports = (router, app) => {
-
-    /**
-     * GET /accounts
-     * Responds with all accounts
-     */
-    router.get('/accounts', (ctx) => ctx.app.orm.Account.query().then(ctx.send));
-    
-    return router;
-};
-```
+Komapi recommends using [Objection.js](https://github.com/Vincit/objection.js). The ORM related functionality should be used through `app.orm`.
 
 #### Objection.js
-Objection.js is a part of Komapi and requires a [knex](http://knexjs.org/#Installation-client) instance. Initialize Objection.js by providing a valid knex instance:
+Objection.js is a peer dependency of Komapi and must be installed separately.
+
 ```js
 // Dependencies
 import Komapi from 'komapi';
 import Knex from 'knex';
+import { Model } from 'objection';
 
 // Init
 const app = new Komapi();
-const knex = Knex({
+Model.knex(Knex({
   client: 'sqlite3',
   useNullAsDefault: true,
   connection: {
     filename: 'example.db'
   }
-});
-app.knex(knex);
+}));
+class User extends Model {
+  static get tableName() { return 'users'; }
+}
+app.models({ User });
+
+// The User model is now available through app.orm.user and query-errors are automatically logged
+app.orm.User.query().findById(1).then(user => console.log(user));
 ```
 
 #### Models
 Models are objection models. See [Objection.js](https://github.com/Vincit/objection.js) [model documentation](http://vincit.github.io/objection.js/#models) for more information. 
-It is recommended to create your own base model and inherit from that (or from `app.orm.$Model`) instead of inheriting directly from the Objection model in case you need to add plugins or adjust model behaviour later.
+It is recommended to create your own base model and inherit from that instead of inheriting directly from the Objection model in case you need to add plugins or adjust model behaviour later.
 
 Models are assign to `app.orm` by providing an object of your models to `app.models()`:
 ```js
@@ -326,8 +308,23 @@ export default class UserModel extends Model {
   static tableName = 'users';
 }
 ```
+
+This is an example of how to use the models in a route module
+```js
+// Dependencies
+import Router from 'koa-router';
+
+// Init
+const router = new Router();
+router.get('/', ctx => ctx.app.orm.User.query().then(ctx.send));
+router.get('/:id', ctx => ctx.app.orm.User.query().findById(ctx.params.id).then(ctx.sendIf));
+
+// Exports
+export default router.routes();
+```
+
 ### Services
-Komapi provides a framework of creating reusable services with minimal boilerplate. For more information, see test for examples. Note that the API is not final - hence the lack of documentation.
+Komapi provides a framework for creating reusable services with minimal boilerplate. For more information, see test for examples. Note that the API is not final - hence the lack of documentation.
 
 ### Tips
 1. For better performance, add the following line before any import statements in your main application file `global.Promise = require('babel-runtime/core-js/promise').default = require('bluebird');`. This enables usage of Bluebird promises by default and significantly improves performance.

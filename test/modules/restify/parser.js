@@ -4,23 +4,24 @@ import { Model } from 'objection';
 import Parser from '../../../src/modules/restify/parser';
 
 // Init
-class Min extends Model {
+const unboundModels = {};
+unboundModels.Min = class Min extends Model {
   static get tableName() { return 'min'; }
-}
-class User extends Model {
+};
+unboundModels.User = class User extends Model {
   static get tableName() { return 'users'; }
-  static get relationMappings() {
+  static relationMappings() {
     return {
       roles: {
         relation: Model.ManyToManyRelation,
-        modelClass: Role, // eslint-disable-line no-use-before-define
+        modelClass: unboundModels.Role,
         join: {
-          from: 'User.id',
+          from: 'users.id',
           through: {
             from: 'roles_users.user_id',
             to: 'roles_users.role_id',
           },
-          to: 'Role.id',
+          to: 'roles.id',
         },
       },
     };
@@ -41,30 +42,30 @@ class User extends Model {
       },
     };
   }
-}
-class Role extends Model {
+};
+unboundModels.Role = class Role extends Model {
   static get tableName() { return 'roles'; }
-  static get relationMappings() {
+  static relationMappings() {
     return {
       roles: {
         relation: Model.ManyToManyRelation,
-        modelClass: User,
+        modelClass: unboundModels.User,
         join: {
-          from: 'Role.id',
+          from: 'roles.id',
           through: {
             from: 'roles_users.role_id',
             to: 'roles_users.user_id',
           },
-          to: 'User.id',
+          to: 'users.id',
         },
       },
     };
   }
-}
+};
 
 // Tests
 test('loads options from an Objection model by default', async (t) => {
-  const parser = new Parser(User);
+  const parser = new Parser(unboundModels.User);
   const properties = {
     $filter: Parser.$defaultSchema.properties.$filter,
     $sort: {
@@ -111,7 +112,7 @@ test('loads options from an Objection model by default', async (t) => {
   t.deepEqual(parser.$schema.properties, properties);
 });
 test('supports minimal models', async (t) => {
-  const parser = new Parser(Min);
+  const parser = new Parser(unboundModels.Min);
   const properties = {
     $filter: Parser.$defaultSchema.properties.$filter,
     $sort: Parser.$defaultSchema.properties.$sort,
@@ -126,7 +127,7 @@ test('supports minimal models', async (t) => {
 test('can manually override options', async (t) => {
   const customSchema = Parser.$defaultSchema;
   delete customSchema.properties.$filter;
-  const parser = new Parser(User, {
+  const parser = new Parser(unboundModels.User, {
     querySchema: customSchema,
     $select: ['firstname', 'lastname'],
     $sort: ['created_at', 'company'],
@@ -178,7 +179,7 @@ test('can manually override options', async (t) => {
   t.deepEqual(parser.$schema.properties, properties);
 });
 test('parses a simple query to a standard format', async (t) => {
-  const parser = new Parser(User);
+  const parser = new Parser(unboundModels.User);
   const parseOutput = parser.parse({
     $select: 'username',
     $expand: 'roles',
@@ -195,7 +196,7 @@ test('parses a simple query to a standard format', async (t) => {
   });
 });
 test('parses a complex query to a standard format', async (t) => {
-  const parser = new Parser(User);
+  const parser = new Parser(unboundModels.User);
   const parseOutput = parser.parse({
     $select: 'username',
     '$select[roles]': 'role_id',
@@ -217,7 +218,7 @@ test('parses a complex query to a standard format', async (t) => {
   });
 });
 test('parses a blank queries', async (t) => {
-  const parser = new Parser(User);
+  const parser = new Parser(unboundModels.User);
   const expected = {
     filter: undefined,
     sort: undefined,
@@ -234,7 +235,7 @@ test('parses a blank queries', async (t) => {
   t.deepEqual(parseOutput2, expected);
 });
 test('throws on invalid query', async (t) => {
-  const parser = new Parser(User);
+  const parser = new Parser(unboundModels.User);
   t.throws(() => {
     parser.parse({
       $select: 'invalidField',

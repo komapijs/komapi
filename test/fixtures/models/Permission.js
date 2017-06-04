@@ -1,20 +1,24 @@
+// Dependencies
+import { Model } from 'objection'; // eslint-disable-line
+import Role from './Role';
+
 // Exports
-module.exports = orm => class Permission extends orm.$Model {
+export default class Permission extends Model {
   static get tableName() { return 'permissions'; }
   static get relationMappings() {
     return {
       roles: {
-        relation: orm.$Model.ManyToManyRelation,
-        modelClass: orm.Role,
+        relation: Model.ManyToManyRelation,
+        modelClass: Role,
         join: {
-          from: 'Permission.id',
+          from: 'permissions.id',
           through: {
             from: 'permissions_roles.permission_id',
             to: 'permissions_roles.role_id',
           },
-          to: 'Role.id',
+          to: 'roles.id',
         },
       },
     };
   }
-};
+}

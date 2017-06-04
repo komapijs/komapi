@@ -7,9 +7,9 @@ import os from 'os';
 import uuid from 'uuid';
 import Komapi from '../src/index';
 import DummyLogger from './fixtures/dummyLogger';
-import user from './fixtures/models/user';
-import permission from './fixtures/models/permission';
-import role from './fixtures/models/role';
+import User from './fixtures/models/User';
+import Permission from './fixtures/models/Permission';
+import Role from './fixtures/models/Role';
 import router from './fixtures/routes';
 
 // Init
@@ -462,24 +462,9 @@ test('supports mounting middleware at specific routes', async (t) => {
   await request(app.listen())
     .get('/route2');
 });
-test('does not enable orm by default', async (t) => {
-  const app = new Komapi({ loggers: [] });
-  t.is(app.orm, undefined);
-});
-test('orm can be enabled through knex() method using a knex instance', async (t) => {
-  const app = new Komapi({ loggers: [] });
-  app.knex(knex(connection));
-  t.is(typeof app.orm, 'object');
-  t.is(typeof app.orm.$Model.knex, 'function');
-});
-test('orm cannot be enabled more than once', async (t) => {
-  const app = new Komapi({ loggers: [] });
-  app.knex(knex(connection));
-  t.throws(() => app.knex(knex(connection)), 'Cannot initialize ORM more than once');
-});
-test('orm query errors are logged', async (t) => {
-  const app = new Komapi({ loggers: [] });
-  t.plan(4);
+test('orm query errors are logged exactly once by default', async (t) => {
+  const app = new Komapi();
+  t.plan(6);
   app.log.addStream({
     name: 'DummyLogger',
     level: 'info',
@@ -490,75 +475,53 @@ test('orm query errors are logged', async (t) => {
       t.is(obj.msg, 'ORM Query Error');
     }),
   });
-  app.knex(knex(connection));
+  app.models({ User: User.bindKnex(knex(connection)), Role: Role.bindKnex(knex(connection)) });
+  t.is(app.orm.User.knex().listeners('query-error').length, 1);
+  t.is(app.orm.Role.knex().listeners('query-error').length, 1);
   try {
-    await app.orm.$Model.knex().raw('select * from InvalidTable');
+    await app.orm.User.raw('select * from InvalidTable');
   } catch (err) {
     t.pass();
   }
 });
-test('models cannot be loaded before orm has been initialized', async (t) => {
+test('orm query errors can be logged with custom logging function', async (t) => {
   const app = new Komapi();
-  t.throws(() => app.models({}), 'Use `app.knex()` before attempting to load models!');
+  t.plan(5);
+  app.models({
+    User: User.bindKnex(knex(connection)),
+    Role: Role.bindKnex(knex(connection)),
+  }, {
+    errorLogger: (err, obj) => {
+      t.true(err instanceof Error);
+      t.is(typeof obj, 'object');
+    },
+  });
+  t.is(app.orm.User.knex().listeners('query-error').length, 1);
+  t.is(app.orm.Role.knex().listeners('query-error').length, 1);
+  try {
+    await app.orm.User.raw('select * from InvalidTable');
+  } catch (err) {
+    t.pass();
+  }
+});
+test('orm query error logging can be disabled', async (t) => {
+  const app = new Komapi();
+  app.models({ User: User.bindKnex(knex(connection)), Role: Role.bindKnex(knex(connection)) }, { errorLogger: null });
+  t.is(app.orm.User.knex().listeners('query-error').length, 0);
+  t.is(app.orm.Role.knex().listeners('query-error').length, 0);
 });
 test('models are loaded through app.models() and assigned to app.orm', async (t) => {
   const app = new Komapi();
-  const orm = { $Model: class DummyModel {} };
-  const models = { User: user(orm), Role: role(orm), Permission: permission(orm) };
-  app.knex(knex(connection));
+  const models = {
+    User: User.bindKnex(knex(connection)),
+    Role: Role.bindKnex(knex(connection)),
+    Permission: Permission.bindKnex(knex(connection)),
+  };
   app.models(models);
   t.is(typeof app.orm, 'object');
   t.is(app.orm.User, models.User);
   t.is(app.orm.Role, models.Role);
   t.is(app.orm.Permission, models.Permission);
-});
-test('migrations can be run before starting the app', async (t) => {
-  const app = new Komapi({ loggers: [] });
-  const migr = Object.assign({
-    migrations: {
-      directory: path.join(__dirname, 'fixtures/migrations'),
-      tableName: 'migrations',
-    },
-  }, connection);
-  t.plan(1);
-  app.log.addStream({
-    name: 'DummyLogger',
-    level: 'info',
-    type: 'raw',
-    stream: new DummyLogger((obj) => {
-      if (/migration/.test(obj.msg)) {
-        t.fail();
-      }
-    }),
-  });
-  app.knex(knex(migr));
-  await app.orm.$Model.knex().migrate.latest();
-  await app.healthCheck();
-  t.pass();
-});
-test('pending migrations are logged', async (t) => {
-  const app = new Komapi({ loggers: [] });
-  const migr = Object.assign({
-    migrations: {
-      directory: path.join(__dirname, 'fixtures/migrations'),
-      tableName: 'migrations',
-    },
-  }, connection);
-  t.plan(3);
-  app.log.addStream({
-    name: 'DummyLogger',
-    level: 'info',
-    type: 'raw',
-    stream: new DummyLogger((obj) => {
-      if (/migration/.test(obj.msg)) {
-        t.is(obj.context, 'orm');
-        t.is(obj.level, 40);
-        t.is(obj.msg, 'There are pending migrations! Run `app.orm.$migrate.latest()` to run all pending migrations.');
-      }
-    }),
-  });
-  app.knex(knex(migr));
-  await app.healthCheck();
 });
 test('listen supports callbacks', async (t) => {
   const app = new Komapi({ loggers: [] });

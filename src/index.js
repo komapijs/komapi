@@ -5,8 +5,7 @@ import { notImplemented as NotImplemented, methodNotAllowed as MethodNotAllowed 
 import mount from 'koa-mount';
 import compose from 'koa-compose';
 import uuid from 'uuid';
-import { Model, transaction, ValidationError } from 'objection';
-import _ from 'lodash';
+import _, { forOwn } from 'lodash';
 import Router from 'koa-router';
 import loadServices from './lib/services';
 import validateConfig from './lib/config';
@@ -49,7 +48,7 @@ export default class Komapi extends Koa {
 
     // Set properties
     this.locals = userConfig;
-    this.orm = undefined;
+    this.orm = {};
     this.state = {};
     this.config = validateConfig(Object.assign({ env: process.env.NODE_ENV }, config), configSchema);
     this.service = {};
@@ -192,31 +191,13 @@ export default class Komapi extends Koa {
     });
     return this.use(path, fn);
   }
-  models(models) {
-    if (!this.orm) throw new Error('Use `app.knex()` before attempting to load models!');
+  models(models, opts = { errorLogger: (err, obj) => this.log.error({ err, orm: obj, context: 'orm' }, 'ORM Query Error') }) {
+    forOwn(models, (model) => {
+      if (opts.errorLogger && !model.knex().listeners('query-error').includes(opts.errorLogger)) model.knex().on('query-error', opts.errorLogger);
+    });
     Object.assign(this.orm, models);
     return this;
   }
-
-  knex(knex) {
-    if (this.orm) throw new Error('Cannot initialize ORM more than once');
-    this.orm = {
-      $Model: Model,
-      $transaction: transaction,
-      $ValidationError: ValidationError,
-    };
-    this.orm.$Model.knex(knex);
-    this.orm.$migrate = this.orm.$Model.knex().migrate;
-    this.orm.$Model.knex().on('query-error', (err, obj) => {
-      this.log.error({
-        err,
-        orm: obj,
-        context: 'orm',
-      }, 'ORM Query Error');
-    });
-    return this;
-  }
-
   services(services) {
     Object.assign(this.service, loadServices(services, this));
     return this;
@@ -300,7 +281,7 @@ export default class Komapi extends Koa {
    * @return {Server}
    */
   listen(...args) {
-    // Perform health check - intentionally not returning the promise to not delay startup.
+    // Perform health check
     this.healthCheck();
 
     // Start Koa
@@ -331,15 +312,6 @@ export default class Komapi extends Koa {
       this.log.warn({
         context: 'application',
       }, `Komapi was started with ${this.middleware.length} middlewares. Please note that more than 4000 middlewares is not supported and could cause stability and performance issues.`); // eslint-disable-line max-len
-    }
-    // Check pending migrations
-    if (this.orm && this.orm.$migrate) {
-      const [allMigrations, completedMigrations] = await this.orm.$migrate._migrationData();
-      if (_.difference(allMigrations, completedMigrations).length > 0) {
-        this.log.warn({
-          context: 'orm',
-        }, 'There are pending migrations! Run `app.orm.$migrate.latest()` to run all pending migrations.');
-      }
     }
   }
 }
