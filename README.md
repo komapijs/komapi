@@ -19,7 +19,6 @@ Komapi is essentially Koa with some added sugar, which means that you can use an
 - [Example Project Structure](#example-project-structure)
 - [Routing](#routing)
   - [Example Route Module (routes.js)](#example-route-module)
-  - [Loading Route Modules](#loading-route-modules)
 - [Logging](#logging)
 - [Middleware](#middleware)
   - [Mounting Middleware](#mounting-middleware)
