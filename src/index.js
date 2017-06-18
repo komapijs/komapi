@@ -36,7 +36,6 @@ const configSchema = Joi => Joi.object({
  * @extends Koa
  */
 export default class Komapi extends Koa {
-
   /**
    * Create a Komapi instance
    *

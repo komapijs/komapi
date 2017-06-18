@@ -3,7 +3,6 @@ import Router from 'koa-router';
 
 // Exports
 export default class Service {
-
   /**
    * Initiate the service
    * @final
@@ -40,7 +39,7 @@ export default class Service {
    * @param {Router=} router Router instance to use
    * @returns {Router}
    */
-  $getRoutes(router) {  // eslint-disable-line class-methods-use-this
+  $getRoutes(router) { // eslint-disable-line class-methods-use-this
     return router || new Router();
   }
 }
