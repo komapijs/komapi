@@ -1,6 +1,6 @@
 # KomAPI
 
-Komapi is an opinionated Node.js framework built on top of Koa 2.2 and requires Node.js v7.8.0 or higher.
+Komapi is an opinionated Node.js framework built on top of Koa v2.2 and requires Node.js v7.8.0 or higher.
  
 Disclaimer: There will be breaking changes and outdated documentation during the pre-v1.0.0 cycles.
 
@@ -18,9 +18,7 @@ Komapi is essentially Koa with some added sugar, which means that you can use an
 - [Hello World](#hello-world)
 - [Example Project Structure](#example-project-structure)
 - [Routing](#routing)
-  - [Route Modules](#route-modules)
-    - [Example Route Modules](#example-route-module)
-  - [Loading Route Modules](#loading-route-modules)
+  - [Example Route Module (routes.js)](#example-route-module)
 - [Logging](#logging)
 - [Middleware](#middleware)
   - [Mounting Middleware](#mounting-middleware)
@@ -28,17 +26,13 @@ Komapi is essentially Koa with some added sugar, which means that you can use an
     - [Komapi Native Middleware](#komapi-native-middleware)
       - [app.mw.ensureSchema(schema, [key])](#komapi-middleware-ensureschema)
       - [app.mw.requestLogger([options])](#komapi-middleware-requestlogger)
+      - [app.mw.notFound()](#komapi-middleware-notfound)
 - [Authentication](#authentication)     
 - [ORM](#orm)
   - [Objection.js](#objectionjs)
-    - [Objection Plugins](#objection-plugins)
-      - [Soft Delete](#soft-delete)
-      - [Timestamps](#timestamps)
-      - [camelCase](#camelcase)
   - [Models](#models)
     - [Example Model](#example-model)
-- [Optional Dependencies](#optional-dependencies)
-  - [Database](#database)
+- [Services](#services)
 - [Tips](#tips)
 - [License](#license)
   
@@ -49,7 +43,8 @@ $ npm install --save komapi
 ```
 
 ### Configuration
-Komapi accepts a configuration object during instantiation
+Komapi accepts a configuration object during instantiation.
+Note that like most frameworks and libraries, Komapi sets `NODE_ENV=development` unless `NODE_ENV=production` or Komapi is instantiated with `new Komapi({ env: 'production' })`. It is very important to do either for production applications. Failure to do so will result in leaking stacktraces and reduced performance.
 
 ```js
 const app = new Komapi({
@@ -101,43 +96,40 @@ app
 ```
 
 ### Routing
-#### Route Modules
-Komapi encourages using separate files for routes and provides an easy to use way of creating decoupled routes. A Komapi route file is a module exporting a [koa-router](https://github.com/alexmingoia/koa-router/tree/master/) instance.
-The route module is provided with an instance of [koa-router](https://github.com/alexmingoia/koa-router/tree/master/), and the app instance. The app instance is most often used for route specific middlewares as seen in the [authentication](#authentication) example.
-Note that even though it is possible to return a different [koa-router](https://github.com/alexmingoia/koa-router/tree/master/) instance than the injected instance, it is recommended to use the provided instance for future proofing.
+Komapi supports all routers compatible with Koa and allows the developer to make their own choice in how to implement routing.
 
-Komapi provides two helpful functions when creating routes, namely `ctx.send` and `ctx.sendIf`. These are bound to `ctx` which means that you can just add `.then(ctx.send)` to your promise chain to send the result. `ctx.sendIf` sends a 404 if your result is not truthy. This is particularly useful when requesting single resources in a REST API. 
-##### Example Route Module
+It is often advisable to separate routes in modules and exporting a router for related routes. This can be easily be done using [koa-router](https://github.com/alexmingoia/koa-router/tree/master/).
+Komapi has a helper method for registering routes which ensures proper handling of unknown methods when using [koa-router](https://github.com/alexmingoia/koa-router/tree/master/).
+
+Komapi provides two helpful functions when creating routes, namely `ctx.send` and `ctx.sendIf`. These are bound to `ctx` which means that you can add `.then(ctx.send)` to your promise chain to send the result. `ctx.sendIf` sends a 404 if your result is not truthy. This is particularly useful when requesting single resources in a REST API. 
+#### Example Route Module
+`routes.js`
 ```js
-// Export route
-module.exports = (router, app) => {
+// Dependencies
+import Router from 'koa-router';
 
-  /**
-   * GET /
-   * Always replies: 200 "Hello World!"
-   */
-  router.get('/', (ctx) => ctx.body = 'Hello World!');
-  
-  return router;
-};
+// Init
+const router = new Router();
+router.get('/', ctx => ctx.send({ status: 'ok' }));
+
+// Exports
+export default router.routes();
 ```
-
-#### Loading Route Modules
-Route modules (or a collection of route modules) are loaded as a single middleware, encapsulating any middlewares specific to that group of route modules. A group of route modules refers to all route modules loaded at the same time. 
-It is possible load a single route module by specifying the path to the route module with the extension `.js`, or recursively load every route module in a directory.
-Route modules are loaded through:
+This can then be used in your `index.js` application file
 ```js
-app.mw.route([middlewares ...], path)
+// Dependencies
+import Komapi from 'komapi';
+import routes from './routes';
+
+// Init
+const app = new Komapi();
+
+// Add routes
+app.route(routes);
+
+// Listen
+app.listen(process.env.PORT || 3000);
 ```
-This will return a middleware which can be mounted to the application as any other [middleware](#mounting-middleware).
-
-All route modules will be mounted on a path relative to the provided `path`. This means that if the [Example Route Module](#example-route-model) above resides in `./src/route/v1/example.js`, it will respond `Hello World!` to the following endpoints, depending on how you load it:
-
-| Loaded with | Endpoint |
-| --- | --- |
-| `app.mw.route('./src/route')` | `GET /v1/example` |
-| `app.mw.route('./src/route/v1')` | `GET /example` |
-| `app.mw.route('./src/route/v1/example.js')` | `GET /` |
 
 ### Logging
 Komapi comes with [bunyan](https://github.com/trentm/node-bunyan/tree/master/) pre-configured, but without any loggers enabled. The [bunyan](https://github.com/trentm/node-bunyan/tree/master/) instance is available through `app.log`.
@@ -202,7 +194,7 @@ Komapi provides some built-in middlewares for most use cases. Some of these are 
 | --- | --- |
 | [app.mw.ensureSchema](#komapi-middleware-ensureschema) | Validate requests according to JSON Schema |
 | [app.mw.requestLogger](#komapi-middleware-requestlogger) | Log requests |
-| [app.mw.route](#loading-route-modules) | Routing |
+| [app.mw.notFound](#komapi-middleware-notfound) | Handle 404 not found |
 | [koa-bodyparser](https://github.com/koajs/bodyparser) | Parse request body into ctx.request.body |
 | [koa-compress](https://github.com/koajs/compress) | Compress responses |
 | [kcors](https://github.com/koajs/cors) | Set CORS (Cross-Origin Resource Sharing) headers |
@@ -251,87 +243,87 @@ Logs request data. This will always be mounted at the top of the middleware stac
 app.use(app.mw.requestLogger());
 ```
 
+<a name="komapi-middleware-notfound"></a>
+###### app.mw.notFound()
+A simple middleware for handling Not Found errors. This should be added as the first middleware.
+```js
+app.use(app.mw.notFound());
+```
+
 ### Authentication
 Authentication is handled by [komapi-passport](https://github.com/komapijs/komapi-passport).
 
 ### ORM
-Komapi provides built-in support for [Objection.js](https://github.com/Vincit/objection.js). The ORM related functionality is all available through `app.orm`.
-Note that a [database driver](#database-access) is required.
-
-Properties prefixed by `$` in `app.orm` are required default properties, while properties without `$` are the application [models](#models).
-```js
-{
-    $Model // Objection base model
-    $transaction // Objection transaction object
-    $ValidationError // Objection validation error class
-    $migrate // Knex migrate
-}
-```
-
-This is an example of how to use the ORM in a route module
-```js
-// Export route
-module.exports = (router, app) => {
-
-    /**
-     * GET /accounts
-     * Responds with all accounts
-     */
-    router.get('/accounts', (ctx) => ctx.app.orm.Account.query().then(ctx.send));
-    
-    return router;
-};
-```
+Komapi recommends using [Objection.js](https://github.com/Vincit/objection.js). The ORM related functionality should be used through `app.orm`.
 
 #### Objection.js
-Objection is initialized using:
+Objection.js is a peer dependency of Komapi and must be installed separately.
+
 ```js
-const Knex = require('knex');
-app.objection(Knex(opts));
+// Dependencies
+import Komapi from 'komapi';
+import Knex from 'knex';
+import { Model } from 'objection';
+
+// Init
+const app = new Komapi();
+Model.knex(Knex({
+  client: 'sqlite3',
+  useNullAsDefault: true,
+  connection: {
+    filename: 'example.db'
+  }
+}));
+class User extends Model {
+  static get tableName() { return 'users'; }
+}
+app.models({ User });
+
+// The User model is now available through app.orm.user and query-errors are automatically logged
+app.orm.User.query().findById(1).then(user => console.log(user));
 ```
-where `Knex(opts)` is a valid [knex](http://knexjs.org/#Installation-client) instance.
-
-##### Objection Plugins
-Komapi provides a number of default plugins to Objection.
-
-###### Soft Delete
-Add `static get softDelete() { return true; }` to your models to enable soft delete. Note that this requires a `deleted_at` column in your schema. 
-
-Usage when enabled
-```js
-model.delete(); // Model is soft-deleted
-model.$query(); // Not found
-model.$query().withArchived(); // Found again
-model.$query().withArchived().restore(); // Undeleted
-model.$query(); // Found
-model.delete({force:true}); // Model is hard-deleted
-model.$query().withArchived(); // Not found
-```
-
-###### Timestamps
-Add `static get timestamps() { return true; }` to your models to enable timestamps. This will automatically set `created_at` and `updated_at`. Note that this requires `created_at` and `updated_at` columns in your schema. Currently not supported for N:M intersection tables (missing lifecycle hooks from Objection.js)
-
-###### camelCase
-Add `static get camelCase() { return true; }` to your models to enable camelCase for system columns like `deleted_at`, `created_at` and `updated_at`.
 
 #### Models
-Models are modules exporting an [Objection](https://github.com/Vincit/objection.js) model. The ORM and app objects are injected into the module and provides access to the Objection classes necessary to create the Objection model. 
+Models are objection models. See [Objection.js](https://github.com/Vincit/objection.js) [model documentation](http://vincit.github.io/objection.js/#models) for more information. 
+It is recommended to create your own base model and inherit from that instead of inheriting directly from the Objection model in case you need to add plugins or adjust model behaviour later.
 
-Models can automatically be loaded by adding the following line to your application `index.js` file, where `path` is the path to your model directory.
+Models are assign to `app.orm` by providing an object of your models to `app.models()`:
 ```js
-app.models(path);
+import User from './models/User';
+import Post from './models/Post';
+import Comment from './models/Comment';
+
+const applicationModels = { User, Post, Comment };
+app.models(applicationModels);
 ```
-This loads every model into `app.orm[Modelname]`, which is accessible throughout your application. Note that it is the name of the model class exported from the module that will be used to access the model
+This loads every model into `app.orm[Modelname]`, which is accessible throughout your application.
 
 ##### Example Model
 ```js
 // Export model
-module.exports = (orm) => {
-    return class Account extends orm.$Model {
-            static get tableName() { return 'Account'; }
-        };
-};
+import { Model } from 'objection';
+
+export default class UserModel extends Model {
+  static tableName = 'users';
+}
 ```
+
+This is an example of how to use the models in a route module
+```js
+// Dependencies
+import Router from 'koa-router';
+
+// Init
+const router = new Router();
+router.get('/', ctx => ctx.app.orm.User.query().then(ctx.send));
+router.get('/:id', ctx => ctx.app.orm.User.query().findById(ctx.params.id).then(ctx.sendIf));
+
+// Exports
+export default router.routes();
+```
+
+### Services
+Komapi provides a framework for creating reusable services with minimal boilerplate. For more information, see test for examples. Note that the API is not final - hence the lack of documentation.
 
 ### Tips
 1. For better performance, add the following line before any import statements in your main application file `global.Promise = require('babel-runtime/core-js/promise').default = require('bluebird');`. This enables usage of Bluebird promises by default and significantly improves performance.

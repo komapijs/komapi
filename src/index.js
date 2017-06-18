@@ -5,9 +5,8 @@ import { notImplemented as NotImplemented, methodNotAllowed as MethodNotAllowed 
 import mount from 'koa-mount';
 import compose from 'koa-compose';
 import uuid from 'uuid';
-import * as Objection from 'objection';
-import _ from 'lodash';
-import loadModels from './lib/models';
+import _, { forOwn } from 'lodash';
+import Router from 'koa-router';
 import loadServices from './lib/services';
 import validateConfig from './lib/config';
 import Schema from './modules/json-schema/schema';
@@ -18,12 +17,8 @@ import request from './lib/request';
 import responseDecorator from './middleware/responseDecorator';
 import errorHandler from './middleware/errorHandler';
 import requestLogger from './middleware/requestLogger';
-import routes from './middleware/routeHandler';
 import ensureSchema from './middleware/ensureSchema';
-
-// Objection plugins
-import objectionSoftDelete from './modules/objectionPlugins/softDelete';
-import objectionTimestamps from './modules/objectionPlugins/timestamps';
+import notFound from './middleware/notFound';
 
 // Init
 const configSchema = Joi => Joi.object({
@@ -41,7 +36,6 @@ const configSchema = Joi => Joi.object({
  * @extends Koa
  */
 export default class Komapi extends Koa {
-
   /**
    * Create a Komapi instance
    *
@@ -53,7 +47,7 @@ export default class Komapi extends Koa {
 
     // Set properties
     this.locals = userConfig;
-    this.orm = undefined;
+    this.orm = {};
     this.state = {};
     this.config = validateConfig(Object.assign({ env: process.env.NODE_ENV }, config), configSchema);
     this.service = {};
@@ -173,63 +167,39 @@ export default class Komapi extends Koa {
   }
 
   // Helper middlewares
-  get mw() {
-    const app = this;
+  get mw() { // eslint-disable-line class-methods-use-this
     return {
       ensureSchema,
       requestLogger,
-      route: function route(...middlewares) {
-        const path = middlewares.pop();
-        const router = routes(path, app, middlewares);
-        const fn = compose([router.routes(), router.allowedMethods({
-          throw: true,
-          notImplemented: () => new NotImplemented('Not Implemented'),
-          methodNotAllowed: () => new MethodNotAllowed('Method Not Allowed'),
-        })]);
-        Object.defineProperty(fn, 'name', {
-          value: 'routeHandler',
-        });
-        return fn;
-      },
+      notFound,
     };
   }
 
   // Configuration
-  models(path) {
-    if (!this.orm) throw new Error('Use `app.objection()` before attempting to load models!');
-    const models = loadModels(path, this);
-    Object.assign(this.orm, models);
-    return models;
-  }
-
-  objection(knex) {
-    if (this.orm) throw new Error('Cannot initialize ORM more than once');
-    this.orm = {
-      $Model: Objection.Model,
-      $transaction: Objection.transaction,
-      $ValidationError: Objection.ValidationError,
-    };
-    this.orm.$Model.knex(knex);
-    this.orm.$migrate = this.orm.$Model.knex().migrate;
-    this.orm.$Model.knex().on('query-error', (err, obj) => {
-      this.log.error({
-        err,
-        orm: obj,
-        context: 'orm',
-      }, 'ORM Query Error');
+  route(...middlewares) {
+    const path = typeof middlewares[0] === 'string' ? middlewares.shift() : '/';
+    const router = new Router();
+    router.use('', ...middlewares);
+    const fn = compose([router.routes(), router.allowedMethods({
+      throw: true,
+      notImplemented: () => new NotImplemented('Not Implemented'),
+      methodNotAllowed: () => new MethodNotAllowed('Method Not Allowed'),
+    })]);
+    Object.defineProperty(fn, 'name', {
+      value: `komapiRouter::${path}`,
     });
-
-    // Patch objection with custom plugins
-    [
-      objectionSoftDelete,
-      objectionTimestamps,
-    ].forEach((fn => (this.orm.$Model = fn(this.orm.$Model, this))));
+    return this.use(path, fn);
   }
-
-  services(path) {
-    const services = loadServices(path, this);
-    Object.assign(this.service, services);
-    return services;
+  models(models, opts = { errorLogger: (err, obj) => this.log.error({ err, orm: obj, context: 'orm' }, 'ORM Query Error') }) {
+    forOwn(models, (model) => {
+      if (opts.errorLogger && !model.knex().listeners('query-error').includes(opts.errorLogger)) model.knex().on('query-error', opts.errorLogger);
+    });
+    Object.assign(this.orm, models);
+    return this;
+  }
+  services(services) {
+    Object.assign(this.service, loadServices(services, this));
+    return this;
   }
 
   // Private overrides of Koa's methods
@@ -268,7 +238,7 @@ export default class Komapi extends Koa {
       }
     }
 
-    return fn;
+    return this;
   }
 
   createContext(req, res) {
@@ -310,7 +280,7 @@ export default class Komapi extends Koa {
    * @return {Server}
    */
   listen(...args) {
-    // Perform health check - intentionally not returning the promise to not delay startup.
+    // Perform health check
     this.healthCheck();
 
     // Start Koa
@@ -341,15 +311,6 @@ export default class Komapi extends Koa {
       this.log.warn({
         context: 'application',
       }, `Komapi was started with ${this.middleware.length} middlewares. Please note that more than 4000 middlewares is not supported and could cause stability and performance issues.`); // eslint-disable-line max-len
-    }
-    // Check pending migrations
-    if (this.orm && this.orm.$migrate) {
-      const [allMigrations, completedMigrations] = await this.orm.$migrate._migrationData();
-      if (_.difference(allMigrations, completedMigrations).length > 0) {
-        this.log.warn({
-          context: 'orm',
-        }, 'There are pending migrations! Run `app.orm.$migrate.latest()` to run all pending migrations.');
-      }
     }
   }
 }

@@ -4,7 +4,6 @@ import Service from '../service';
 
 // Exports
 export default class RestService extends Service {
-
   /**
    * Format the rest response
    * @returns {Function}

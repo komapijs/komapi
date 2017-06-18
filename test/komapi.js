@@ -7,6 +7,10 @@ import os from 'os';
 import uuid from 'uuid';
 import Komapi from '../src/index';
 import DummyLogger from './fixtures/dummyLogger';
+import User from './fixtures/models/User';
+import Permission from './fixtures/models/Permission';
+import Role from './fixtures/models/Role';
+import router from './fixtures/routes';
 
 // Init
 const connection = {
@@ -47,7 +51,7 @@ test('accepts default production configuration', async (t) => {
   t.is(app.env, 'production');
   t.is(app.log.streams.length, 0);
 });
-test('defaults to NODE_ENV=development', async (t) => {
+test('env defaults to development for NODE_ENV=development', async (t) => {
   t.plan(2);
   let app;
   process.env.NODE_ENV = 'development';
@@ -56,7 +60,7 @@ test('defaults to NODE_ENV=development', async (t) => {
   });
   t.is(app.env, 'development');
 });
-test('defaults to NODE_ENV=production', async (t) => {
+test('env defaults production for NODE_ENV=production', async (t) => {
   t.plan(2);
   let app;
   process.env.NODE_ENV = 'production';
@@ -458,24 +462,9 @@ test('supports mounting middleware at specific routes', async (t) => {
   await request(app.listen())
     .get('/route2');
 });
-test('does not enable orm by default', async (t) => {
-  const app = new Komapi({ loggers: [] });
-  t.is(app.orm, undefined);
-});
-test('orm can be enabled through objection() method using a knex instance', async (t) => {
-  const app = new Komapi({ loggers: [] });
-  app.objection(knex(connection));
-  t.is(typeof app.orm, 'object');
-  t.is(typeof app.orm.$Model.knex, 'function');
-});
-test('orm cannot be enabled more than once', async (t) => {
-  const app = new Komapi({ loggers: [] });
-  app.objection(knex(connection));
-  t.throws(() => app.objection(knex(connection)), 'Cannot initialize ORM more than once');
-});
-test('orm query errors are logged', async (t) => {
-  const app = new Komapi({ loggers: [] });
-  t.plan(4);
+test('orm query errors are logged exactly once by default', async (t) => {
+  const app = new Komapi();
+  t.plan(6);
   app.log.addStream({
     name: 'DummyLogger',
     level: 'info',
@@ -486,60 +475,53 @@ test('orm query errors are logged', async (t) => {
       t.is(obj.msg, 'ORM Query Error');
     }),
   });
-  app.objection(knex(connection));
+  app.models({ User: User.bindKnex(knex(connection)), Role: Role.bindKnex(knex(connection)) });
+  t.is(app.orm.User.knex().listeners('query-error').length, 1);
+  t.is(app.orm.Role.knex().listeners('query-error').length, 1);
   try {
-    await app.orm.$Model.knex().raw('select * from InvalidTable');
+    await app.orm.User.raw('select * from InvalidTable');
   } catch (err) {
     t.pass();
   }
 });
-test('migrations can be run before starting the app', async (t) => {
-  const app = new Komapi({ loggers: [] });
-  const migr = Object.assign({
-    migrations: {
-      directory: path.join(__dirname, 'fixtures/migrations'),
-      tableName: 'migrations',
+test('orm query errors can be logged with custom logging function', async (t) => {
+  const app = new Komapi();
+  t.plan(5);
+  app.models({
+    User: User.bindKnex(knex(connection)),
+    Role: Role.bindKnex(knex(connection)),
+  }, {
+    errorLogger: (err, obj) => {
+      t.true(err instanceof Error);
+      t.is(typeof obj, 'object');
     },
-  }, connection);
-  t.plan(1);
-  app.log.addStream({
-    name: 'DummyLogger',
-    level: 'info',
-    type: 'raw',
-    stream: new DummyLogger((obj) => {
-      if (/migration/.test(obj.msg)) {
-        t.fail();
-      }
-    }),
   });
-  app.objection(knex(migr));
-  await app.orm.$Model.knex().migrate.latest();
-  await app.healthCheck();
-  t.pass();
+  t.is(app.orm.User.knex().listeners('query-error').length, 1);
+  t.is(app.orm.Role.knex().listeners('query-error').length, 1);
+  try {
+    await app.orm.User.raw('select * from InvalidTable');
+  } catch (err) {
+    t.pass();
+  }
 });
-test('pending migrations are logged', async (t) => {
-  const app = new Komapi({ loggers: [] });
-  const migr = Object.assign({
-    migrations: {
-      directory: path.join(__dirname, 'fixtures/migrations'),
-      tableName: 'migrations',
-    },
-  }, connection);
-  t.plan(3);
-  app.log.addStream({
-    name: 'DummyLogger',
-    level: 'info',
-    type: 'raw',
-    stream: new DummyLogger((obj) => {
-      if (/migration/.test(obj.msg)) {
-        t.is(obj.context, 'orm');
-        t.is(obj.level, 40);
-        t.is(obj.msg, 'There are pending migrations! Run `app.orm.$migrate.latest()` to run all pending migrations.');
-      }
-    }),
-  });
-  app.objection(knex(migr));
-  await app.healthCheck();
+test('orm query error logging can be disabled', async (t) => {
+  const app = new Komapi();
+  app.models({ User: User.bindKnex(knex(connection)), Role: Role.bindKnex(knex(connection)) }, { errorLogger: null });
+  t.is(app.orm.User.knex().listeners('query-error').length, 0);
+  t.is(app.orm.Role.knex().listeners('query-error').length, 0);
+});
+test('models are loaded through app.models() and assigned to app.orm', async (t) => {
+  const app = new Komapi();
+  const models = {
+    User: User.bindKnex(knex(connection)),
+    Role: Role.bindKnex(knex(connection)),
+    Permission: Permission.bindKnex(knex(connection)),
+  };
+  app.models(models);
+  t.is(typeof app.orm, 'object');
+  t.is(app.orm.User, models.User);
+  t.is(app.orm.Role, models.Role);
+  t.is(app.orm.Permission, models.Permission);
 });
 test('listen supports callbacks', async (t) => {
   const app = new Komapi({ loggers: [] });
@@ -588,4 +570,52 @@ test('provides ctx.request.auth property that resolves to the passport property'
   });
   await request(app.listen())
     .get('/');
+});
+test('supports managed routes', async (t) => {
+  const app = new Komapi();
+  app.route(router.routes());
+  const req = request(app.listen());
+  const res200 = await req.get('/');
+  const res404 = await req.get('/not-found');
+  t.is(res200.status, 200);
+  t.deepEqual(res200.body, { status: 'ok' });
+  t.is(res404.status, 404);
+});
+test('supports managed routes mounted at different path', async (t) => {
+  const app = new Komapi();
+  app.route('/test', router.routes());
+  const req = request(app.listen());
+  const res200 = await req.get('/test');
+  const res404 = await req.get('/');
+  t.is(res200.status, 200);
+  t.deepEqual(res200.body, { status: 'ok' });
+  t.is(res404.status, 404);
+});
+test('managed routes responds with 405 for unallowed methods', async (t) => {
+  const app = new Komapi();
+  app.route(router.routes());
+  const res = await request(app.listen())
+    .post('/');
+  t.is(res.status, 405);
+  t.deepEqual(res.body, {
+    error: {
+      code: '',
+      status: 405,
+      message: 'Method Not Allowed',
+    },
+  });
+});
+test('managed routes responds with 501 for SEARCH', async (t) => {
+  const app = new Komapi();
+  app.route(router.routes());
+  const res = await request(app.listen())
+    .search('/');
+  t.is(res.status, 501);
+  t.deepEqual(res.body, {
+    error: {
+      code: '',
+      status: 501,
+      message: 'Not Implemented',
+    },
+  });
 });

@@ -1,5 +1,6 @@
 // Dependencies
 import knex from 'knex';
+import { Model } from 'objection'; // eslint-disable-line
 
 // Init
 let counter = 0;
@@ -21,43 +22,21 @@ export default function ormFactory(app, opts = {}) {
   counter += 1;
   const db = opts.db || `test${counter}`;
   delete require.cache[require.resolve('objection')];
-  app.objection(knexInstance);
   return Promise.all([
-    app.orm.$Model.knex().schema.createTable(db, (table) => {
+    knexInstance.schema.createTable(db, (table) => {
       table.increments('id').primary();
       table.string('name');
       table.integer('num');
-
-      table.dateTime('deleted_at');
-      table.dateTime('deletedAt');
-
-      table.timestamps();
-      table.dateTime('createdAt');
-      table.dateTime('updatedAt');
     }),
-    app.orm.$Model.knex().schema.createTable(`related-${db}`, (table) => {
+    knexInstance.schema.createTable(`related-${db}`, (table) => {
       table.increments('id').primary();
       table.integer('test_id');
       table.string('desc');
-
-      table.dateTime('deleted_at');
-      table.dateTime('deletedAt');
-
-      table.timestamps();
-      table.dateTime('createdAt');
-      table.dateTime('updatedAt');
     }),
-    app.orm.$Model.knex().schema.createTable(`related2-${db}`, (table) => {
+    knexInstance.schema.createTable(`related2-${db}`, (table) => {
       table.increments('id').primary();
       table.integer('test_id');
       table.string('desc');
-
-      table.dateTime('deleted_at');
-      table.dateTime('deletedAt');
-
-      table.timestamps();
-      table.dateTime('createdAt');
-      table.dateTime('updatedAt');
     }),
   ]).then(() => {
     if (opts.seed) {
@@ -88,23 +67,15 @@ export default function ormFactory(app, opts = {}) {
         });
       }
       return Promise.all([
-        app.orm.$Model.knex().batchInsert(db, rows),
-        app.orm.$Model.knex().batchInsert(`related-${db}`, relRows),
-        app.orm.$Model.knex().batchInsert(`related2-${db}`, relRows2),
+        knexInstance.batchInsert(db, rows),
+        knexInstance.batchInsert(`related-${db}`, relRows),
+        knexInstance.batchInsert(`related2-${db}`, relRows2),
       ]);
     }
     return null;
   }).then(() => {
-    app.orm.Test = class Test extends app.orm.$Model { // eslint-disable-line no-param-reassign
-      static get timestamps() {
-        return (opts.timestamps === true);
-      }
-      static get camelCase() {
-        return (opts.camelCase === true);
-      }
-      static get softDelete() {
-        return (opts.softDelete === true);
-      }
+    const unboundModels = {};
+    unboundModels.Test = class Test extends Model { // eslint-disable-line no-param-reassign
       static get jsonSchema() {
         let schema = null;
         if (opts.schema === 1) {
@@ -119,19 +90,19 @@ export default function ormFactory(app, opts = {}) {
         } else if (opts.schema && typeof opts.schema === 'object') schema = opts.schema;
         return schema;
       }
-      static get relationMappings() {
+      static relationMappings() {
         return {
           reltests: {
-            relation: app.orm.$Model.HasManyRelation,
-            modelClass: app.orm.RelTest,
+            relation: Model.HasManyRelation,
+            modelClass: unboundModels.RelTest,
             join: {
               from: `${db}.id`,
               to: `related-${db}.test_id`,
             },
           },
           reltests2: {
-            relation: app.orm.$Model.HasManyRelation,
-            modelClass: app.orm.RelTest2,
+            relation: Model.HasManyRelation,
+            modelClass: unboundModels.RelTest2,
             join: {
               from: `${db}.id`,
               to: `related2-${db}.test_id`,
@@ -143,16 +114,7 @@ export default function ormFactory(app, opts = {}) {
         return db;
       }
     };
-    app.orm.RelTest = class RelTest extends app.orm.$Model { // eslint-disable-line no-param-reassign
-      static get timestamps() {
-        return (opts.timestamps === true);
-      }
-      static get camelCase() {
-        return (opts.camelCase === true);
-      }
-      static get softDelete() {
-        return (opts.softDelete === true);
-      }
+    unboundModels.RelTest = class RelTest extends Model { // eslint-disable-line no-param-reassign
       static get jsonSchema() {
         let schema = null;
         if (opts.schema === 1) {
@@ -167,11 +129,11 @@ export default function ormFactory(app, opts = {}) {
         } else if (opts.schema && typeof opts.schema === 'object') schema = opts.schema;
         return schema;
       }
-      static get relationMappings() {
+      static relationMappings() {
         return {
           test: {
-            relation: app.orm.$Model.BelongsToOneRelation,
-            modelClass: app.orm.Test,
+            relation: Model.BelongsToOneRelation,
+            modelClass: unboundModels.Test,
             join: {
               from: `related-${db}.test_id`,
               to: `${db}.id`,
@@ -183,16 +145,7 @@ export default function ormFactory(app, opts = {}) {
         return `related-${db}`;
       }
     };
-    app.orm.RelTest2 = class RelTest2 extends app.orm.$Model { // eslint-disable-line no-param-reassign
-      static get timestamps() {
-        return (opts.timestamps === true);
-      }
-      static get camelCase() {
-        return (opts.camelCase === true);
-      }
-      static get softDelete() {
-        return (opts.softDelete === true);
-      }
+    unboundModels.RelTest2 = class RelTest2 extends Model { // eslint-disable-line no-param-reassign
       static get jsonSchema() {
         let schema = null;
         if (opts.schema === 1) {
@@ -207,11 +160,11 @@ export default function ormFactory(app, opts = {}) {
         } else if (opts.schema && typeof opts.schema === 'object') schema = opts.schema;
         return schema;
       }
-      static get relationMappings() {
+      static relationMappings() {
         return {
           test: {
-            relation: app.orm.$Model.BelongsToOneRelation,
-            modelClass: app.orm.Test,
+            relation: Model.BelongsToOneRelation,
+            modelClass: unboundModels.Test,
             join: {
               from: `related2-${db}.test_id`,
               to: `${db}.id`,
@@ -223,5 +176,8 @@ export default function ormFactory(app, opts = {}) {
         return `related2-${db}`;
       }
     };
+    app.orm.Test = unboundModels.Test.bindKnex(knexInstance); // eslint-disable-line
+    app.orm.RelTest = unboundModels.RelTest.bindKnex(knexInstance); // eslint-disable-line
+    app.orm.RelTest2 = unboundModels.RelTest2.bindKnex(knexInstance); // eslint-disable-line
   });
 }

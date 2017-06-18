@@ -2,8 +2,9 @@
 import test from 'ava';
 import { agent as request } from 'supertest';
 import bodyParser from 'koa-bodyparser';
-import path from 'path';
 import Komapi from '../../../../src/index';
+import Rest from '../../../fixtures/services/rest';
+import Blog from '../../../fixtures/services/blog';
 
 // Tests
 test('provides routes for all common rest operations', async (t) => {
@@ -17,8 +18,8 @@ test('provides routes for all common rest operations', async (t) => {
   const patchBody = {
     key2: 'value2',
   };
-  app.services(path.join(__dirname, '../../../fixtures/services/rest.js'));
-  app.use(app.mw.route(app.service.Rest.$getRoutes.bind(app.service.Rest)));
+  app.services({ Rest });
+  app.route(app.service.Rest.$getRoutes().routes());
   const r = request(app.listen());
   const res = {
     find: await r.get('/').then(b => b.body),
@@ -78,15 +79,15 @@ test('provides routes for all common rest operations', async (t) => {
 });
 test('responds 404 by default for an empty response on GET operation', async (t) => {
   const app = new Komapi();
-  app.services(path.join(__dirname, '../../../fixtures/services/rest.js'));
-  app.use(app.mw.route(app.service.Rest.$getRoutes.bind(app.service.Rest)));
+  app.services({ Rest });
+  app.route(app.service.Rest.$getRoutes().routes());
   const res = await request(app.listen()).get('/2');
   t.is(res.status, 404);
 });
 test('options route is disabled if no other routes can be found', async (t) => {
   const app = new Komapi();
-  app.services(path.join(__dirname, '../../../fixtures/services/blog.js'));
-  app.use(app.mw.route(app.service.Blog.$getRoutes.bind(app.service.Blog)));
+  app.services({ Blog });
+  app.route(app.service.Blog.$getRoutes().routes());
   const res = await request(app.listen()).options('/');
   t.is(res.status, 404);
   t.is(res.headers.allow, undefined);
