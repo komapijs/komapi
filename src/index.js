@@ -282,6 +282,8 @@ export default class Komapi extends Koa {
     const ctx = super.createContext(req, res);
     ctx.send = ctx.send.bind(ctx);
     ctx.sendIf = ctx.sendIf.bind(ctx);
+    ctx.apiResponse = ctx.apiResponse.bind(ctx);
+    ctx.apiResponseIf = ctx.apiResponseIf.bind(ctx);
     ctx.request.startAt = Date.now();
     ctx.request.reqId = (this.config.proxy && ctx.request.headers['x-request-id'])
       ? ctx.request.headers['x-request-id']
