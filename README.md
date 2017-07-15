@@ -101,7 +101,10 @@ Komapi supports all routers compatible with Koa and allows the developer to make
 It is often advisable to separate routes in modules and exporting a router for related routes. This can be easily be done using [koa-router](https://github.com/alexmingoia/koa-router/tree/master/).
 Komapi has a helper method for registering routes which ensures proper handling of unknown methods when using [koa-router](https://github.com/alexmingoia/koa-router/tree/master/).
 
-Komapi provides two helpful functions when creating routes, namely `ctx.send` and `ctx.sendIf`. These are bound to `ctx` which means that you can add `.then(ctx.send)` to your promise chain to send the result. `ctx.sendIf` sends a 404 if your result is not truthy. This is particularly useful when requesting single resources in a REST API. 
+Komapi provides four helpful functions when creating routes, namely `ctx.send`, `ctx.sendIf`, `ctx.apiResponse` and `ctx.apiResponseIf`. The difference between these is that `ctx.send` and `ctx.sendIf` sends the first parameter as the response body, while `ctx.apiResponse` and `ctx.apiResponseIf` encapsulates the response in `{ metadata: additionalData, data: body }`, where `body` is the first parameter and `additionalData` is the second (optional) parameter.
+The `ctx.apiResponse` and `ctx.apiResponseIf` helpers are especially useful when creating APIs as you can easily add metadata (e.g. pagination) to your responses and enforce a standard response format. It is possible to override these functions with your own implementation if you require a different response structure.
+All of these helpers are bound to `ctx` which means that you can add `.then(ctx.send)` or `.then(ctx.apiResponse)` to your promise chain to send the result. `ctx.sendIf` and `ctx.apiResponseIf` sends a 404 if your result is not truthy. This is particularly useful when requesting single resources in a REST API. 
+
 #### Example Route Module
 `routes.js`
 ```js
@@ -315,8 +318,8 @@ import Router from 'koa-router';
 
 // Init
 const router = new Router();
-router.get('/', ctx => ctx.app.orm.User.query().then(ctx.send));
-router.get('/:id', ctx => ctx.app.orm.User.query().findById(ctx.params.id).then(ctx.sendIf));
+router.get('/', ctx => ctx.app.orm.User.query().then(ctx.apiResponse));
+router.get('/:id', ctx => ctx.app.orm.User.query().findById(ctx.params.id).then(ctx.apiResponseIf));
 
 // Exports
 export default router.routes();

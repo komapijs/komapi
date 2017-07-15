@@ -53,7 +53,7 @@ export default () => async function errorHandler(ctx, next) {
 
     // Emit the error
     ctx.request.err = err; // eslint-disable-line no-param-reassign
-    ctx.send(body, status, headers);
+    ctx.send(body, { status, headers });
     if (ctx.status >= 500) ctx.app.emit('error', err, ctx);
   }
 };

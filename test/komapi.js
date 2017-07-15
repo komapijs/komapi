@@ -332,22 +332,50 @@ test('does not provide a default route', async (t) => {
     .get('/');
   t.is(res.status, 404);
 });
+test('provides a helper method (ctx.send) to send the response', async (t) => {
+  const app = new Komapi({ loggers: [] });
+  const reply = { status: 'ok' };
+  app.use(ctx => ctx.send(reply));
+  const res = await request(app.listen())
+    .get('/');
+  t.deepEqual(JSON.stringify(res.body), JSON.stringify(reply));
+  t.is(res.status, 200);
+});
+test('provides a helper method (ctx.send) to send the response, statusCode and headers', async (t) => {
+  const app = new Komapi({ loggers: [] });
+  const reply = null;
+  app.use(ctx => ctx.send(reply, { status: 201, headers: { 'X-TMP': 'TEST' } }));
+  const res = await request(app.listen())
+    .get('/');
+  t.deepEqual(JSON.stringify(res.body), JSON.stringify({}));
+  t.is(res.headers['x-tmp'], 'TEST');
+  t.is(res.status, 201);
+});
+test('provides a helper method (ctx.send) to send the response even if it was not found', async (t) => {
+  const app = new Komapi({ loggers: [] });
+  const reply = null;
+  app.use(ctx => ctx.send(reply));
+  const res = await request(app.listen())
+    .get('/');
+  t.deepEqual(res.body, {});
+  t.is(res.status, 204);
+});
 test('provides a helper method (ctx.sendIf) to send the response if found', async (t) => {
   const app = new Komapi({ loggers: [] });
   const reply = { status: 'ok' };
   app.use(ctx => ctx.sendIf(reply));
   const res = await request(app.listen())
     .get('/');
-  t.deepEqual(JSON.stringify(res.body), JSON.stringify(reply));
+  t.deepEqual(res.body, reply);
   t.is(res.status, 200);
 });
 test('provides a helper method (ctx.sendIf) to send the response, statusCode and headers, if found', async (t) => {
   const app = new Komapi({ loggers: [] });
   const reply = { status: 'ok' };
-  app.use(ctx => ctx.sendIf(reply, 201, { 'X-TMP': 'TEST' }));
+  app.use(ctx => ctx.sendIf(reply, { status: 201, headers: { 'X-TMP': 'TEST' } }));
   const res = await request(app.listen())
     .get('/');
-  t.deepEqual(JSON.stringify(res.body), JSON.stringify(reply));
+  t.deepEqual(res.body, reply);
   t.is(res.headers['x-tmp'], 'TEST');
   t.is(res.status, 201);
 });
@@ -362,38 +390,108 @@ test('provides a helper method (ctx.sendIf) to send 404 if the response was not 
 test('provides a helper method (ctx.sendIf) to send 404 based on custom evaluation expression', async (t) => {
   const app = new Komapi({ loggers: [] });
   const reply = { data: null };
-  app.use(ctx => ctx.sendIf(reply, undefined, undefined, reply.data !== null));
+  app.use(ctx => ctx.sendIf(reply, { override: reply.data !== null }));
   const res = await request(app.listen())
     .get('/');
   t.is(res.status, 404);
 });
-test('provides a helper method (ctx.send) to send the response', async (t) => {
+test('provides a helper method (ctx.sendIf) to send 404 based on custom evaluator function', async (t) => {
   const app = new Komapi({ loggers: [] });
-  const reply = { status: 'ok' };
-  app.use(ctx => ctx.send(reply));
+  const reply = { data: null };
+  app.use(ctx => ctx.sendIf(reply, { override: (body, opts) => !(body.data === null && opts.ctx !== undefined) }));
   const res = await request(app.listen())
     .get('/');
-  t.deepEqual(JSON.stringify(res.body), JSON.stringify(reply));
+  t.is(res.status, 404);
+});
+test('provides a helper method (ctx.sendIf) to send 200 based on custom evaluator function', async (t) => {
+  const app = new Komapi({ loggers: [] });
+  const reply = { data: true };
+  app.use(ctx => ctx.sendIf(reply, { override: (body, opts) => !(body.data === null && opts.ctx !== undefined) }));
+  const res = await request(app.listen())
+    .get('/');
+  t.deepEqual(res.body, reply);
   t.is(res.status, 200);
 });
-test('provides a helper method (ctx.send) to send the response, statusCode and headers', async (t) => {
+test('provides a helper method (ctx.apiResponse) to send api conforming response', async (t) => {
   const app = new Komapi({ loggers: [] });
-  const reply = null;
-  app.use(ctx => ctx.send(reply, 201, { 'X-TMP': 'TEST' }));
+  const reply = { status: 'ok' };
+  app.use(ctx => ctx.apiResponse(reply));
   const res = await request(app.listen())
     .get('/');
-  t.deepEqual(JSON.stringify(res.body), JSON.stringify({}));
+  t.deepEqual(res.body, { data: reply });
+  t.is(res.status, 200);
+});
+test('provides a helper method (ctx.apiResponse) to send api conforming response, statusCode and headers', async (t) => {
+  const app = new Komapi({ loggers: [] });
+  const reply = null;
+  const metadata = { count: 20, totalResult: 200 };
+  app.use(ctx => ctx.apiResponse(reply, metadata, { status: 201, headers: { 'X-TMP': 'TEST' } }));
+  const res = await request(app.listen())
+    .get('/');
+  t.deepEqual(res.body, { data: reply, metadata });
   t.is(res.headers['x-tmp'], 'TEST');
   t.is(res.status, 201);
 });
-test('provides a helper method (ctx.send) to send the response even if it was not found', async (t) => {
+test('provides a helper method (ctx.apiResponse) to send api conforming response even if it was not found', async (t) => {
   const app = new Komapi({ loggers: [] });
   const reply = null;
-  app.use(ctx => ctx.send(reply));
+  app.use(ctx => ctx.apiResponse(reply));
   const res = await request(app.listen())
     .get('/');
-  t.deepEqual(JSON.stringify(res.body), JSON.stringify({}));
-  t.is(res.status, 204);
+  t.deepEqual(res.body, { data: reply });
+  t.is(res.status, 200);
+});
+test('provides a helper method (ctx.apiResponseIf) to send 200 if the response was found', async (t) => {
+  const app = new Komapi({ loggers: [] });
+  const reply = { status: 'ok' };
+  app.use(ctx => ctx.apiResponseIf(reply));
+  const res = await request(app.listen())
+    .get('/');
+  t.deepEqual(res.body, { data: reply });
+  t.is(res.status, 200);
+});
+test('provides a helper method (ctx.apiResponseIf) to send the response, statusCode and headers, if found', async (t) => {
+  const app = new Komapi({ loggers: [] });
+  const reply = { status: 'ok' };
+  app.use(ctx => ctx.apiResponseIf(reply, undefined, { status: 201, headers: { 'X-TMP': 'TEST' } }));
+  const res = await request(app.listen())
+    .get('/');
+  t.deepEqual(res.body, { data: reply });
+  t.is(res.headers['x-tmp'], 'TEST');
+  t.is(res.status, 201);
+});
+test('provides a helper method (ctx.apiResponseIf) to send 404 if the response was not found', async (t) => {
+  const app = new Komapi({ loggers: [] });
+  const reply = null;
+  app.use(ctx => ctx.apiResponseIf(reply));
+  const res = await request(app.listen())
+    .get('/');
+  t.is(res.status, 404);
+});
+test('provides a helper method (ctx.apiResponseIf) to send 404 based on custom evaluation expression', async (t) => {
+  const app = new Komapi({ loggers: [] });
+  const reply = { data: null };
+  app.use(ctx => ctx.apiResponseIf(reply, { count: 20, totalResult: 200 }, { override: reply.data !== null }));
+  const res = await request(app.listen())
+    .get('/');
+  t.is(res.status, 404);
+});
+test('provides a helper method (ctx.apiResponseIf) to send 404 based on custom evaluator function', async (t) => {
+  const app = new Komapi({ loggers: [] });
+  const reply = { data: null };
+  app.use(ctx => ctx.apiResponseIf(reply, undefined, { override: (body, metadata, opts) => !(body.data === null && opts.ctx !== undefined) }));
+  const res = await request(app.listen())
+    .get('/');
+  t.is(res.status, 404);
+});
+test('provides a helper method (ctx.apiResponseIf) to send 200 based on custom evaluator function', async (t) => {
+  const app = new Komapi({ loggers: [] });
+  const reply = { data: true };
+  app.use(ctx => ctx.apiResponseIf(reply, undefined, { override: (body, metadata, opts) => !(body.data === null && opts.ctx !== undefined) }));
+  const res = await request(app.listen())
+    .get('/');
+  t.deepEqual(res.body, { data: reply });
+  t.is(res.status, 200);
 });
 test('is mountable with a route prefix', async (t) => {
   const app = new Komapi({ routePrefix: '/test' });
