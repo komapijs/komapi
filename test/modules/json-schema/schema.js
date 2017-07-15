@@ -154,7 +154,7 @@ test('schema accepts ISO8601 date-time format', async (t) => {
   const data = {
     name: 'Jeff Smith',
     counter: 7,
-    at: '2016-09-23',
+    at: '1963-06-19T08:30:06.283185Z',
   };
   const valid = schema.validate(testSchema, data);
   t.is(valid, true);

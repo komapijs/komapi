@@ -1,7 +1,6 @@
 // Dependencies
 import Ajv from 'ajv';
 import { defaultsDeep, map, pick } from 'lodash';
-import moment from 'moment';
 import { badRequest as BadRequest } from 'boom';
 import draft04Schema from 'ajv/lib/refs/json-schema-draft-04.json';
 
@@ -9,7 +8,6 @@ import draft04Schema from 'ajv/lib/refs/json-schema-draft-04.json';
 const defaultOpts = {
   allErrors: true,
   verbose: true,
-  formats: { 'date-time': v => moment(v, moment.ISO_8601, true).isValid() },
   messages: true,
   jsonPointers: true,
   format: 'full',
