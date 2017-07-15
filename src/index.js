@@ -1,13 +1,12 @@
 // Dependencies
 import Koa from 'koa';
 import bunyan from 'bunyan';
-import { notImplemented as NotImplemented, methodNotAllowed as MethodNotAllowed } from 'boom';
+import { notImplemented as NotImplemented, methodNotAllowed as MethodNotAllowed, notFound as NotFound } from 'boom';
 import mount from 'koa-mount';
 import compose from 'koa-compose';
 import uuid from 'uuid';
-import _, { forOwn } from 'lodash';
+import { findIndex, forOwn, mapValues } from 'lodash';
 import Router from 'koa-router';
-import loadServices from './lib/services';
 import validateConfig from './lib/config';
 import Schema from './modules/json-schema/schema';
 import context from './lib/context';
@@ -96,7 +95,9 @@ export default class Komapi extends Koa {
           return ({
             user: req.auth,
             body: (req.ctx.response.status >= 500) ? sanitize(req.body) : undefined,
-            headers: req.header,
+            headers: Object.assign({}, req.header, {
+              authorization: req.header.authorization ? `${req.header.authorization.split(' ')[0]} ****` : undefined,
+            }),
             method: req.method,
             protocol: req.protocol,
             url: req.url,
@@ -190,15 +191,51 @@ export default class Komapi extends Koa {
     });
     return this.use(path, fn);
   }
-  models(models, opts = { errorLogger: (err, obj) => this.log.error({ err, orm: obj, context: 'orm' }, 'ORM Query Error') }) {
-    forOwn(models, (model) => {
-      if (opts.errorLogger && !model.knex().listeners('query-error').includes(opts.errorLogger)) model.knex().on('query-error', opts.errorLogger);
+
+  /**
+   * This function is called when a query error occurs. It is advisable to log the error in this function.
+   * @callback ORMQueryErrorLogger
+   * @param {Error} err - Error object
+   * @param {Object} queryContext - ORM Context
+   */
+  /**
+   * This function is called when a query does not return any rows and was initiated with `.throwIfNotFound()`
+   * @callback ORMCreateNotFoundError
+   * @param {Object} queryContext - ORM Context
+   */
+
+  /**
+   * Load an array of Objection.js models
+   * @param {Object.<string, Model>} models - Objection.js models
+   * @param {Object} opts - Options object
+   * @param {ORMQueryErrorLogger=} opts.errorLogger - Function to handle any query errors - likely logging
+   * @param {ORMCreateNotFoundError=} opts.createNotFoundError - Function to throw not found error when query is run with `.throwIfNotFound()`
+   * @returns {Komapi}
+   */
+  models(models, opts) {
+    const config = Object.assign({
+      errorLogger: (err, queryContext) => this.log.error({ err, orm: queryContext, context: 'orm' }, 'ORM Query Error'),
+      createNotFoundError: queryContext => new NotFound(undefined, { queryContext }),
+    }, opts);
+    forOwn(models, (Model) => {
+      if (config.errorLogger && !Model.knex().listeners('query-error').includes(config.errorLogger)) Model.knex().on('query-error', config.errorLogger);
+      if (config.createNotFoundError) Model.createNotFoundError = config.createNotFoundError; // eslint-disable-line no-param-reassign
     });
     Object.assign(this.orm, models);
     return this;
   }
-  services(services) {
-    Object.assign(this.service, loadServices(services, this));
+
+  /**
+   * Load an array of services that should be instantiated with an app instance
+   * @param {Object.<string, Service>} Services - Classes to be available as instances under app.service (or the optional key)
+   * @param {Object} opts - Options object
+   * @param {string=} opts.key - Which key should we assign the services to? Defaults to "service"
+   * @returns {Komapi}
+   */
+  services(Services, opts) {
+    const config = Object.assign({ key: 'service' }, opts);
+    if (!this[config.key]) this[config.key] = {};
+    Object.assign(this[config.key], mapValues(Services, Service => new Service(this)));
     return this;
   }
 
@@ -231,7 +268,7 @@ export default class Komapi extends Koa {
 
     // Check if we should move it - done this way to leverage default checks on middleware
     if (fn.registerBefore) {
-      const addBeforeIndex = _.findIndex(this.middleware, mw => mw.name === fn.registerBefore);
+      const addBeforeIndex = findIndex(this.middleware, mw => mw.name === fn.registerBefore);
       if (addBeforeIndex > -1) {
         this.middleware.pop();
         this.middleware.splice(addBeforeIndex, 0, fn);

@@ -214,24 +214,24 @@ Komapi provides some built-in middlewares for most use cases. Some of these are 
 Ensures request body (`ctx.request.body`) conforms to the provided JSON Schema. Note that `app.mw.bodyParser()` must be enabled before this to function. Can optionally validate a different key on the `ctx.request`. See [JSON Schema](http://json-schema.org/) for more information on how to create a schema.
 ```js
 const loginSchema = {
-    $schema: 'http://json-schema.org/draft-04/schema#',
-    title: 'Dummy login schema',
-    required: [
-        'username',
-        'password'
-    ],
-    type: 'object',
-    additionalProperties: false,
-    properties: {
-        username: {
-            description: 'Your username',
-            type: 'string'
-        },
-        password: {
-            description: 'Your password',
-            type: 'string'
-        },
-    }
+  $schema: 'http://json-schema.org/draft-04/schema#',
+  title: 'Dummy login schema',
+  required: [
+    'username',
+    'password'
+  ],
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    username: {
+      description: 'Your username',
+      type: 'string'
+    },
+    password: {
+      description: 'Your password',
+      type: 'string'
+    },
+  }
 }
 app.use(app.mw.ensureSchema(loginSchema));
 ```
@@ -257,7 +257,7 @@ Authentication is handled by [komapi-passport](https://github.com/komapijs/komap
 Komapi recommends using [Objection.js](https://github.com/Vincit/objection.js). The ORM related functionality should be used through `app.orm`.
 
 #### Objection.js
-Objection.js is a peer dependency of Komapi and must be installed separately.
+Objection.js is an optional peer dependency of Komapi and must be installed separately.
 
 ```js
 // Dependencies
@@ -279,7 +279,7 @@ class User extends Model {
 }
 app.models({ User });
 
-// The User model is now available through app.orm.user and query-errors are automatically logged
+// The User model is now available through app.orm.User and query-errors are automatically logged
 app.orm.User.query().findById(1).then(user => console.log(user));
 ```
 
@@ -293,8 +293,8 @@ import User from './models/User';
 import Post from './models/Post';
 import Comment from './models/Comment';
 
-const applicationModels = { User, Post, Comment };
-app.models(applicationModels);
+app.models({ User, Post, Comment });
+console.log(app.service);
 ```
 This loads every model into `app.orm[Modelname]`, which is accessible throughout your application.
 
@@ -303,7 +303,7 @@ This loads every model into `app.orm[Modelname]`, which is accessible throughout
 // Export model
 import { Model } from 'objection';
 
-export default class UserModel extends Model {
+export default class User extends Model {
   static tableName = 'users';
 }
 ```
@@ -323,7 +323,29 @@ export default router.routes();
 ```
 
 ### Services
-Komapi provides a framework for creating reusable services with minimal boilerplate. For more information, see test for examples. Note that the API is not final - hence the lack of documentation.
+Komapi provides a simple method of loading reusable services that depends on the application context. Services are simple classes or functions that needs to be instantiated with the application as a parameter.
+
+```js
+import User from './services/User';
+import Post from './services/Post';
+import Comment from './services/Comment';
+
+app.services({ User, Post, Comment });
+console.log(app.service);
+```
+This loads every service into `app.service[Servicename]`, which is accessible throughout your application.
+
+This is an example of a service in Komapi
+```js
+export default class UserService {
+  constructor(app) {
+    this.app = app;
+  }
+  fetchActiveUsers(offset = 0, limit = 10) {
+    return this.app.orm.User.query().where('is_active', true).offset(offset).limit(limit);
+  }
+};
+```
 
 ### Tips
 1. For better performance, add the following line before any import statements in your main application file `global.Promise = require('babel-runtime/core-js/promise').default = require('bluebird');`. This enables usage of Bluebird promises by default and significantly improves performance.

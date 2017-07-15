@@ -64,7 +64,7 @@ test('logs the request body and hides sensitive information on statuscode >= 500
     'credit-card': 'cc',
     creditCard: 'cc',
   };
-  t.plan(5);
+  t.plan(6);
   app.use(app.mw.requestLogger());
   app.log.addStream({
     name: 'DummyLogger',
@@ -75,6 +75,7 @@ test('logs the request body and hides sensitive information on statuscode >= 500
         t.is(obj.level, 30);
         t.is(!!(obj.req_id), true);
         t.is(obj.response.status, 500);
+        t.is(obj.request.headers.authorization, 'JWT ****');
         t.deepEqual(obj.request.body, {
           username: 'test',
           password: '*****',
@@ -90,6 +91,7 @@ test('logs the request body and hides sensitive information on statuscode >= 500
   });
   const res = await request(app.listen())
     .post('/')
+    .set('Authorization', 'JWT asd')
     .send(body);
   t.is(res.status, 500);
 });

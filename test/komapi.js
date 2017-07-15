@@ -5,6 +5,7 @@ import knex from 'knex';
 import path from 'path';
 import os from 'os';
 import uuid from 'uuid';
+import { Model } from 'objection';
 import Komapi from '../src/index';
 import DummyLogger from './fixtures/dummyLogger';
 import User from './fixtures/models/User';
@@ -462,6 +463,68 @@ test('supports mounting middleware at specific routes', async (t) => {
   await request(app.listen())
     .get('/route2');
 });
+test('services are loaded through app.services(), instantiated with the app instance and assigned to app.service', async (t) => {
+  const app = new Komapi();
+  class Service {
+    constructor(localApp) {
+      this.app = localApp;
+    }
+    getName() {
+      return this.constructor.name;
+    }
+  }
+  const services = {
+    User: class UserService extends Service {},
+    Group: class GroupService extends Service {},
+    Chat: class ChatService extends Service {},
+  };
+  app.services(services);
+  t.deepEqual(Object.keys(app.service), ['User', 'Group', 'Chat']);
+  t.is(app.service.User.getName(), 'UserService');
+  t.is(app.service.User.app, app);
+  t.is(app.service.Group.getName(), 'GroupService');
+  t.is(app.service.Group.app, app);
+  t.is(app.service.Chat.getName(), 'ChatService');
+  t.is(app.service.Chat.app, app);
+});
+test('services can be assigned to a custom key', async (t) => {
+  const app = new Komapi();
+  class Service {
+    constructor(localApp) {
+      this.app = localApp;
+    }
+    getName() {
+      return this.constructor.name;
+    }
+  }
+  const services = {
+    User: class UserService extends Service {},
+    Group: class GroupService extends Service {},
+    Chat: class ChatService extends Service {},
+  };
+  app.services(services, { key: 'myCustomKey' });
+  t.deepEqual(Object.keys(app.myCustomKey), ['User', 'Group', 'Chat']);
+  t.deepEqual(app.service, {});
+  t.is(app.myCustomKey.User.getName(), 'UserService');
+  t.is(app.myCustomKey.User.app, app);
+  t.is(app.myCustomKey.Group.getName(), 'GroupService');
+  t.is(app.myCustomKey.Group.app, app);
+  t.is(app.myCustomKey.Chat.getName(), 'ChatService');
+  t.is(app.myCustomKey.Chat.app, app);
+});
+test('models are loaded through app.models() and assigned to app.orm', async (t) => {
+  const app = new Komapi();
+  const models = {
+    User: User.bindKnex(knex(connection)),
+    Role: Role.bindKnex(knex(connection)),
+    Permission: Permission.bindKnex(knex(connection)),
+  };
+  app.models(models);
+  t.is(typeof app.orm, 'object');
+  t.is(app.orm.User, models.User);
+  t.is(app.orm.Role, models.Role);
+  t.is(app.orm.Permission, models.Permission);
+});
 test('orm query errors are logged exactly once by default', async (t) => {
   const app = new Komapi();
   t.plan(6);
@@ -510,18 +573,40 @@ test('orm query error logging can be disabled', async (t) => {
   t.is(app.orm.User.knex().listeners('query-error').length, 0);
   t.is(app.orm.Role.knex().listeners('query-error').length, 0);
 });
-test('models are loaded through app.models() and assigned to app.orm', async (t) => {
+test('orm queries can `throwIfNotFound` by default', async (t) => {
   const app = new Komapi();
-  const models = {
+  t.plan(4);
+  app.models({ User: User.bindKnex(knex(connection)), Role: Role.bindKnex(knex(connection)) });
+  const err = app.orm.User.createNotFoundError({ test: true });
+  t.true(err.isBoom);
+  t.is(err.output.statusCode, 404);
+  t.is(err.message, 'Not Found');
+  t.deepEqual(err.data.queryContext, { test: true });
+});
+test('orm queries can `throwIfNotFound` with custom function', async (t) => {
+  const app = new Komapi();
+  const testError = new Error('Test Error');
+  t.plan(3);
+  app.models({
     User: User.bindKnex(knex(connection)),
     Role: Role.bindKnex(knex(connection)),
-    Permission: Permission.bindKnex(knex(connection)),
-  };
-  app.models(models);
-  t.is(typeof app.orm, 'object');
-  t.is(app.orm.User, models.User);
-  t.is(app.orm.Role, models.Role);
-  t.is(app.orm.Permission, models.Permission);
+  }, { createNotFoundError: (args) => {
+    t.deepEqual(args, { test: true });
+    return testError;
+  } });
+  const err = app.orm.User.createNotFoundError({ test: true });
+  t.is(err.isBoom, undefined);
+  t.deepEqual(err, testError);
+});
+test('orm queries can `throwIfNotFound` can revert to Objection.js default', async (t) => {
+  const app = new Komapi();
+  t.plan(1);
+  app.models({
+    User: User.bindKnex(knex(connection)),
+    Role: Role.bindKnex(knex(connection)),
+  }, { createNotFoundError: false });
+  const err = app.orm.User.createNotFoundError({ test: true });
+  t.deepEqual(err, Model.createNotFoundError());
 });
 test('listen supports callbacks', async (t) => {
   const app = new Komapi({ loggers: [] });
