@@ -10,7 +10,8 @@ export default () => async function errorHandler(ctx, next) {
 
     // Normalize error object
     try {
-      error = Boom.wrap(err, err.status || undefined);
+      if (!(err instanceof Error)) throw new Error('Cannot handle non-errors as errors!');
+      error = err.isBoom ? err : Boom.create(err.status || err.statusCode || undefined, err, err.data);
     } catch (subError) {
       error = Boom.wrap(subError);
     }
@@ -20,9 +21,12 @@ export default () => async function errorHandler(ctx, next) {
     let headers = {};
     let body = Boom.notAcceptable().toString();
 
-    // Check for dev and include stacktrace
-    if (error.output.statusCode >= 500 && ctx.app.env === 'development') {
-      error.output.payload.stack = (error.stack && error.stack.split) ? error.stack.split('\n') : error.stack;
+    // Check for dev and include dev stuff
+    if (ctx.app.env === 'development') {
+      error.output.payload.data = error.data || undefined;
+      if (error.output.statusCode >= 500) {
+        error.output.payload.stack = (error.stack && error.stack.split) ? error.stack.split('\n') : error.stack;
+      }
     }
 
     // Convert boom response to proper format
@@ -32,6 +36,7 @@ export default () => async function errorHandler(ctx, next) {
         status: error.output.payload.statusCode,
         message: error.output.payload.message,
         errors: error.output.payload.errors,
+        data: error.output.payload.data,
         stack: error.output.payload.stack,
       },
     };

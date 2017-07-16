@@ -186,7 +186,7 @@ test('handles invalid error objects gracefully', async (t) => {
     .get('/');
   t.is(res.status, 500);
   t.is(res.body.error.message, 'An internal server error occurred');
-  t.is(res.body.error.stack[0], 'Error: Cannot wrap non-Error object');
+  t.is(res.body.error.stack[0], 'Error: Cannot handle non-errors as errors!');
 });
 test('allows error status codes', async (t) => {
   const app = new Komapi({ env: 'production' });
@@ -200,4 +200,55 @@ test('allows error status codes', async (t) => {
     .set('Accept', '*/*');
   t.is(res.status, 400);
   t.deepEqual(res.text, customResponse);
+});
+test('allows custom error status codes on error.status', async (t) => {
+  const app = new Komapi({ env: 'production' });
+  app.use(() => {
+    const err = new Error('Custom Error Message');
+    err.status = 400;
+    throw err;
+  });
+  const res = await request(app.listen())
+    .get('/')
+    .set('Accept', '*/*');
+  t.is(res.status, 400);
+  t.deepEqual(res.body, { error: { code: '', status: 400, message: 'Custom Error Message' } });
+});
+test('allows custom error status codes on error.statusCode', async (t) => {
+  const app = new Komapi({ env: 'production' });
+  app.use(() => {
+    const err = new Error();
+    err.statusCode = 400;
+    throw err;
+  });
+  const res = await request(app.listen())
+    .get('/')
+    .set('Accept', '*/*');
+  t.is(res.status, 400);
+  t.deepEqual(res.body, { error: { code: '', status: 400, message: 'Bad Request' } });
+});
+test('allows custom errors with data in development', async (t) => {
+  const app = new Komapi({ env: 'development' });
+  const data = {
+    key1: [{
+      message: '...',
+      keyword: 'required',
+      params: null,
+    }, {
+      message: '...',
+      keyword: '...',
+      params: null,
+    }],
+  };
+  app.use(() => {
+    const err = new Error();
+    err.statusCode = 400;
+    err.data = data;
+    throw err;
+  });
+  const res = await request(app.listen())
+    .get('/')
+    .set('Accept', '*/*');
+  t.is(res.status, 400);
+  t.deepEqual(res.body, { error: { code: '', status: 400, message: 'Bad Request', data } });
 });
