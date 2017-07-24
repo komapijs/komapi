@@ -6,6 +6,7 @@ import path from 'path';
 import os from 'os';
 import uuid from 'uuid';
 import { Model } from 'objection';
+import cluster from 'cluster';
 import Komapi from '../src/index';
 import DummyLogger from './fixtures/dummyLogger';
 import User from './fixtures/models/User';
@@ -97,7 +98,7 @@ test('supports loggers without name', async (t) => {
   });
 });
 test('can listen to a pipe and logs it', async (t) => {
-  t.plan(4);
+  t.plan(5);
   // Listen to a named pipe on windows
   const socket = process.platform === 'win32'
     ? path.join('\\\\?\\pipe', process.cwd(), `komapiTestPipe.${uuid.v4()}`)
@@ -112,10 +113,31 @@ test('can listen to a pipe and logs it', async (t) => {
         t.is(obj.port, null);
         t.is(obj.address, socket);
         t.is(obj.level, 30);
+        t.is(obj.isCluster, false);
       }),
     }],
   });
   await request(app.listen(socket));
+});
+test('can listen as a cluster worker', async (t) => {
+  t.plan(3);
+  // Override cluster module
+  const originalWorkerStatus = cluster.isWorker;
+  cluster.isWorker = true;
+  const app = new Komapi({
+    loggers: [{
+      name: 'DummyLogger',
+      level: 'info',
+      type: 'raw',
+      stream: new DummyLogger((obj) => {
+        t.is(obj.bindType, 'fork');
+        t.is(obj.level, 30);
+        t.is(obj.isCluster, true);
+      }),
+    }],
+  });
+  await request(app.listen());
+  cluster.isWorker = originalWorkerStatus;
 });
 test('maps Komapi config to Koa config properties', async (t) => {
   const initialConfig = {

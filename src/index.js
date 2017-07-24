@@ -7,6 +7,7 @@ import compose from 'koa-compose';
 import uuid from 'uuid';
 import { findIndex, forOwn, mapValues } from 'lodash';
 import Router from 'koa-router';
+import cluster from 'cluster';
 import validateConfig from './lib/config';
 import Schema from './modules/json-schema/schema';
 import context from './lib/context';
@@ -326,16 +327,18 @@ export default class Komapi extends Koa {
     const server = super.listen(...args);
     const address = server.address();
     const bindType = typeof address === 'string' ? 'pipe' : 'port';
-    const bind = bindType === 'pipe' ? address : address.port;
+    const bind = bindType === 'port' ? address.port : address;
+    const isCluster = cluster.isWorker;
 
     // Log
     this.log.info({
       context: 'application',
       env: this.env,
+      isCluster,
       address,
-      bindType: bindType === 'port' ? 'port' : 'pipe',
+      bindType: !isCluster ? bindType : 'fork',
       port: bindType === 'port' ? bind : null,
-    }, `${this.name} started in ${this.env} mode and listening on ${bindType} ${bind}`);
+    }, `${this.name} started ${isCluster ? 'as fork in' : 'in'} ${this.env} mode${!isCluster ? `and listening on ${bindType} ${bind}` : ''}`);
 
     // Return server
     return server;
