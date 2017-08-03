@@ -69,7 +69,7 @@ export default class Komapi extends Koa {
       delete this[key];
       Object.defineProperty(this, key, {
         get: () => this.config[key],
-        set: v => (this.config[key] = v),
+        set: (v) => { this.config[key] = v; },
       });
     });
 

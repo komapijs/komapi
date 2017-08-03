@@ -1,6 +1,6 @@
 # KomAPI
 
-Komapi is an opinionated Node.js framework built on top of Koa v2.2 and requires Node.js v7.8.0 or higher.
+Komapi is an opinionated Node.js framework built on top of Koa v2.3 and requires Node.js v8.0.0 or higher.
  
 Disclaimer: There will be breaking changes and outdated documentation during the pre-v1.0.0 cycles.
 
