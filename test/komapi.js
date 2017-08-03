@@ -139,6 +139,27 @@ test('can listen as a cluster worker', async (t) => {
   await request(app.listen());
   cluster.isWorker = originalWorkerStatus;
 });
+test('throws descriptive error if port is in use', async (t) => {
+  t.plan(5);
+  // Listen to a named pipe on windows
+  const app = new Komapi({
+    loggers: [{
+      name: 'DummyLogger',
+      level: 'error',
+      type: 'raw',
+      stream: new DummyLogger((obj) => {
+        t.is(obj.context, 'application');
+        t.is(obj.address, null);
+        t.is(obj.env, 'production');
+        t.is(obj.msg, 'Komapi application failed to bind listener as fork in production mode');
+      }),
+    }],
+  });
+  const server = app.listen();
+  app.listen(server.address().port).on('error', (err) => {
+    t.is(err.code, 'EADDRINUSE');
+  });
+});
 test('maps Komapi config to Koa config properties', async (t) => {
   const initialConfig = {
     env: 'production',

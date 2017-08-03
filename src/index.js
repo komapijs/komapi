@@ -325,10 +325,24 @@ export default class Komapi extends Koa {
 
     // Start Koa
     const server = super.listen(...args);
+    const isCluster = cluster.isWorker;
     const address = server.address();
+
+    // Ignored as this is difficult to replicate through ava
+    /* istanbul ignore if */
+    if (!address) {
+      this.log.error({
+        context: 'application',
+        env: this.env,
+        isCluster,
+        address,
+      }, `${this.name} failed to bind listener ${isCluster ? 'as fork in' : 'in'} ${this.env} mode`);
+      return server;
+    }
+
+    // Acquire listening details
     const bindType = typeof address === 'string' ? 'pipe' : 'port';
     const bind = bindType === 'port' ? address.port : address;
-    const isCluster = cluster.isWorker;
 
     // Log
     this.log.info({
@@ -338,7 +352,8 @@ export default class Komapi extends Koa {
       address,
       bindType: !isCluster ? bindType : 'fork',
       port: bindType === 'port' ? bind : null,
-    }, `${this.name} started ${isCluster ? 'as fork in' : 'in'} ${this.env} mode${!isCluster ? `and listening on ${bindType} ${bind}` : ''}`);
+      family: address.family,
+    }, `${this.name} started ${isCluster ? 'as fork in' : 'in'} ${this.env} mode ${!isCluster ? `and listening on ${bindType} ${bind}` : ''}`);
 
     // Return server
     return server;
@@ -347,7 +362,7 @@ export default class Komapi extends Koa {
   /**
    * Perform various health checks
    */
-  async healthCheck() {
+  healthCheck() {
     // Check unsupported amount of middlewares
     if (this.middleware.length > 4000) {
       this.log.warn({
