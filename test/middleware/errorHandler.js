@@ -80,7 +80,7 @@ test('provides stacktraces in development', async (t) => {
   let stack;
   app.use(() => {
     const err = new Error('Dummy error');
-    stack = err.stack;
+    stack = err.stack; // eslint-disable-line prefer-destructuring
     throw err;
   });
   const res = await request(app.listen())
@@ -96,7 +96,7 @@ test('handles stacktraces in array format', async (t) => {
   let stack;
   app.use(() => {
     const err = new Error('Dummy error');
-    stack = err.stack;
+    stack = err.stack; // eslint-disable-line prefer-destructuring
     err.stack = err.stack.split('\n');
     throw err;
   });
@@ -250,5 +250,12 @@ test('allows custom errors with data in development', async (t) => {
     .get('/')
     .set('Accept', '*/*');
   t.is(res.status, 400);
-  t.deepEqual(res.body, { error: { code: '', status: 400, message: 'Bad Request', data } });
+  t.deepEqual(res.body, {
+    error: {
+      code: '',
+      status: 400,
+      message: 'Bad Request',
+      data,
+    },
+  });
 });

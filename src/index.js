@@ -253,7 +253,7 @@ export default class Komapi extends Koa {
       });
     } else fn = fn.pop();
     if (mountAtPath !== '/') {
-      const name = fn.name;
+      const { name } = fn;
       fn = mount(mountAtPath, fn);
       Object.defineProperty(fn, 'name', {
         value: name,

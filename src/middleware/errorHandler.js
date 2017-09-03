@@ -48,11 +48,11 @@ export default () => async function errorHandler(ctx, next) {
     ]);
     if (format === 'json') {
       status = error.output.statusCode;
-      headers = error.output.headers;
+      headers = error.output.headers; // eslint-disable-line prefer-destructuring
       body = error.output.payload;
     } else if (format === 'text') {
       status = error.output.statusCode;
-      headers = error.output.headers;
+      headers = error.output.headers; // eslint-disable-line prefer-destructuring
       body = JSON.stringify(error.output.payload, null, 2);
     }
 

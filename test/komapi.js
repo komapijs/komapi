@@ -731,10 +731,12 @@ test('orm queries can `throwIfNotFound` with custom function', async (t) => {
   app.models({
     User: User.bindKnex(knex(connection)),
     Role: Role.bindKnex(knex(connection)),
-  }, { createNotFoundError: (args) => {
-    t.deepEqual(args, { test: true });
-    return testError;
-  } });
+  }, {
+    createNotFoundError: (args) => {
+      t.deepEqual(args, { test: true });
+      return testError;
+    },
+  });
   const err = app.orm.User.createNotFoundError({ test: true });
   t.is(err.isBoom, undefined);
   t.deepEqual(err, testError);
