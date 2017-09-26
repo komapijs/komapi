@@ -45,7 +45,7 @@
   "dependencies": {
     "ajv": "^5.2.2",
     "babel-runtime": "^6.26.0",
-    "boom": "^5.2.0",
+    "boom": "^6.0.0",
     "bunyan": "^1.8.12",
     "joi": "^10.6.0",
     "koa": "^2.3.0",
