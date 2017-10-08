@@ -208,12 +208,12 @@ export default class Komapi extends Koa {
   /**
    * Load an array of Objection.js models
    * @param {Object.<string, Model>} models - Objection.js models
-   * @param {Object} opts - Options object
+   * @param {Object=} opts - Options object
    * @param {ORMQueryErrorLogger=} opts.errorLogger - Function to handle any query errors - likely logging
    * @param {ORMCreateNotFoundError=} opts.createNotFoundError - Function to throw not found error when query is run with `.throwIfNotFound()`
    * @returns {Komapi}
    */
-  models(models, opts) {
+  models(models, opts = {}) {
     const config = Object.assign({
       errorLogger: (err, queryContext) => this.log.error({ err, orm: queryContext, context: 'orm' }, 'ORM Query Error'),
       createNotFoundError: queryContext => new NotFound(undefined, { queryContext }),
@@ -229,11 +229,11 @@ export default class Komapi extends Koa {
   /**
    * Load an array of services that should be instantiated with an app instance
    * @param {Object.<string, Service>} Services - Classes to be available as instances under app.service (or the optional key)
-   * @param {Object} opts - Options object
+   * @param {Object=} opts - Options object
    * @param {string=} opts.key - Which key should we assign the services to? Defaults to "service"
    * @returns {Komapi}
    */
-  services(Services, opts) {
+  services(Services, opts = {}) {
     const config = Object.assign({ key: 'service' }, opts);
     if (!this[config.key]) this[config.key] = {};
     Object.assign(this[config.key], mapValues(Services, Service => new Service(this)));
