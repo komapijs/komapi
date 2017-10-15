@@ -761,7 +761,7 @@ test('listen supports callbacks', async (t) => {
 });
 test('adding middlewares with missing dependency results in normal behaviour', async (t) => {
   const app = new Komapi({ loggers: [] });
-  function dummyMiddleware() {}
+  function dummyMiddleware() {} // eslint-disable-line require-jsdoc
   dummyMiddleware.registerBefore = 'non-existant-mw';
   app.use(dummyMiddleware);
   t.deepEqual(app.middleware[app.middleware.length - 1], dummyMiddleware);

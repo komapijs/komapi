@@ -1,12 +1,18 @@
-// Exports
+/**
+ * Mutate the context object with built in Komapi helpers
+ *
+ * @param {Context} context - Context object to mutate
+ * @returns {Context} - Mutated context object
+ */
 export default function mutateContext(context) {
   Object.assign(context, {
     /**
      * Send a response
-     * @param {Object|string|Stream|void=} body
+     *
+     * @param {Object|string|Stream|void=} body - Body to send
      * @param {Object} opts - Options object
-     * @param {integer=} opts.status Response status code
-     * @param {Object|string=} opts.headers Optional headers
+     * @param {integer=} opts.status - Response status code
+     * @param {Object|string=} opts.headers - Optional headers
      * @returns {*}
      */
     send: function send(body, opts) {
@@ -20,6 +26,7 @@ export default function mutateContext(context) {
 
     /**
      * This function is called when determining whether to send a response or trigger 404
+     *
      * @callback SendIfOverrideFn
      * @param {Object|string|void=} body Response body
      * @param {Object} opts - Options object
@@ -30,10 +37,11 @@ export default function mutateContext(context) {
 
     /**
      * Send a response conditionally
-     * @param {Object|string|Stream|void=} body
+     *
+     * @param {Object|string|Stream|void=} body - Body to send
      * @param {Object=} opts - Options object
-     * @param {integer=} opts.status Response status code
-     * @param {Object|string=} opts.headers Optional headers
+     * @param {integer=} opts.status - Response status code
+     * @param {Object|string=} opts.headers - Optional headers
      * @param {bool|SendIfOverrideFn=} opts.override - Optional bool or function to override evaluation
      * @returns {*}
      */
@@ -52,11 +60,12 @@ export default function mutateContext(context) {
 
     /**
      * Send a response that will conform to API standards
-     * @param {Object|string|void=} data Main data for the response
-     * @param {Object=} metadata Additional data (metadata) to send - e.g. pagination information
+     *
+     * @param {Object|string|void=} data - Main data for the response
+     * @param {Object=} metadata - Additional data (metadata) to send - e.g. pagination information
      * @param {Object=} opts - Options object
-     * @param {integer=} opts.status Response status code
-     * @param {Object|string=} opts.headers Optional headers
+     * @param {integer=} opts.status - Response status code
+     * @param {Object|string=} opts.headers - Optional headers
      * @returns {*}
      */
     apiResponse: function apiResponse(data, metadata, opts) {
@@ -78,11 +87,12 @@ export default function mutateContext(context) {
     /**
      * Send a response that will be conforming to your API standards - to override the transformation, provide a transformer function directly, or
      * pass it in as a configuration parameter (`apiResponseTransformer`) when instantiating Komapi
-     * @param {Object|string|void=} data Main data for the response
-     * @param {Object=} metadata Additional data (metadata) to send - e.g. pagination information
+     *
+     * @param {Object|string|void=} data - Main data for the response
+     * @param {Object=} metadata - Additional data (metadata) to send - e.g. pagination information
      * @param {Object=} opts - Options object
-     * @param {integer=} opts.status Response status code
-     * @param {Object|string=} opts.headers Optional headers
+     * @param {integer=} opts.status - Response status code
+     * @param {Object|string=} opts.headers - Optional headers
      * @param {bool|apiResponseIfOverrideFn=} opts.override - Optional bool or function to override evaluation
      * @returns {*}
      */

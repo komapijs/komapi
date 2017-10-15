@@ -17,6 +17,15 @@ const configSchema = Joi => Joi.object({
 
 
 // Exports
+/**
+ * Middleware to ensure a request adheres to a predefined json schema
+ *
+ * @param {Object} jsonSchema - Json schema to enforce
+ * @param {Object=} opts - Schema to use for validation
+ * @param {string<body|params|query>} [opts.key=body] - Which key in the request object should be validated?
+ * @param {function|string} [opts.sendSchema=] - Should we send the schema as response? Either a function returning true or false to evaluate (on ctx) if schema should be sent, or a query name to listen on GET requests
+ * @returns {Object} - Returns the valid configuration with defaults applied if applicable
+ */
 export default function ensureSchema(jsonSchema, opts = {}) {
   const config = validateConfig(opts, configSchema);
   const validate = schema.compile(jsonSchema);

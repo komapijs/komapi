@@ -12,6 +12,7 @@ import validateConfig from './lib/config';
 import Schema from './modules/json-schema/schema';
 import context from './lib/context';
 import request from './lib/request';
+import sanitize from './lib/sanitize';
 
 // Middlewares
 import responseDecorator from './middleware/responseDecorator';
@@ -32,6 +33,14 @@ const configSchema = Joi => Joi.object({
   subdomainOffset: Joi.number().min(0).default(2),
 });
 
+// Define middleware function signature
+/**
+ * @callback KoaCompatibleMiddleware
+ * @param {Context} ctx - Koa context
+ * @param {function=} next - Koa next function
+ * @returns {*}
+ */
+
 /**
  * @extends Koa
  */
@@ -39,8 +48,8 @@ export default class Komapi extends Koa {
   /**
    * Create a Komapi instance
    *
-   * @param {Object=} config
-   * @param {Object=} userConfig this is set directly to app.locals
+   * @param {Object=} config - Komapi configuration parameters
+   * @param {Object=} userConfig - User configuration to be available under app.locals
    */
   constructor(config = {}, userConfig = {}) {
     super();
@@ -80,19 +89,6 @@ export default class Komapi extends Koa {
       serializers: {
         err: bunyan.stdSerializers.err,
         request: function requestSerializer(req) {
-          function sanitize(dirty) {
-            if (!dirty) return dirty;
-            const clean = Object.assign({}, dirty);
-            [
-              'password',
-              'creditCard',
-              'credit-card',
-            ].forEach((k) => {
-              if (clean[k]) clean[k] = '*****';
-            });
-            return clean;
-          }
-
           return ({
             user: req.auth,
             body: (req.ctx.response.status >= 500) ? sanitize(req.body) : undefined,
@@ -195,18 +191,21 @@ export default class Komapi extends Koa {
 
   /**
    * This function is called when a query error occurs. It is advisable to log the error in this function.
+   *
    * @callback ORMQueryErrorLogger
    * @param {Error} err - Error object
    * @param {Object} queryContext - ORM Context
    */
   /**
    * This function is called when a query does not return any rows and was initiated with `.throwIfNotFound()`
+   *
    * @callback ORMCreateNotFoundError
    * @param {Object} queryContext - ORM Context
    */
 
   /**
    * Load an array of Objection.js models
+   *
    * @param {Object.<string, Model>} models - Objection.js models
    * @param {Object=} opts - Options object
    * @param {ORMQueryErrorLogger=} opts.errorLogger - Function to handle any query errors - likely logging
@@ -228,6 +227,7 @@ export default class Komapi extends Koa {
 
   /**
    * Load an array of services that should be instantiated with an app instance
+   *
    * @param {Object.<string, Service>} Services - Classes to be available as instances under app.service (or the optional key)
    * @param {Object=} opts - Options object
    * @param {string=} opts.key - Which key should we assign the services to? Defaults to "service"
@@ -279,6 +279,9 @@ export default class Komapi extends Koa {
     return this;
   }
 
+  /**
+   * @override
+   */
   createContext(req, res) {
     const ctx = super.createContext(req, res);
     ctx.send = ctx.send.bind(ctx);
@@ -304,7 +307,7 @@ export default class Komapi extends Koa {
   /**
    * Simple json representation of the application
    *
-   * @returns {object}
+   * @returns {Object}
    */
   toJSON() {
     return {
@@ -316,8 +319,7 @@ export default class Komapi extends Koa {
   /**
    * Start application using the built-in listen function in Koa
    *
-   * @param {Mixed} ...
-   * @return {Server}
+   * @returns {Server}
    */
   listen(...args) {
     // Perform health check

@@ -1,8 +1,4 @@
 {
-  "env": {
-    "es6": true,
-    "node": true
-  },
   "extends": [
     "eslint:recommended",
     "airbnb-base"
@@ -44,9 +40,38 @@
           "**/test/**"
         ]
       }
-    ]
+    ],
+    "require-jsdoc": "warn",
+    "valid-jsdoc": [
+      "error",
+      {
+        "prefer": {
+          "arg": "param",
+          "argument": "param",
+          "return": "returns",
+          "virtual": "abstract"
+        },
+        "preferType": {
+          "Boolean": "boolean",
+          "Number": "number",
+          "String": "string",
+          "object": "Object",
+          "array": "Array",
+          "date": "Date",
+          "regexp": "RegExp"
+        },
+        "requireParamDescription": true,
+        "requireReturn": false,
+        "requireReturnType": true,
+        "requireReturnDescription": false
+      }
+    ],
+    "jsdoc/newline-after-description": 2,
+    "jsdoc/require-hyphen-before-param-description": 2
   },
   "plugins": [
-    "security"
+    "security",
+    "import",
+    "jsdoc"
   ]
 }

@@ -2,6 +2,13 @@
 import validateConfig from '../lib/config';
 
 // Init
+/**
+ * Logger function
+ *
+ * @callback requestLogger
+ * @param {Context} ctx - Komapi context for this request log
+ * @returns {Object}
+ */
 function logger(ctx) {
   return ctx.log.info({
     latency: Math.floor((Date.now() - ctx.request.startAt) / 1000),
@@ -15,9 +22,16 @@ const configSchema = Joi => Joi.object({
 });
 
 // Exports
-export default (opts = {}) => {
+/**
+ * Create request logger middleware
+ *
+ * @param {Object=} opts - Schema to use for validation
+ * @param {requestLogger=} opts.logger - A request logger function
+ * @returns {KoaCompatibleMiddleware} - Returns the request logging middleware
+ */
+export default function createRequestLogger(opts = {}) {
   const config = validateConfig(opts, configSchema);
-  async function requestLogger(ctx, next) {
+  async function requestLogger(ctx, next) { // eslint-disable-line require-jsdoc
     try {
       await next();
     } finally {
@@ -26,4 +40,4 @@ export default (opts = {}) => {
   }
   requestLogger.registerBefore = 'errorHandler';
   return requestLogger;
-};
+}
