@@ -58,7 +58,11 @@
           "object": "Object",
           "array": "Array",
           "date": "Date",
-          "regexp": "RegExp"
+          "regexp": "RegExp",
+          "map": "Map",
+          "set": "Set",
+          "proxy": "Proxy",
+          "symbol": "Symbol"
         },
         "requireParamDescription": true,
         "requireReturn": false,
