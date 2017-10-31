@@ -1,6 +1,6 @@
 // Dependencies
 import test from 'ava';
-import Schema from '../../../src/modules/json-schema/schema';
+import Schema from '../../../src/modules/json-schema/Schema';
 
 // Init
 const test04Schema = {

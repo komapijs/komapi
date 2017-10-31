@@ -114,7 +114,7 @@ test('provides middleware to ensure requests adheres to a json schema', async (t
   await request(app.listen())
     .get('/');
 });
-test('allows valid requests', async (t) => {
+test('allows valid requests using ctx.request.body as default', async (t) => {
   const app = new Komapi({ env: 'production' });
   app.use(async (ctx, next) => {
     // eslint-disable-next-line no-param-reassign
@@ -135,10 +135,58 @@ test('allows valid requests', async (t) => {
     .get('/');
   t.is(res.status, 204);
 });
-test('throws on invalid key', async (t) => {
+test('supports using string to determine the key to check', async (t) => {
+  const app = new Komapi({ env: 'production' });
+  app.use(async (ctx, next) => {
+    // eslint-disable-next-line no-param-reassign
+    ctx.request.query = {
+      stringvalue: 'asd',
+      enumvalue: 'development',
+    };
+    try {
+      return await next();
+    } catch (err) {
+      t.fail();
+      throw err;
+    }
+  });
+  app.use(app.mw.ensureSchema(schema, { key: 'query' }));
+  app.use(ctx => ctx.send(null));
+  const res = await request(app.listen())
+    .get('/');
+  t.is(res.status, 204);
+});
+test('supports using function to retrieve the data to validate', async (t) => {
+  const app = new Komapi({ env: 'production' });
+  app.use(async (ctx, next) => {
+    // eslint-disable-next-line no-param-reassign
+    ctx.request.body = {
+      stringvalue: 'asd',
+      enumvalue: 'development',
+    };
+    try {
+      return await next();
+    } catch (err) {
+      t.fail();
+      throw err;
+    }
+  });
+  app.use(app.mw.ensureSchema(schema, { key: ctx => ctx.request.body }));
+  app.use(ctx => ctx.send(null));
+  const res = await request(app.listen())
+    .get('/');
+  t.is(res.status, 204);
+});
+test('throws on invalid string key', async (t) => {
   const app = new Komapi({ env: 'production' });
   t.throws(() => {
     app.use(app.mw.ensureSchema(schema, { key: 'invalid' }));
+  }, /Invalid config provided/);
+});
+test('throws on invalid key', async (t) => {
+  const app = new Komapi({ env: 'production' });
+  t.throws(() => {
+    app.use(app.mw.ensureSchema(schema, { key: true }));
   }, /Invalid config provided/);
 });
 test('replies with schema on ?$schema by default', async (t) => {

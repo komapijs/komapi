@@ -9,7 +9,7 @@ import { findIndex, forOwn, mapValues } from 'lodash';
 import Router from 'koa-router';
 import cluster from 'cluster';
 import validateConfig from './lib/config';
-import Schema from './modules/json-schema/schema';
+import Schema from './modules/json-schema/Schema';
 import context from './lib/context';
 import request from './lib/request';
 import sanitize from './lib/sanitize';
