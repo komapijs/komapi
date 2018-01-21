@@ -22,7 +22,7 @@ export default () => async function errorHandler(ctx, next) {
     let body = Boom.notAcceptable().toString();
 
     // Check for dev and include dev stuff
-    if (ctx.app.env === 'development') {
+    if (ctx.app.env !== 'production') {
       error.output.payload.data = error.data || undefined;
       if (error.output.statusCode >= 500) {
         error.output.payload.stack = (error.stack && error.stack.split) ? error.stack.split('\n') : error.stack;

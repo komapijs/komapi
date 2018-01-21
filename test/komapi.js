@@ -75,7 +75,7 @@ test('throws on invalid configuration', async (t) => {
   t.throws(() => new Komapi({
     env: 'invalidEnvironment',
     proxy: 'stringvalue',
-  }), /("env" must be one of \[development, production])/);
+  }), /("env" must be one of \[development, test, production])/);
 });
 test('supports loggers without name', async (t) => {
   t.plan(2);

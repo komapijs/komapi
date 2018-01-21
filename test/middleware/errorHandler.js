@@ -91,6 +91,22 @@ test('provides stacktraces in development', async (t) => {
   defaultError.error.stack = stack.split('\n');
   t.deepEqual(res.body, defaultError);
 });
+test('provides stacktraces in test', async (t) => {
+  const app = new Komapi({ env: 'test' });
+  let stack;
+  app.use(() => {
+    const err = new Error('Dummy error');
+    stack = err.stack; // eslint-disable-line prefer-destructuring
+    throw err;
+  });
+  const res = await request(app.listen())
+    .get('/')
+    .set('Accept', '*/*');
+  t.is(res.status, 500);
+  const defaultError = _.cloneDeep(defaultErrorResponse);
+  defaultError.error.stack = stack.split('\n');
+  t.deepEqual(res.body, defaultError);
+});
 test('handles stacktraces in array format', async (t) => {
   const app = new Komapi({ env: 'development' });
   let stack;

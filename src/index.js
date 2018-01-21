@@ -23,7 +23,7 @@ import notFoundHandler from './middleware/notFoundHandler';
 
 // Init
 const configSchema = Joi => Joi.object({
-  env: Joi.any().valid(['development', 'production']).default('development'),
+  env: Joi.any().valid(['development', 'test', 'production']).default('development'),
   loggers: Joi.array().items(Joi.object({
     name: Joi.string(),
   }).unknown()).default([]),
@@ -299,7 +299,7 @@ export default class Komapi extends Koa {
     }, true);
 
     // This is used by some templating packages through koa-views
-    ctx.state.cache = (this.env !== 'development');
+    ctx.state.cache = (this.env === 'production');
 
     return ctx;
   }
