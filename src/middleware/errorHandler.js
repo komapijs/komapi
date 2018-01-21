@@ -11,9 +11,9 @@ export default () => async function errorHandler(ctx, next) {
     // Normalize error object
     try {
       if (!(err instanceof Error)) throw new Error('Cannot handle non-errors as errors!');
-      error = err.isBoom ? err : Boom.create(err.status || err.statusCode || undefined, err, err.data);
+      error = err.isBoom ? err : Boom.boomify(err, { statusCode: err.status || err.statusCode || undefined, decorate: err.data });
     } catch (subError) {
-      error = Boom.wrap(subError);
+      error = Boom.boomify(subError);
     }
 
     // Set defaults

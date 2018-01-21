@@ -1,7 +1,7 @@
 // Dependencies
 import Koa from 'koa';
 import bunyan from 'bunyan';
-import { notImplemented as NotImplemented, methodNotAllowed as MethodNotAllowed, notFound as NotFound } from 'boom';
+import { notImplemented, methodNotAllowed, notFound } from 'boom';
 import mount from 'koa-mount';
 import compose from 'koa-compose';
 import uuid from 'uuid';
@@ -19,7 +19,7 @@ import responseDecorator from './middleware/responseDecorator';
 import errorHandler from './middleware/errorHandler';
 import requestLogger from './middleware/requestLogger';
 import ensureSchema from './middleware/ensureSchema';
-import notFound from './middleware/notFound';
+import notFoundHandler from './middleware/notFoundHandler';
 
 // Init
 const configSchema = Joi => Joi.object({
@@ -169,7 +169,7 @@ export default class Komapi extends Koa {
     return {
       ensureSchema,
       requestLogger,
-      notFound,
+      notFound: notFoundHandler,
     };
   }
 
@@ -180,8 +180,8 @@ export default class Komapi extends Koa {
     router.use('', ...middlewares);
     const fn = compose([router.routes(), router.allowedMethods({
       throw: true,
-      notImplemented: () => new NotImplemented('Not Implemented'),
-      methodNotAllowed: () => new MethodNotAllowed('Method Not Allowed'),
+      notImplemented,
+      methodNotAllowed,
     })]);
     Object.defineProperty(fn, 'name', {
       value: `komapiRouter::${path}`,
@@ -215,7 +215,7 @@ export default class Komapi extends Koa {
   models(models, opts = {}) {
     const config = Object.assign({
       errorLogger: (err, queryContext) => this.log.error({ err, orm: queryContext, context: 'orm' }, 'ORM Query Error'),
-      createNotFoundError: queryContext => new NotFound(undefined, { queryContext }),
+      createNotFoundError: queryContext => notFound(undefined, { queryContext }),
     }, opts);
     forOwn(models, (Model) => {
       if (config.errorLogger && !Model.knex().listeners('query-error').includes(config.errorLogger)) Model.knex().on('query-error', config.errorLogger);

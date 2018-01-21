@@ -1,8 +1,9 @@
 // Dependencies
 import Ajv from 'ajv';
 import { defaultsDeep, map, pick } from 'lodash';
-import { badRequest as BadRequest } from 'boom';
+import { badRequest } from 'boom';
 import draft04Schema from 'ajv/lib/refs/json-schema-draft-04.json';
+import draft06Schema from 'ajv/lib/refs/json-schema-draft-06.json';
 
 // Init
 const defaultOpts = {
@@ -11,6 +12,7 @@ const defaultOpts = {
   messages: true,
   jsonPointers: true,
   format: 'full',
+  schemaId: 'auto',
 };
 const mapping = {
   enum: (err, desc) => {
@@ -32,11 +34,12 @@ export default class Schema extends Ajv {
   constructor(opts) {
     super(defaultsDeep(defaultOpts, opts));
     this.addMetaSchema(draft04Schema);
+    this.addMetaSchema(draft06Schema);
   }
   static validationError(errors, schema, message, data) {
     const msg = message || ((data) ? 'Invalid data provided' : 'No data provided');
     const keys = ['path', 'keyword', 'message', 'data', 'allowedValues'];
-    const err = new BadRequest(msg);
+    const err = badRequest(msg);
     err.$schema = schema;
     err.errors = (data && errors) ? map(errors, error => this.$getDescriptiveError(error)) : [];
     err.output.payload.errors = map(err.errors, error => pick(error, keys));
