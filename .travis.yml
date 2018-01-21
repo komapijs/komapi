@@ -2,9 +2,7 @@ sudo: false
 language: node_js
 node_js:
   - "8"
-  - "9"
-before_script:
-  - node -v && npm -v
+  - "10"
 script:
   - npm test
 after_script:

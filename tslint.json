@@ -1,0 +1,36 @@
+{
+  "defaultSeverity": "error",
+  "extends": [
+    "tslint:recommended",
+    "tslint-config-airbnb",
+    "tslint-eslint-rules",
+    "tslint-config-prettier"
+  ],
+  "jsRules": {
+    "class-name": true,
+    "curly": false,
+    "import-name": false,
+    "object-literal-sort-keys": false,
+    "ordered-imports": [
+      true,
+      {
+        "import-sources-order": "any",
+        "named-imports-order": "case-insensitive"
+      }
+    ]
+  },
+  "rules": {
+    "class-name": true,
+    "curly": false,
+    "import-name": false,
+    "object-literal-sort-keys": false,
+    "ordered-imports": [
+      true,
+      {
+        "import-sources-order": "any",
+        "named-imports-order": "case-insensitive"
+      }
+    ]
+  },
+  "rulesDirectory": []
+}
