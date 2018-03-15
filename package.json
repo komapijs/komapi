@@ -74,7 +74,7 @@
     "knex": "0.x",
     "nyc": "^11.4.1",
     "objection": "^0.9.4",
-    "sqlite3": "^3.1.13",
+    "sqlite3": "^4.0.0",
     "supertest": "^3.0.0"
   },
   "peerDependencies": {
