@@ -15,6 +15,6 @@ export default function responseSerializer(response: Koa.Response): ISanitizedRe
     headers: response.headers,
     length: response.length,
     type: response.type,
-    body: response.status === 500 ? sanitize(response.body) : undefined,
+    body: [400, 500].includes(response.status) ? sanitize(response.body) : undefined,
   };
 }

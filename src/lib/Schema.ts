@@ -43,8 +43,7 @@ export default class Schema extends Ajv {
     const sanitizedErrors = allErrors.map(error => pick(error, keys));
     return badRequest(msg, {
       schema,
-      allErrors,
-      sanitizedErrors,
+      errors: sanitizedErrors,
     });
   };
   constructor(config?: Ajv.Options) {

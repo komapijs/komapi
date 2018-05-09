@@ -107,15 +107,13 @@ describe('helper methods', () => {
       expect(Boom.isBoom(error)).toBe(true);
       expect(error.message).toBe('No data provided');
       expect(error.data).toEqual({
-        allErrors: [],
-        sanitizedErrors: [],
+        errors: [],
         schema: undefined,
       });
       expect(Boom.isBoom(errorWithData)).toBe(true);
       expect(errorWithData.message).toBe('Invalid data provided');
       expect(errorWithData.data).toEqual({
-        allErrors: [],
-        sanitizedErrors: [],
+        errors: [],
         schema: exampleSchema,
       });
     });
@@ -139,19 +137,7 @@ describe('helper methods', () => {
       expect(Boom.isBoom(error)).toBe(true);
       expect(error.message).toBe('An error message');
       expect(error.data).toEqual({
-        allErrors: [
-          {
-            data: {
-              comment: 'A long comment about this generic person',
-              id: 1,
-              name: 'John Smith',
-            },
-            keyword: 'required',
-            message: "should have required property 'isCool'",
-            path: '',
-          },
-        ],
-        sanitizedErrors: [
+        errors: [
           {
             data: {
               comment: 'A long comment about this generic person',
