@@ -12,6 +12,7 @@ import serializeResponse from './serializeResponse';
 declare module 'koa' {
   // tslint:disable-next-line interface-name
   interface Context {
+    log: Pino.Logger;
     reqId: string;
     startAt: Date;
     sendResponse: <T extends Koa.Response['body']>(body: T, shouldSend?: boolean) => T | void;
@@ -55,7 +56,7 @@ const defaultApplicationConfig: IApplicationConfig = {
 };
 
 // Application
-class Application<T, U> extends Koa {
+class Application<T extends {} = {}, U extends {} = {}> extends Koa {
   public readonly config: IApplicationConfig;
   public state: IState<T, U>;
   public log: Pino.Logger;
@@ -63,19 +64,19 @@ class Application<T, U> extends Koa {
   /**
    * Create a new application
    *
-   * @param {Partial<IApplicationConfig>} applicationConfig - Komapi application configuration (available through app.config)
-   * @param {Object<T>} userConfig - Custom user provided data (available through app.state.locals)
-   * @param {Object<U>} userSecrets - An object that is never included in logs. For sensitive information such as API keys (available through app.state.secrets).
+   * @param {Partial<IApplicationConfig>=} applicationConfig - Komapi application configuration (available through app.config)
+   * @param {T=} userConfig - Custom user provided data (available through app.state.locals)
+   * @param {U=} userSecrets - An object that is never included in logs. For sensitive information such as API keys (available through app.state.secrets).
    */
-  constructor(applicationConfig?: Partial<IApplicationConfig>, userConfig: T = {} as T, userSecrets: U = {} as U) {
+  constructor(applicationConfig?: Partial<IApplicationConfig>, userConfig?: T, userSecrets?: U) {
     super();
 
     // Set application configuration
     this.config = defaultsDeep({}, applicationConfig, { env: process.env.NODE_ENV }, defaultApplicationConfig);
     this.state = {
-      secrets: userSecrets,
+      secrets: defaultsDeep({}, userSecrets),
       cache: this.config.env === 'production', // Used by various template libraries
-      locals: userConfig,
+      locals: defaultsDeep({}, userConfig),
     };
 
     // Integrate with Koa
@@ -210,5 +211,5 @@ class Application<T, U> extends Koa {
 }
 
 // Exports
-export { IApplicationConfig, IState, IJSON, Koa };
+export { IApplicationConfig, IState, IJSON, Koa, Pino };
 export default Application;
