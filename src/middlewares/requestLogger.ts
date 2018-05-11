@@ -5,6 +5,7 @@ import Koa from 'koa';
 const defaultRequestLogger = (ctx: Koa.Context) =>
   ctx.log.info(
     {
+      startAt: ctx.startAt,
       latency: Math.floor((Date.now() - ctx.startAt.getTime()) / 1000),
       request: ctx.request,
       response: ctx.response,

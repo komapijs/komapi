@@ -8,6 +8,7 @@ it('should log requests', async done => {
   const app = new Application();
   const spy = jest.fn();
   const expectedData = {
+    startAt: expect.any(Date),
     latency: expect.any(Number),
     response: expect.objectContaining({
       status: 200,
