@@ -37,3 +37,25 @@ it('should log requests', async done => {
   // Done
   done();
 });
+
+it('should log latency in milliseconds', async done => {
+  expect.assertions(2);
+  const app = new Application();
+  const spy = jest.fn();
+
+  app.use((ctx, next) => {
+    ctx.log.info = spy;
+    return next();
+  });
+  app.use(requestLogger());
+  app.use((ctx, next) => new Promise(resolve => setTimeout(resolve, 122)).then(next));
+
+  const response = await request(app.callback()).get('/');
+
+  // Assertions
+  expect(spy).toHaveBeenCalledTimes(1);
+  expect(spy.mock.calls[0][0].latency).toBeGreaterThan(121);
+
+  // Done
+  done();
+});

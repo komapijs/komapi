@@ -6,7 +6,7 @@ const defaultRequestLogger = (ctx: Koa.Context) =>
   ctx.log.info(
     {
       startAt: ctx.startAt,
-      latency: Math.floor((Date.now() - ctx.startAt.getTime()) / 1000),
+      latency: Math.floor(Date.now() - ctx.startAt.getTime()),
       request: ctx.request,
       response: ctx.response,
       source: 'requestLogger',
