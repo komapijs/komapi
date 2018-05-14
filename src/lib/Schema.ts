@@ -3,6 +3,11 @@ import Ajv from 'ajv';
 import Boom, { badRequest } from 'boom';
 import { pick } from 'lodash';
 
+// Types
+interface ValidationErrorPayload extends Boom.Payload {
+  errors?: object[];
+}
+
 // Init
 const defaultConfig: Ajv.Options = {
   allErrors: true,
@@ -14,19 +19,6 @@ const defaultConfig: Ajv.Options = {
 };
 
 // Exports
-export const getDescriptiveError = (
-  error: Ajv.ErrorObject,
-): {
-  path: Ajv.ErrorObject['dataPath'];
-  keyword: Ajv.ErrorObject['keyword'];
-  message: Ajv.ErrorObject['message'];
-  data: Ajv.ErrorObject['data'];
-} => ({
-  path: error.dataPath,
-  keyword: error.keyword,
-  message: error.message,
-  data: error.data,
-});
 export default class Schema extends Ajv {
   public static createValidationError = (
     options: {
@@ -38,13 +30,14 @@ export default class Schema extends Ajv {
   ): Boom => {
     const { schema, data, errors, message } = options;
     const msg = message || (data ? 'Invalid data provided' : 'No data provided');
-    const keys = ['path', 'keyword', 'message', 'data', 'allowedValues'];
-    const allErrors = data && errors ? errors.map(error => getDescriptiveError(error)) : [];
-    const sanitizedErrors = allErrors.map(error => pick(error, keys));
-    return badRequest(msg, {
+    const keys = ['keyword', 'message', 'dataPath', 'data', 'allowedValues'];
+    const sanitizedErrors = (errors || []).map(error => pick(error, keys));
+    const boomError = badRequest(msg, {
       schema,
       errors: sanitizedErrors,
     });
+    (boomError.output.payload as ValidationErrorPayload).errors = sanitizedErrors;
+    return boomError;
   };
   constructor(config?: Ajv.Options) {
     super(Object.assign({}, defaultConfig, config));

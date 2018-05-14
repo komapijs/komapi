@@ -1,6 +1,7 @@
 // Dependencies
 import { Schema } from '../../../src';
 import Boom from 'boom';
+import { ErrorParameters } from 'ajv';
 
 // Init
 const exampleSchema = {
@@ -117,6 +118,51 @@ describe('helper methods', () => {
         schema: exampleSchema,
       });
     });
+    it('should pre populate output.payload.errors with sanitized error messages', () => {
+      const error = Schema.createValidationError({
+        schema: exampleSchema,
+        data: {
+          id: 1,
+          name: 'John Smith',
+          comment: 'A long comment about this generic person',
+        },
+        errors: [
+          {
+            keyword: 'keyword',
+            dataPath: 'dataPath',
+            schemaPath: 'schemaPath',
+            params: 'params',
+            propertyName: 'propertyName',
+            message: 'message',
+            schema: exampleSchema,
+            parentSchema: {
+              parent: true,
+            },
+            data: {
+              id: 1,
+              name: 'John Smith',
+              comment: 'A long comment about this generic person',
+            },
+          },
+        ],
+      });
+
+      // Assertions
+      expect(Boom.isBoom(error)).toBe(true);
+      expect(error.message).toBe('Invalid data provided');
+      expect(error.output.payload.errors).toEqual([
+        {
+          data: {
+            id: 1,
+            name: 'John Smith',
+            comment: 'A long comment about this generic person',
+          },
+          dataPath: 'dataPath',
+          keyword: 'keyword',
+          message: 'message',
+        },
+      ]);
+    });
     it('should give detailed error messages if provided', () => {
       const data = {
         id: 1,
@@ -146,7 +192,7 @@ describe('helper methods', () => {
             },
             keyword: 'required',
             message: "should have required property 'isCool'",
-            path: '',
+            dataPath: '',
           },
         ],
         schema: exampleSchema,

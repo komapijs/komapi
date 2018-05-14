@@ -10,7 +10,7 @@ declare module 'boom' {
   interface Payload {
     code?: number;
     data?: object;
-    errors?: Error[];
+    errors?: object[];
     stack?: string[];
   }
 }
@@ -54,7 +54,7 @@ export default (): Koa.Middleware =>
       // Check for dev and include dev stuff
       if (ctx.app.env !== 'production') {
         error.output.payload.data = error.data || undefined;
-        if (error.output.statusCode >= 500) {
+        if (error.isServer) {
           error.output.payload.stack = toArray(
             error.stack && error.stack.split ? error.stack.split('\n') : error.stack,
           );

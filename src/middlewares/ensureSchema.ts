@@ -1,18 +1,26 @@
 // Dependencies
 import Koa from 'koa';
 import Schema from '../lib/Schema';
+import { defaultsDeep } from 'lodash';
 
 // Init
-const schema = new Schema();
+const defaultOptions = {
+  getData: (ctx: Koa.Context) => (ctx.request as any).body,
+  schemaValidator: new Schema({ removeAdditional: true }),
+};
 
 // Exports
-export default function ensureSchemaMiddlewareFactory(
+export default function ensureSchemaMiddlewareFactory<T>(
   jsonSchema: object,
-  getData: (ctx: Koa.Context) => object = ctx => (ctx.request as any).body,
+  options?: {
+    getData?: (ctx: Koa.Context) => object;
+    schemaValidator?: Schema;
+  },
 ): Koa.Middleware {
-  const validate = schema.createValidator(jsonSchema);
+  const opts = defaultsDeep({}, options, defaultOptions);
+  const validate = opts.schemaValidator.createValidator(jsonSchema);
   return async function ensureSchemaMiddleware(ctx, next) {
-    const data = getData(ctx);
+    const data = opts.getData(ctx);
     await validate(data);
     return next();
   };
