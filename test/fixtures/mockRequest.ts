@@ -1,12 +1,13 @@
 // Exports
+import Koa from 'koa';
 import { defaultsDeep } from 'lodash';
-import Application, { Koa } from '../../src/lib/Application';
+import Komapi from '../../src/lib/Komapi';
 
 export default function mockRequest(
   requestProperties?: Partial<Koa.Request & { body: any }>,
   responseProperties?: Partial<Koa.Response>,
 ): { request: Koa.Request & { body?: any }; response: Koa.Response } {
-  const app = new Application();
+  const app = new Komapi();
   const req = {};
   const res = {};
   const request = defaultsDeep({ req, res }, requestProperties, {

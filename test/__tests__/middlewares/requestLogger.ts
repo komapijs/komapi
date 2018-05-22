@@ -8,12 +8,14 @@ it('should log requests', async done => {
   const app = new Application();
   const spy = jest.fn();
   const expectedData = {
-    startAt: expect.any(Date),
+    startAt: expect.any(Number),
     latency: expect.any(Number),
+    request: expect.objectContaining({
+      url: '/',
+    }),
     response: expect.objectContaining({
       status: 200,
     }),
-    source: 'requestLogger',
   };
 
   app.use((ctx, next) => {

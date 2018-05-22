@@ -6,7 +6,6 @@ import Application from '../../../src';
 // Init
 const testEnv = process.env.NODE_ENV;
 const defaultApplicationConfig = {
-  name: 'Komapi application',
   env: testEnv,
   proxy: false,
   subdomainOffset: 2,
@@ -22,44 +21,17 @@ describe('initialization', () => {
     const app = new Application();
 
     // Assertions
-    expect(app.config).toEqual(expect.objectContaining(defaultApplicationConfig));
-    expect(app.state).toEqual(
-      expect.objectContaining({
-        cache: false,
-        locals: {},
-        secrets: {},
-      }),
-    );
+    expect(app.env).toEqual(defaultApplicationConfig.env);
+    expect(app.proxy).toEqual(defaultApplicationConfig.proxy);
+    expect(app.subdomainOffset).toEqual(defaultApplicationConfig.subdomainOffset);
   });
   it('should support partial application config', () => {
-    const app = new Application({
-      name: 'My Custom Application',
-      subdomainOffset: 8,
-    });
+    const app = new Application({ subdomainOffset: 8 });
 
     // Assertions
-    expect(app.config).toEqual(
-      expect.objectContaining({
-        name: 'My Custom Application',
-        env: testEnv,
-        proxy: false,
-        subdomainOffset: 8,
-        logOptions: expect.objectContaining({
-          level: 'info',
-        }),
-      }),
-    );
-  });
-  it('should accept user config and secrets for access inn app.state', () => {
-    const app = new Application(undefined, { my: 'UserConfig', 2: false }, { secret: 'SECRET' });
-
-    // Assertions
-    expect(app.config).toEqual(expect.objectContaining(defaultApplicationConfig));
-    expect(app.state).toEqual({
-      cache: false,
-      locals: { my: 'UserConfig', 2: false },
-      secrets: { secret: 'SECRET' },
-    });
+    expect(app.env).toEqual(defaultApplicationConfig.env);
+    expect(app.proxy).toEqual(defaultApplicationConfig.proxy);
+    expect(app.subdomainOffset).toEqual(8);
   });
   it('should generate warnings on environment mismatch', () => {
     const mockStream = new Stream.Writable();
@@ -71,19 +43,16 @@ describe('initialization', () => {
     process.env.NODE_ENV = defaultEnv;
 
     // Assertions
-    expect(app.config.env).toBe('development');
+    expect(app.env).toBe('development');
     expect(mockFn).toHaveBeenCalledTimes(1);
     expect(JSON.parse(mockFn.mock.calls[0][0])).toEqual(
       expect.objectContaining({
-        context: 'application',
         level: 40,
         time: expect.any(Number),
         msg:
-          "NODE_ENV environment mismatch. Your application has been started with '{ env: 'development' }' while 'process.env.NODE_ENV = undefined'. It is recommended to start your application with '{ env: process.env.NODE_ENV }' and set the correct environment using the NODE_ENV environment variable.",
+          "NODE_ENV environment mismatch. Your application has been instantiated with '{ env: 'development' }' while 'process.env.NODE_ENV = undefined'. It is recommended to start your application with '{ env: process.env.NODE_ENV }' and set the correct environment using the NODE_ENV environment variable.",
         pid: expect.any(Number),
         hostname: expect.stringMatching(/.+/),
-        name: defaultApplicationConfig.name,
-        instanceId: expect.stringMatching(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i),
         env: 'development',
       }),
     );
@@ -91,82 +60,6 @@ describe('initialization', () => {
 
     // Cleanup
     mockFn.mockClear();
-  });
-  it('should enable caching in production', () => {
-    const app = new Application({ env: 'production', logOptions: { enabled: false } });
-
-    // Assertions
-    expect(app.state.cache).toBe(true);
-  });
-  it('should allow custom state types', () => {
-    const customUserConfig: { my: string; 2: boolean; test?: boolean } = { my: 'UserConfig', 2: false };
-    const customSecrets: { secret: string; mySecret?: string } = { secret: 'SECRET' };
-    const app = new Application({}, customUserConfig, customSecrets);
-
-    // Assertions
-    expect(app.config).toEqual(expect.objectContaining(defaultApplicationConfig));
-    expect(app.state).toEqual({
-      cache: false,
-      locals: { my: 'UserConfig', 2: false },
-      secrets: { secret: 'SECRET' },
-    });
-    app.state.locals.test = true;
-    app.state.secrets.mySecret = 'newSecret';
-    expect(app.state).toEqual({
-      cache: false,
-      locals: { my: 'UserConfig', 2: false, test: true },
-      secrets: { secret: 'SECRET', mySecret: 'newSecret' },
-    });
-  });
-  it('should hide secrets from json output and inspect', () => {
-    const app = new Application(undefined, { user: 'config' }, { secret: 'SECRET' });
-    const defaultJsonApp = {
-      config: {
-        name: 'Komapi application',
-        env: testEnv,
-        instanceId: expect.stringMatching(/.+/),
-        proxy: false,
-        subdomainOffset: 2,
-      },
-      state: {
-        cache: false,
-        locals: { user: 'config' },
-        secrets: '****',
-      },
-    };
-
-    // Assertions
-    expect(app.toJSON()).toEqual(defaultJsonApp);
-    expect(app.inspect()).toEqual(defaultJsonApp);
-  });
-  it('should integrate nicely with koa', () => {
-    const app = new Application();
-
-    // Assertions
-    expect(app.config.name).toBe(defaultApplicationConfig.name);
-    expect(app.config.env).toBe(defaultApplicationConfig.env);
-    expect(app.config.subdomainOffset).toBe(defaultApplicationConfig.subdomainOffset);
-    expect(app.config.proxy).toBe(defaultApplicationConfig.proxy);
-    expect((app as any).name).toBe(app.config.name);
-    expect(app.env).toBe(app.config.env);
-    expect(app.subdomainOffset).toBe(app.config.subdomainOffset);
-    expect(app.proxy).toBe(app.config.proxy);
-
-    // Update values
-    (app as any).name = 'new name';
-    app.env = 'production';
-    app.subdomainOffset = defaultApplicationConfig.subdomainOffset + 2;
-    app.proxy = !defaultApplicationConfig.proxy;
-
-    // Assertions
-    expect(app.config.name).toBe('new name');
-    expect(app.config.env).toBe('production');
-    expect(app.config.subdomainOffset).toBe(defaultApplicationConfig.subdomainOffset + 2);
-    expect(app.config.proxy).toBe(true);
-    expect((app as any).name).toBe(app.config.name);
-    expect(app.env).toBe(app.config.env);
-    expect(app.subdomainOffset).toBe(app.config.subdomainOffset);
-    expect(app.proxy).toBe(!defaultApplicationConfig.proxy);
   });
 });
 describe('helper methods', () => {
@@ -200,14 +93,11 @@ describe('helper methods', () => {
       expect(mockWriteFn).toHaveBeenCalledTimes(1);
       expect(JSON.parse(mockWriteFn.mock.calls[0][0])).toEqual(
         expect.objectContaining({
-          context: 'application',
           level: 60,
           time: expect.any(Number),
           msg: 'Unhandled Rejected Promise - Stopping application to prevent instability',
           pid: expect.any(Number),
           hostname: expect.stringMatching(/.+/),
-          name: defaultApplicationConfig.name,
-          instanceId: expect.stringMatching(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i),
           env: testEnv,
           err: expect.objectContaining({
             message: 'Rejected Promise',
@@ -215,20 +105,6 @@ describe('helper methods', () => {
             type: 'Error',
           }),
           promise: expect.objectContaining({}),
-          app: {
-            config: {
-              env: testEnv,
-              instanceId: expect.stringMatching(/.+/),
-              name: 'Komapi application',
-              proxy: false,
-              subdomainOffset: 2,
-            },
-            state: {
-              cache: false,
-              locals: {},
-              secrets: '****',
-            },
-          },
         }),
       );
 
@@ -265,34 +141,17 @@ describe('helper methods', () => {
       expect(mockWriteFn).toHaveBeenCalledTimes(1);
       expect(JSON.parse(mockWriteFn.mock.calls[0][0])).toEqual(
         expect.objectContaining({
-          context: 'application',
           level: 60,
           time: expect.any(Number),
           msg: 'Uncaught Exception Error - Stopping application to prevent instability',
           pid: expect.any(Number),
           hostname: expect.stringMatching(/.+/),
-          name: defaultApplicationConfig.name,
-          instanceId: expect.stringMatching(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i),
           env: testEnv,
           err: expect.objectContaining({
             message: 'Unhandled Exception',
             stack: expect.stringMatching('Error: Unhandled Exception'),
             type: 'Error',
           }),
-          app: {
-            config: {
-              env: testEnv,
-              name: 'Komapi application',
-              instanceId: expect.stringMatching(/.+/),
-              proxy: false,
-              subdomainOffset: 2,
-            },
-            state: {
-              cache: false,
-              locals: {},
-              secrets: '****',
-            },
-          },
         }),
       );
 
@@ -330,14 +189,11 @@ describe('helper methods', () => {
       expect(mockWriteFn).toHaveBeenCalledTimes(1);
       expect(JSON.parse(mockWriteFn.mock.calls[0][0])).toEqual(
         expect.objectContaining({
-          context: 'application',
           level: 60,
           time: expect.any(Number),
           msg: 'Unhandled Rejected Promise - Stopping application to prevent instability',
           pid: expect.any(Number),
           hostname: expect.stringMatching(/.+/),
-          name: defaultApplicationConfig.name,
-          instanceId: expect.stringMatching(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i),
           env: testEnv,
           err: expect.objectContaining({
             message: 'Rejected Promise',
@@ -345,20 +201,6 @@ describe('helper methods', () => {
             type: 'Error',
           }),
           promise: expect.objectContaining({}),
-          app: {
-            config: {
-              env: testEnv,
-              instanceId: expect.stringMatching(/.+/),
-              name: 'Komapi application',
-              proxy: false,
-              subdomainOffset: 2,
-            },
-            state: {
-              cache: false,
-              locals: {},
-              secrets: '****',
-            },
-          },
         }),
       );
 
@@ -393,34 +235,17 @@ describe('helper methods', () => {
       expect(mockWriteFn).toHaveBeenCalledTimes(1);
       expect(JSON.parse(mockWriteFn.mock.calls[0][0])).toEqual(
         expect.objectContaining({
-          context: 'application',
           level: 60,
           time: expect.any(Number),
           msg: 'Uncaught Exception Error - Stopping application to prevent instability',
           pid: expect.any(Number),
           hostname: expect.stringMatching(/.+/),
-          name: defaultApplicationConfig.name,
-          instanceId: expect.stringMatching(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i),
           env: testEnv,
           err: expect.objectContaining({
             message: 'Unhandled Exception',
             stack: expect.stringMatching('Error: Unhandled Exception'),
             type: 'Error',
           }),
-          app: {
-            config: {
-              env: testEnv,
-              name: 'Komapi application',
-              instanceId: expect.stringMatching(/.+/),
-              proxy: false,
-              subdomainOffset: 2,
-            },
-            state: {
-              cache: false,
-              locals: {},
-              secrets: '****',
-            },
-          },
         }),
       );
 
@@ -430,16 +255,20 @@ describe('helper methods', () => {
     });
   });
 });
-describe('requests', () => {
-  describe('context', () => {
-    describe('ctx.reqId', () => {
-      it('should exists', async done => {
-        expect.assertions(2);
+describe('request context', () => {
+  describe('request', () => {
+    describe('requestId', () => {
+      it('should exists with shortcut on ctx', async done => {
+        expect.assertions(4);
         const app = new Application();
 
         // Add assertion middleware
         app.use((ctx, next) => {
-          expect(ctx.reqId).toMatch(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i);
+          expect(ctx.request.requestId).toMatch(
+            /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i,
+          );
+          expect(ctx.requestId).toMatch(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i);
+          expect(ctx.requestId).toBe(ctx.request.requestId);
           ctx.body = null;
         });
 
@@ -458,8 +287,8 @@ describe('requests', () => {
 
         // Add assertion middleware
         app.use(ctx => {
-          expect(ctx.reqId).toMatch(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i);
-          expect(ctx.reqId).not.toEqual(fakeId);
+          expect(ctx.requestId).toMatch(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i);
+          expect(ctx.requestId).not.toEqual(fakeId);
           ctx.body = null;
         });
 
@@ -480,7 +309,7 @@ describe('requests', () => {
 
         // Add assertion middleware
         app.use(ctx => {
-          expect(ctx.reqId).toEqual(fakeId);
+          expect(ctx.requestId).toEqual(fakeId);
           ctx.body = null;
         });
 
@@ -495,18 +324,22 @@ describe('requests', () => {
         done();
       });
     });
-    describe('ctx.sendResponse', () => {
-      it('should exists', async done => {
-        expect.assertions(4);
+  });
+  describe('response', () => {
+    describe('send', () => {
+      it('should exists with shortcut on ctx', async done => {
+        expect.assertions(6);
         const app = new Application();
         const body = { a: 'body', b: 123 };
 
         // Add assertion middleware
         app.use((ctx, next) => {
-          expect(typeof ctx.sendResponse).toBe('function');
+          expect(typeof ctx.response.send).toBe('function');
+          expect(typeof ctx.send).toBe('function');
+          expect(ctx.send).toBe(ctx.response.send);
           return next();
         });
-        app.use(ctx => ctx.sendResponse(body));
+        app.use(ctx => ctx.send(body));
 
         const response = await request(app.callback()).get('/');
 
@@ -521,7 +354,7 @@ describe('requests', () => {
       it('should support easy promise chaining', async done => {
         const app = new Application();
         const body = { a: 'body', b: 123 };
-        app.use(ctx => Promise.resolve(body).then(ctx.sendResponse));
+        app.use(ctx => Promise.resolve(body).then(ctx.send));
 
         const response = await request(app.callback()).get('/');
 
@@ -533,10 +366,10 @@ describe('requests', () => {
         // Done
         done();
       });
-      it('should send empty responses with status code 204', async done => {
+      it('should send status code 204 for empty responses', async done => {
         const app = new Application();
         const body = null;
-        app.use(ctx => ctx.sendResponse(body));
+        app.use(ctx => ctx.send(body));
 
         const response = await request(app.callback()).get('/');
 
@@ -544,34 +377,6 @@ describe('requests', () => {
         expect(response.status).toBe(204);
         expect(response.text).toBe('');
         expect(response.body).toEqual({});
-
-        // Done
-        done();
-      });
-      it('should have second argument to determine if response should be sent or not', async done => {
-        expect.assertions(5);
-        const app = new Application();
-        const body1 = { a: 'body1', b: 123 };
-        const body2 = { a: 'body2', b: 456 };
-
-        // Add assertion middleware
-        app.use((ctx, next) => {
-          ctx.sendResponse(body1, false);
-          expect(ctx.body).toBe(undefined);
-          return next();
-        });
-        app.use((ctx, next) => {
-          ctx.sendResponse(body2, true);
-          expect(ctx.body).toBe(body2);
-          return next();
-        });
-
-        const response = await request(app.callback()).get('/');
-
-        // Assertions
-        expect(response.status).toBe(200);
-        expect(response.text).toBe(JSON.stringify(body2));
-        expect(response.body).toEqual(body2);
 
         // Done
         done();

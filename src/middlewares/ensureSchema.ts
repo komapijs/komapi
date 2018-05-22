@@ -5,22 +5,22 @@ import { defaultsDeep } from 'lodash';
 
 // Init
 const defaultOptions = {
-  getData: (ctx: Koa.Context) => (ctx.request as any).body,
-  schemaValidator: new Schema({ removeAdditional: true }),
+  key: 'body',
+  schemaValidator: new Schema(),
 };
 
 // Exports
-export default function ensureSchemaMiddlewareFactory<T>(
+export default function ensureSchemaMiddlewareFactory(
   jsonSchema: object,
   options?: {
-    getData?: (ctx: Koa.Context) => object;
+    key: 'body' | 'params' | 'query';
     schemaValidator?: Schema;
   },
 ): Koa.Middleware {
   const opts = defaultsDeep({}, options, defaultOptions);
   const validate = opts.schemaValidator.createValidator(jsonSchema);
   return async function ensureSchemaMiddleware(ctx, next) {
-    const data = opts.getData(ctx);
+    const data = (ctx.request as any)[opts.key];
     await validate(data);
     return next();
   };

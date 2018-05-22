@@ -1,5 +1,4 @@
 // Dependencies
-import Komapi from './lib/Komapi';
 import Schema from './lib/Schema';
 import Service from './lib/Service';
 import ensureSchema from './middlewares/ensureSchema';
@@ -8,4 +7,3 @@ import requestLogger from './middlewares/requestLogger';
 
 // Exports
 export { ensureSchema, errorHandler, requestLogger, Schema, Service };
-export default Komapi;

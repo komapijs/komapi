@@ -16,6 +16,7 @@ const defaultConfig: Ajv.Options = {
   jsonPointers: true,
   useDefaults: true,
   format: 'full',
+  removeAdditional: true,
 };
 
 // Exports

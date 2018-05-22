@@ -36,6 +36,7 @@ it('should not hide insensitive data', () => {
   expect(clean).toEqual(expectedClean);
 });
 it('should hide sensitive data', () => {
+  const safeValue = '[REDACTED]';
   const dirty = {
     name: 'George',
     token: 'secret token',
@@ -48,12 +49,12 @@ it('should hide sensitive data', () => {
   };
   const expectedClean = {
     name: 'George',
-    token: '****',
-    password: '****',
+    token: safeValue,
+    password: safeValue,
     email: 'george@example.com',
-    'credit-card': '****',
-    creditCard: '****',
-    secret: '****',
+    'credit-card': safeValue,
+    creditCard: safeValue,
+    secret: safeValue,
     room: '220',
   };
   const clean = sanitize(dirty);

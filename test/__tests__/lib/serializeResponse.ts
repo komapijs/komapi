@@ -17,7 +17,7 @@ it('should not include body for successful requests', () => {
   const expectedResponse = { body: undefined };
 
   // Assertions
-  expect(responseSerializer(response)).toEqual(expect.objectContaining(expectedResponse));
+  expect(responseSerializer()(response)).toEqual(expect.objectContaining(expectedResponse));
 });
 it('should include body for internal server errors', () => {
   const { response } = mockRequest(undefined, {
@@ -35,7 +35,7 @@ it('should include body for internal server errors', () => {
   };
 
   // Assertions
-  expect(responseSerializer(response)).toEqual(expect.objectContaining(expectedResponse));
+  expect(responseSerializer()(response)).toEqual(expect.objectContaining(expectedResponse));
 });
 it('should sanitize potential sensitive information', () => {
   // Setup mocking
@@ -59,7 +59,7 @@ it('should sanitize potential sensitive information', () => {
   };
 
   // Assertions
-  const serializedResponse = responseSerializer(response);
+  const serializedResponse = responseSerializer()(response);
   expect(serializedResponse).toEqual(expect.objectContaining(expectedResponse));
   expect(sanitize).toHaveBeenCalledTimes(1);
   expect(sanitize).toHaveBeenCalledWith(response.body);

@@ -1,7 +1,7 @@
 // Dependencies
 import Koa from 'koa';
 import Boom from 'boom';
-import { toArray } from 'lodash';
+import { castArray } from 'lodash';
 
 // Types
 declare module 'boom' {
@@ -14,23 +14,19 @@ declare module 'boom' {
     stack?: string[];
   }
 }
-interface IApplicationError extends Error {
+interface ApplicationError extends Error {
   status?: number;
   statusCode?: number;
   data?: object;
 }
-interface IApplicationErrorPayload extends Boom.Payload {
-  data?: object;
-  stack?: string[];
-}
 
 // Exports
-export default (): Koa.Middleware =>
-  async function errorHandler(ctx, next) {
+export default function errorHandlerMiddlewareFactory(): Koa.Middleware {
+  return async function errorHandlerMiddleware(ctx, next) {
     try {
       await next();
     } catch (applicationError) {
-      const err: IApplicationError = applicationError;
+      const err: ApplicationError = applicationError;
       let error: Boom<any>;
 
       // Normalize error object
@@ -55,7 +51,7 @@ export default (): Koa.Middleware =>
       if (ctx.app.env !== 'production') {
         error.output.payload.data = error.data || undefined;
         if (error.isServer) {
-          error.output.payload.stack = toArray(
+          error.output.payload.stack = castArray(
             error.stack && error.stack.split ? error.stack.split('\n') : error.stack,
           );
         }
@@ -92,3 +88,4 @@ export default (): Koa.Middleware =>
       if (ctx.status >= 500) ctx.app.emit('error', err, ctx);
     }
   };
+}

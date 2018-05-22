@@ -25,6 +25,7 @@
     "rootDir": "src"
   },
   "exclude": [
+    "build",
     "dist",
     "test",
     "node_modules"

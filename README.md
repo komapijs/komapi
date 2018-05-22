@@ -27,7 +27,6 @@ $ npm install --save komapi
 ```
 
 ### Usage
-Komapi requires you to be explicit about the environment and set it to `NODE_ENV` during instantiation. This is to encourage use of the `NODE_ENV` environment variable that many libraries depend on.
 
 ```js
 const app = new Komapi({
@@ -35,21 +34,53 @@ const app = new Komapi({
 });
 ```
 
+#### Types
+
+You can provide your own types to override the default ones (e.g. services available on app.services) by augmenting the Komapi.
+
+To set the services interface you can use one of the following alternatives. The difference is that alternative 2 will provide type safety during class instantiation, but is more verbose.
+
+```typescript
+// Dependencies
+import UserService from './services/User';
+
+/**
+ * Alternative 1
+ * 
+ * Less verbose, but not type safe `new Komapi({ services: ... })` instantiation (it is type safe on app.services though)
+ */
+declare module 'komapi' {
+  interface Services {
+    User: UserService;
+  }
+}
+
+/**
+ * Alternative 2
+ * 
+ * More verbose, but type safe `new Komapi({ services: ... })` instantiation
+ */
+declare module 'komapi/dist/lib/Komapi' {
+  interface Services {
+    User: UserService;
+  }
+}
+
+const app = new Komapi({ services: ... });
+```
+
 ### API
 #### Komapi
-`new Komapi([options], [locals], [secrets])`
+`new Komapi([options])`
 
 ##### Parameters:
-+ `options` (object): Available under `app.config`
++ `options` (object): Object with options
   * `env` (string): Environment setting - it is **highly** recommended to set this to `NODE_ENV`. Default: `development`
   * `name` (string): The name of the application. Default: `Komapi application`
   * `subdomainOffset` (number): Offset of .subdomains to ignore. See [Koa documentation for more information](https://koajs.com/#settings). Default: `2`
   * `proxy` (boolean): Trust proxy headers (includes `x-request-id`). See [Koa documentation for more information](https://koajs.com/#settings). Default: `false`
   * `logOptions` (object): Options to pass down to the [Pino](https://github.com/pinojs/pino) logger instance. See [Pino documentation for more information](https://github.com/pinojs/pino)
   * `logStream` (Writable): A writable stream to receive logs. Default: `process.stdout`
-  * `instanceId` (string): A unique identifier to identify the specific instance of the application. Defaults to generating a unique uuidv4 string
-+ `locals` (any): Convenient place to put all custom configuration. Available under `app.state.locals`
-+ `secrets` (object): Convenient and secure place to put all secrets, API keys and sensitive application-wide information. This is never leaked in logs or stack traces. Available under `app.state.secrets`
 
 ### Tips
 1. For better performance, add the following line before any import statements in your main application file `global.Promise = require('babel-runtime/core-js/promise').default = require('bluebird');`. This enables usage of Bluebird promises by default and significantly improves performance.

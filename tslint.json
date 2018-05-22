@@ -7,7 +7,6 @@
     "tslint-config-prettier"
   ],
   "jsRules": {
-    "interface-name": false,
     "class-name": true,
     "curly": false,
     "import-name": false,
@@ -21,6 +20,8 @@
     ]
   },
   "rules": {
+    "no-namespace": false,
+    "no-empty-interface": false,
     "interface-name": false,
     "class-name": true,
     "curly": false,
