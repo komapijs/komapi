@@ -1,16 +1,16 @@
 // Dependencies
 import Koa from 'koa';
 import http from 'http';
+import os from 'os';
 import stream from 'stream';
 import Pino from 'pino';
 import uuidv4 from 'uuid';
 import delegate from 'delegates';
-import { defaultsDeep, pick } from 'lodash';
+import { defaultsDeep } from 'lodash';
 import Service from './Service';
 import Schema from './Schema';
 import serializeRequest from './serializeRequest';
 import serializeResponse from './serializeResponse';
-import os from 'os';
 
 /**
  * Overload Koa to extend Komapi for simple module augmentation
@@ -31,6 +31,10 @@ declare module 'koa' {
  * Types
  */
 declare namespace Komapi {
+  export type Middleware = Koa.Middleware;
+
+  export interface Application {}
+
   export interface Options {
     env: Koa['env'];
     proxy: Koa['proxy'];
@@ -38,13 +42,15 @@ declare namespace Komapi {
     services: { [P in keyof Services]: ConstructableService<Services[P]> };
     logOptions: Pino.LoggerOptions;
     logStream: stream.Writable | stream.Duplex | stream.Transform;
+
+    [key: string]: any;
   }
+
   export interface ConstructableService<T extends Service> {
-    new (app: Komapi): T;
+    new (...args: any[]): T;
   }
-  export interface Services {
-    [service: string]: Service;
-  }
+
+  export interface Services {}
 
   // Logging
   export interface SanitizedRequest
@@ -56,22 +62,28 @@ declare namespace Komapi {
     httpVersion: Koa.Request['req']['httpVersion'];
     trailers: Koa.Request['req']['trailers'];
   }
+
   export interface SanitizedResponse extends Pick<Koa.Response, 'status' | 'headers' | 'length' | 'type'> {
     body?: string;
   }
 
   // Available Koa overloads
   export interface BaseRequest {}
+
   export interface Request {
     startAt: number;
     requestId: string;
     log: Komapi['log'];
   }
+
   export interface BaseResponse {}
+
   export interface Response {
     send: <T extends Koa.Response['body'] = Koa.Response['body']>(this: Koa.Context, body: T) => T;
   }
+
   export interface BaseContext {}
+
   export interface Context {
     startAt: Request['startAt'];
     requestId: Request['requestId'];
@@ -101,7 +113,10 @@ const defaultLogOptions: Komapi.Options['logOptions'] = {
 /**
  * Komapi class
  */
+declare interface Komapi extends Komapi.Application {}
 class Komapi extends Koa {
+  // Instance properties
+  public readonly config: Komapi.Options;
   public services: Komapi.Services;
   public log: Pino.Logger;
   public schema: Schema;
@@ -118,15 +133,7 @@ class Komapi extends Koa {
      * Init
      */
     // Set config
-    Object.assign(
-      this,
-      defaultsDeep(
-        {},
-        pick(options, ['env', 'proxy', 'subdomainOffset']),
-        { env: process.env.NODE_ENV },
-        defaultKomapiOptions,
-      ),
-    );
+    this.config = defaultsDeep({}, options, { env: process.env.NODE_ENV }, defaultKomapiOptions);
 
     // Instantiate services
     this.services = Object.entries(options.services || {}).reduce(
@@ -161,6 +168,26 @@ class Komapi extends Koa {
     /**
      * Integrate with Koa
      */
+    Object.defineProperty(this, 'env', {
+      get: () => this.config.env,
+      set: v => {
+        this.config.env = v;
+      },
+    });
+
+    Object.defineProperty(this, 'subdomainOffset', {
+      get: () => this.config.subdomainOffset,
+      set: v => {
+        this.config.subdomainOffset = v;
+      },
+    });
+
+    Object.defineProperty(this, 'proxy', {
+      get: () => this.config.proxy,
+      set: v => {
+        this.config.proxy = v;
+      },
+    });
     Object.assign(this.request, {
       requestId: undefined,
       log: this.log,
@@ -265,5 +292,6 @@ class Komapi extends Koa {
     return ctx;
   }
 }
+
 // Exports
 export = Komapi;

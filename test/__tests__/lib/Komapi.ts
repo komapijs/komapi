@@ -1,7 +1,7 @@
 // Dependencies
 import Stream from 'stream';
 import request from 'supertest';
-import Application from '../../../src';
+import Application from '../../../src/lib/Komapi';
 
 // Init
 const testEnv = process.env.NODE_ENV;

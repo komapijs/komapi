@@ -2,8 +2,8 @@
 jest.mock('../../../src/lib/sanitize', () => jest.fn().mockImplementation(input => input));
 
 // Dependencies
-import responseSerializer from '../../../src/lib/serializeResponse';
 import sanitize from '../../../src/lib/sanitize';
+import serializeResponse from '../../../src/lib/serializeResponse';
 import mockRequest from '../../fixtures/mockRequest';
 
 // Tests
@@ -17,7 +17,7 @@ it('should not include body for successful requests', () => {
   const expectedResponse = { body: undefined };
 
   // Assertions
-  expect(responseSerializer()(response)).toEqual(expect.objectContaining(expectedResponse));
+  expect(serializeResponse()(response)).toEqual(expect.objectContaining(expectedResponse));
 });
 it('should include body for internal server errors', () => {
   const { response } = mockRequest(undefined, {
@@ -35,7 +35,7 @@ it('should include body for internal server errors', () => {
   };
 
   // Assertions
-  expect(responseSerializer()(response)).toEqual(expect.objectContaining(expectedResponse));
+  expect(serializeResponse()(response)).toEqual(expect.objectContaining(expectedResponse));
 });
 it('should sanitize potential sensitive information', () => {
   // Setup mocking
@@ -59,7 +59,7 @@ it('should sanitize potential sensitive information', () => {
   };
 
   // Assertions
-  const serializedResponse = responseSerializer()(response);
+  const serializedResponse = serializeResponse()(response);
   expect(serializedResponse).toEqual(expect.objectContaining(expectedResponse));
   expect(sanitize).toHaveBeenCalledTimes(1);
   expect(sanitize).toHaveBeenCalledWith(response.body);

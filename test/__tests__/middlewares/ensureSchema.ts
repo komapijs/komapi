@@ -1,5 +1,6 @@
 // Dependencies
-import Application, { ensureSchema } from '../../../src';
+import Application from '../../../src/lib/Komapi';
+import ensureSchema from '../../../src/middlewares/ensureSchema';
 import request from 'supertest';
 
 // Init

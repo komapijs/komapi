@@ -1,17 +1,17 @@
 // Dependencies
-import Komapi from './Komapi';
+import Application from './Komapi';
 
 /**
  * Class
  */
 class Service {
-  public app: Komapi;
+  public app: Application;
 
   /**
    * Create service
    * @param {Komapi} app
    */
-  constructor(app: Komapi) {
+  constructor(app: Application) {
     this.app = app;
   }
 

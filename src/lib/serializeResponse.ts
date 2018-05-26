@@ -1,5 +1,5 @@
 // Dependencies
-import Komapi from './Komapi';
+import * as Komapi from './Komapi';
 import Koa from 'koa';
 import sanitize from './sanitize';
 import { defaultsDeep } from 'lodash';

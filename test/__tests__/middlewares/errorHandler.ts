@@ -1,5 +1,6 @@
 // Dependencies
-import Application, { errorHandler } from '../../../src';
+import Application from '../../../src/lib/Komapi';
+import errorHandler from '../../../src/middlewares/errorHandler';
 import request from 'supertest';
 import { unauthorized } from 'boom';
 

@@ -1,7 +1,6 @@
 // Dependencies
-import { Schema } from '../../../src';
+import Schema from '../../../src/lib/Schema';
 import Boom from 'boom';
-import { ErrorParameters } from 'ajv';
 
 // Init
 const exampleSchema = {

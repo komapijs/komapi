@@ -1,5 +1,6 @@
 // Dependencies
-import Application, { requestLogger } from '../../../src';
+import Application from '../../../src/lib/Komapi';
+import requestLogger from '../../../src/middlewares/requestLogger';
 import request from 'supertest';
 
 // Tests
