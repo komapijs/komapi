@@ -1,7 +1,7 @@
 // Dependencies
-import Koa from 'koa';
+import Komapi from '../lib/Komapi';
 import Pino from 'pino';
-import { defaultsDeep } from 'lodash';
+import defaultsDeep from 'lodash.defaultsdeep';
 
 // Types
 export interface RequestLoggerOptions {
@@ -13,16 +13,16 @@ const defaultOptions: RequestLoggerOptions = {
 };
 
 // Exports
-export default function requestLoggerMiddlewareFactory(options: Partial<RequestLoggerOptions> = {}): Koa.Middleware {
+export default function requestLoggerMiddlewareFactory(options: Partial<RequestLoggerOptions> = {}): Komapi.Middleware {
   const opts = defaultsDeep({}, options, defaultOptions);
   return async function requestLoggerMiddleware(ctx, next) {
     try {
       await next();
     } finally {
-      ctx.log[opts.level](
+      ctx.request.log[opts.level](
         {
-          startAt: ctx.startAt,
-          latency: Math.ceil(Date.now() - ctx.startAt),
+          startAt: ctx.request.startAt,
+          latency: Math.ceil(Date.now() - ctx.request.startAt),
           request: ctx.request,
           response: ctx.response,
         },

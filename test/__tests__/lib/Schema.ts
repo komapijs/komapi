@@ -1,4 +1,4 @@
-// Dependencies
+// Imports
 import Schema from '../../../src/lib/Schema';
 import Boom from 'boom';
 
@@ -115,6 +115,11 @@ describe('helper methods', () => {
       expect(errorWithData.data).toEqual({
         errors: [],
         schema: exampleSchema,
+        validatedData: {
+          comment: 'A long comment about this generic person',
+          id: 1,
+          name: 'John Smith',
+        },
       });
     });
     it('should pre populate output.payload.errors with sanitized error messages', () => {
@@ -149,13 +154,8 @@ describe('helper methods', () => {
       // Assertions
       expect(Boom.isBoom(error)).toBe(true);
       expect(error.message).toBe('Invalid data provided');
-      expect(error.output.payload.errors).toEqual([
+      expect((error.output.payload as any).errors).toEqual([
         {
-          data: {
-            id: 1,
-            name: 'John Smith',
-            comment: 'A long comment about this generic person',
-          },
           dataPath: 'dataPath',
           keyword: 'keyword',
           message: 'message',
@@ -184,17 +184,17 @@ describe('helper methods', () => {
       expect(error.data).toEqual({
         errors: [
           {
-            data: {
-              comment: 'A long comment about this generic person',
-              id: 1,
-              name: 'John Smith',
-            },
             keyword: 'required',
-            message: "should have required property 'isCool'",
-            dataPath: '',
+            message: 'is a required property',
+            dataPath: '/isCool',
           },
         ],
         schema: exampleSchema,
+        validatedData: {
+          comment: 'A long comment about this generic person',
+          id: 1,
+          name: 'John Smith',
+        },
       });
     });
   });

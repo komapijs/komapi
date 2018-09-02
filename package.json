@@ -22,65 +22,80 @@
   },
   "homepage": "https://github.com/komapijs/komapi#README.md",
   "engines": {
-    "node": "^8.11.1",
+    "node": "^8.11.3",
     "npm": "^5.6.0"
   },
   "main": "dist/index",
   "types": "dist/index.d.ts",
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm test"
+    }
+  },
   "scripts": {
-    "apply:format": "prettier --config .prettierrc --write \"{src,test}/**/*.{ts,js}?(x)\"",
+    "apply:format": "prettier --config .prettierrc --write \"{src,test,types}/**/*.{ts,js}?(x)\"",
     "prebuild": "npm run clean",
     "build": "tsc",
-    "check:format": "prettier --config .prettierrc --list-different \"{src,test}/**/*.{ts,js}?(x)\"",
-    "check:linting": "tslint --project tsconfig.json \"{src,test}/**/*.{ts,js}?(x)\"",
+    "build:watch": "tsc --watch",
+    "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s -r 0",
+    "check:format": "prettier --config .prettierrc --list-different \"{src,test,types}/**/*.{ts,js}?(x)\"",
+    "check:linting": "tslint --project tsconfig.json \"{src,test,types}/**/*.{ts,js}?(x)\"",
     "check:types": "tsc --noEmit",
     "check": "npm-run-all check:*",
     "clean": "del-cli ./.coverage ./dist",
     "pretest": "npm run check",
     "prepare": "npm run build",
+    "release": "echo Recommended semver version bump: && conventional-recommended-bump -p angular && np",
     "test": "jest",
-    "test:watch": "jest --watchAll"
+    "test:watch": "jest --watchAll",
+    "version": "npm run changelog && git add CHANGELOG.md"
   },
   "dependencies": {
-    "@types/boom": "^7.2.0",
-    "@types/koa": "^2.0.45",
-    "@types/lodash": "^4.14.108",
-    "@types/pino": "^4.7.1",
-    "@types/uuid": "^3.4.3",
-    "ajv": "^6.5.0",
-    "boom": "^7.2.0",
+    "@types/cls-hooked": "^4.2.1",
+    "@types/koa": "^2.0.46",
+    "@types/pino": "^5.20.0",
+    "ajv": "^6.5.5",
+    "boom": "^7.2.2",
+    "cls-hooked": "^4.2.2",
     "delegates": "^1.0.0",
-    "koa": "^2.5.1",
-    "lodash": "^4.17.10",
-    "pino": "^4.16.1",
-    "uuid": "^3.2.1"
+    "koa": "^2.6.2",
+    "koa-compose": "^4.1.0",
+    "koa-router": "^7.4.0",
+    "lodash.clonedeep": "^4.5.0",
+    "lodash.defaultsdeep": "^4.6.0",
+    "lodash.pick": "^4.4.0",
+    "pino": "^5.8.1",
+    "uuid": "^3.3.2"
   },
   "devDependencies": {
-    "@types/jest": "^22.2.3",
-    "@types/node": "^8.10.9",
-    "@types/supertest": "^2.0.4",
+    "@types/boom": "^7.2.1",
+    "@types/jest": "^23.3.9",
+    "@types/koa-compose": "^3.2.2",
+    "@types/koa-router": "^7.0.33",
+    "@types/lodash.clonedeep": "^4.5.4",
+    "@types/lodash.defaultsdeep": "^4.6.4",
+    "@types/lodash.pick": "^4.4.4",
+    "@types/node": "^10.12.5",
+    "@types/supertest": "^2.0.6",
+    "@types/uuid": "^3.4.4",
     "del-cli": "^1.1.0",
-    "jest": "^22.4.3",
+    "husky": "^1.1.4",
+    "jest": "^23.6.0",
     "npm-run-all": "^4.1.3",
-    "prettier": "^1.12.0",
-    "supertest": "^3.0.0",
-    "ts-jest": "^22.4.5",
+    "prettier": "^1.15.2",
+    "supertest": "^3.3.0",
+    "ts-jest": "^23.10.4",
     "tslint": "^5.10.0",
-    "tslint-config-airbnb": "^5.8.0",
-    "tslint-config-prettier": "^1.10.0",
+    "tslint-config-airbnb": "^5.11.0",
+    "tslint-config-prettier": "^1.15.0",
     "tslint-eslint-rules": "^5.1.0",
-    "typescript": "^2.8.3"
+    "typescript": "^3.1.6"
   },
   "files": [
     "src",
     "dist"
   ],
   "jest": {
-    "globals": {
-      "ts-jest": {
-        "skipBabel": true
-      }
-    },
     "bail": true,
     "collectCoverage": true,
     "collectCoverageFrom": [
@@ -89,10 +104,10 @@
     "coverageDirectory": ".coverage",
     "coverageThreshold": {
       "global": {
-        "branches": 60,
-        "functions": 60,
-        "lines": 60,
-        "statements": 60
+        "branches": 50,
+        "functions": 50,
+        "lines": 50,
+        "statements": 50
       }
     },
     "moduleFileExtensions": [
@@ -103,14 +118,17 @@
       "json",
       "node"
     ],
-    "silent": true,
+    "setupFiles": [
+      "<rootDir>/test/fixtures/setupEnvironment.ts"
+    ],
     "testEnvironment": "node",
     "testMatch": [
-      "**/test/__tests__/**/*.{js,ts}?(x)"
+      "<rootDir>/test/__tests__/**/*.{ts,js}?(x)"
     ],
     "transform": {
       "^.+\\.tsx?$": "ts-jest"
     },
+    "silent": true,
     "verbose": true
   }
 }

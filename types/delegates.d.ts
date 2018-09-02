@@ -6,5 +6,5 @@ declare module 'delegates' {
     access: (property: keyof U) => any;
     method: (method: keyof U) => any;
   }
-  export default function delegates<T, U>(proto: T, accessor: keyof T): Delegator<T, U>;
+  export default function delegates<T, U>(proto: T, accessor: string): Delegator<T, U>;
 }

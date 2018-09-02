@@ -1,8 +1,4 @@
-// Mocks
-jest.mock('../../../src/lib/sanitize', () => jest.fn().mockImplementation(input => input));
-
-// Dependencies
-import sanitize from '../../../src/lib/sanitize';
+// Imports
 import serializeRequest from '../../../src/lib/serializeRequest';
 import mockRequest from '../../fixtures/mockRequest';
 
@@ -18,13 +14,109 @@ it('should not include body for successful requests', () => {
     },
   });
   const expectedRequest = {
-    headers: {
-      'cache-control': 'no-cache',
-    },
+    body: undefined,
+    header: { 'cache-control': 'no-cache' },
+    httpVersion: undefined,
+    ip: undefined,
+    method: undefined,
+    protocol: undefined,
+    query: { sort: '+created_at' },
+    referrer: undefined,
+    requestId: undefined,
+    trailers: undefined,
+    url: undefined,
+    userAgent: undefined,
+  };
+
+  // Assertions
+  expect(serializeRequest()(request)).toEqual(expectedRequest);
+});
+
+it('should support options for determining whether to include body', () => {
+  const { request } = mockRequest({
     query: {
       sort: '+created_at',
     },
+    body: {
+      test: true,
+      withString: 'string',
+    },
+  });
+  const expectedRequest = {
+    body: { test: true, withString: 'string' },
+    header: { 'cache-control': 'no-cache' },
+    httpVersion: undefined,
+    ip: undefined,
+    method: undefined,
+    protocol: undefined,
+    query: { sort: '+created_at' },
+    referrer: undefined,
+    requestId: undefined,
+    trailers: undefined,
+    url: undefined,
+    userAgent: undefined,
+  };
+
+  // Assertions
+  expect(serializeRequest({ includeBody: true })(request)).toEqual(expectedRequest);
+});
+it('should not include body for not found', () => {
+  const { request } = mockRequest(
+    {
+      query: {
+        sort: '+created_at',
+      },
+      body: {
+        test: true,
+        withString: 'string',
+      },
+    },
+    { status: 404 },
+  );
+  const expectedRequest = {
     body: undefined,
+    header: { 'cache-control': 'no-cache' },
+    httpVersion: undefined,
+    ip: undefined,
+    method: undefined,
+    protocol: undefined,
+    query: { sort: '+created_at' },
+    referrer: undefined,
+    requestId: undefined,
+    trailers: undefined,
+    url: undefined,
+    userAgent: undefined,
+  };
+
+  // Assertions
+  expect(serializeRequest()(request)).toEqual(expectedRequest);
+});
+it('should include body for bad requests', () => {
+  const { request } = mockRequest(
+    {
+      query: {
+        sort: '+created_at',
+      },
+      body: {
+        test: true,
+        withString: 'string',
+      },
+    },
+    { status: 400 },
+  );
+  const expectedRequest = {
+    body: { test: true, withString: 'string' },
+    header: { 'cache-control': 'no-cache' },
+    httpVersion: undefined,
+    ip: undefined,
+    method: undefined,
+    protocol: undefined,
+    query: { sort: '+created_at' },
+    referrer: undefined,
+    requestId: undefined,
+    trailers: undefined,
+    url: undefined,
+    userAgent: undefined,
   };
 
   // Assertions
@@ -44,63 +136,20 @@ it('should include body for internal server errors', () => {
     { status: 500 },
   );
   const expectedRequest = {
-    headers: {
-      'cache-control': 'no-cache',
-    },
-    query: {
-      sort: '+created_at',
-    },
-    body: {
-      test: true,
-      withString: 'string',
-    },
+    body: { test: true, withString: 'string' },
+    header: { 'cache-control': 'no-cache' },
+    httpVersion: undefined,
+    ip: undefined,
+    method: undefined,
+    protocol: undefined,
+    query: { sort: '+created_at' },
+    referrer: undefined,
+    requestId: undefined,
+    trailers: undefined,
+    url: undefined,
+    userAgent: undefined,
   };
 
   // Assertions
   expect(serializeRequest()(request)).toEqual(expectedRequest);
-});
-it('should sanitize potential sensitive information', () => {
-  // Setup mocking
-  (sanitize as jest.Mock).mockClear();
-
-  // Init
-  const { request } = mockRequest(
-    {
-      header: {
-        authorization: 'Basic YWRtaW46c2VjcmV0',
-      },
-      query: {
-        token: 'secret',
-        sort: '+created_at',
-      },
-      body: {
-        test: true,
-        withString: 'string',
-        password: 'hunter2',
-      },
-    },
-    { status: 500 },
-  );
-  const expectedRequest = {
-    headers: {
-      authorization: 'Basic ****',
-      'cache-control': 'no-cache',
-    },
-    query: {
-      token: 'secret',
-      sort: '+created_at',
-    },
-    body: {
-      test: true,
-      withString: 'string',
-      password: 'hunter2',
-    },
-  };
-
-  // Assertions
-  const serializedRequest = serializeRequest()(request);
-  expect(serializedRequest).toEqual(expectedRequest);
-  expect(sanitize).toHaveBeenCalledTimes(2);
-  expect(sanitize).toHaveBeenCalledWith(request.query);
-  expect(sanitize).toHaveBeenCalledWith(request.body);
 });

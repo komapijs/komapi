@@ -1,29 +1,28 @@
-// Dependencies
-import Application from './Komapi';
+// Imports
+import Komapi from './Komapi';
 
-/**
- * Class
- */
+// Exports
 class Service {
-  public app: Application;
+  public app: Komapi;
 
   /**
    * Create service
-   * @param {Komapi} app
+   * @param {Application} app
    */
-  constructor(app: Application) {
+  constructor(app: Komapi) {
     this.app = app;
   }
 
   /**
-   * Initiate service with asynchronous actions
-   *
-   * @returns {Promise<this>}
+   * Initialization
    */
-  public async init(): Promise<this> {
-    return this;
-  }
+  public async init(app: Komapi) {}
+
+  /**
+   * Graceful shutdown
+   */
+  public async close(app: Komapi) {}
 }
 
 // Exports
-export = Service;
+export default Service;

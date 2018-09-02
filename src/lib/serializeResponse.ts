@@ -1,29 +1,27 @@
 // Dependencies
-import * as Komapi from './Komapi';
 import Koa from 'koa';
-import sanitize from './sanitize';
-import { defaultsDeep } from 'lodash';
+import defaultsDeep from 'lodash.defaultsdeep';
 
 // Types
 export interface SerializeResponseOptions {
-  includeBody: boolean | ((response: Koa.Response) => boolean);
+  includeBody: boolean | ((request: Koa.Response) => boolean);
 }
 // Init
 const defaultOptions: SerializeResponseOptions = {
-  includeBody: response => response.status === 400 || response.status === 500,
+  includeBody: response => response.status >= 400 && response.status !== 404,
 };
 
 // Exports
 export default function serializeResponseFactory(options: Partial<SerializeResponseOptions> = {}) {
   const opts = defaultsDeep({}, options, defaultOptions);
-  return function serializeResponse(response: Koa.Response): Komapi.SanitizedResponse {
+  return function serializeRequest(response: Koa.Response) {
     const includeBody = typeof opts.includeBody === 'function' ? opts.includeBody(response) : opts.includeBody;
     return {
+      body: includeBody ? response.body : undefined,
       status: response.status,
-      headers: response.headers,
+      header: response.header,
       length: response.length,
       type: response.type,
-      body: includeBody ? sanitize(response.body) : undefined,
     };
   };
 }

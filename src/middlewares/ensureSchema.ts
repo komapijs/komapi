@@ -1,7 +1,7 @@
 // Dependencies
-import Koa from 'koa';
+import Komapi from '../lib/Komapi';
 import Schema from '../lib/Schema';
-import { defaultsDeep } from 'lodash';
+import defaultsDeep from 'lodash.defaultsdeep';
 
 // Init
 const defaultOptions = {
@@ -16,7 +16,7 @@ export default function ensureSchemaMiddlewareFactory(
     key: 'body' | 'params' | 'query';
     schemaValidator?: Schema;
   },
-): Koa.Middleware {
+): Komapi.Middleware {
   const opts = defaultsDeep({}, options, defaultOptions);
   const validate = opts.schemaValidator.createValidator(jsonSchema);
   return async function ensureSchemaMiddleware(ctx, next) {

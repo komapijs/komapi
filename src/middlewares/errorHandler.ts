@@ -1,17 +1,17 @@
 // Dependencies
-import Koa from 'koa';
+import Komapi from '../lib/Komapi';
 import Boom from 'boom';
-import { castArray } from 'lodash';
 
 // Types
 declare module 'boom' {
   function boomify(error: Error, options?: Boom.Options<object>): Boom<Error>;
-  // tslint:disable-next-line interface-name
   interface Payload {
-    code?: number;
-    data?: object;
+    code?: number | string;
     errors?: object[];
-    stack?: string[];
+    additionalDevelopmentData?: {
+      data?: object;
+      stack?: string;
+    };
   }
 }
 interface ApplicationError extends Error {
@@ -21,17 +21,18 @@ interface ApplicationError extends Error {
 }
 
 // Exports
-export default function errorHandlerMiddlewareFactory(): Koa.Middleware {
+export default function errorHandlerMiddlewareFactory(): Komapi.Middleware {
   return async function errorHandlerMiddleware(ctx, next) {
     try {
       await next();
+      if (ctx.status === 404) throw Boom.notFound();
     } catch (applicationError) {
       const err: ApplicationError = applicationError;
       let error: Boom<any>;
 
       // Normalize error object
       try {
-        if (!(applicationError instanceof Error)) throw new Error('Cannot handle non-errors as errors!');
+        if (!(applicationError instanceof Error)) throw new Error('Cannot handle non-errors as errors');
         error = Boom.isBoom(err)
           ? err
           : Boom.boomify(err, {
@@ -45,16 +46,14 @@ export default function errorHandlerMiddlewareFactory(): Koa.Middleware {
       // Set defaults
       let status = Boom.notAcceptable().output.statusCode;
       let headers = {};
-      let body: string | object = Boom.notAcceptable().toString();
+      let body: string | object = Boom.notAcceptable().output.payload.message;
 
       // Check for dev and include dev stuff
       if (ctx.app.env !== 'production') {
-        error.output.payload.data = error.data || undefined;
-        if (error.isServer) {
-          error.output.payload.stack = castArray(
-            error.stack && error.stack.split ? error.stack.split('\n') : error.stack,
-          );
-        }
+        error.output.payload.additionalDevelopmentData = {
+          data: error.data || undefined,
+          stack: error.isServer && error.stack ? error.stack : undefined,
+        };
       }
 
       // Convert boom response to proper format
@@ -62,10 +61,10 @@ export default function errorHandlerMiddlewareFactory(): Koa.Middleware {
         error: {
           code: error.output.payload.code || '',
           status: error.output.payload.statusCode,
+          error: error.output.payload.error,
           message: error.output.payload.message,
           errors: error.output.payload.errors,
-          data: error.output.payload.data,
-          stack: error.output.payload.stack,
+          additionalDevelopmentData: error.output.payload.additionalDevelopmentData,
         },
       };
 
@@ -73,19 +72,18 @@ export default function errorHandlerMiddlewareFactory(): Koa.Middleware {
       const format = ctx.accepts(['json', 'text']);
       if (format === 'json') {
         status = error.output.statusCode;
-        headers = error.output.headers; // eslint-disable-line prefer-destructuring
+        headers = error.output.headers;
         body = payload;
       } else if (format === 'text') {
         status = error.output.statusCode;
-        headers = error.output.headers; // eslint-disable-line prefer-destructuring
-        body = JSON.stringify(payload, null, 2);
+        headers = error.output.headers;
+        body = payload.error.message;
       }
 
-      // Emit the error
+      // Respond with the error
       ctx.set(headers);
       ctx.status = status;
       ctx.body = body;
-      if (ctx.status >= 500) ctx.app.emit('error', err, ctx);
     }
   };
 }

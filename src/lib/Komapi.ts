@@ -1,21 +1,32 @@
-// Dependencies
-import Koa from 'koa';
-import http from 'http';
-import os from 'os';
+// Imports
 import stream from 'stream';
+import os from 'os';
+import Koa from 'koa';
 import Pino from 'pino';
-import uuidv4 from 'uuid';
+import defaultsDeep from 'lodash.defaultsdeep';
 import delegate from 'delegates';
-import { defaultsDeep } from 'lodash';
-import Service from './Service';
-import Schema from './Schema';
+import cls from 'cls-hooked';
+import http from 'http';
+import uuidv4 from 'uuid';
+import Router from 'koa-router';
+import compose from 'koa-compose';
+import createLogger from './createLogger';
+import setTransactionContext from '../middlewares/setTransactionContext';
+import ensureReady from '../middlewares/ensureReady';
+import requestLogger from '../middlewares/requestLogger';
+import errorHandler from '../middlewares/errorHandler';
+import ensureSchema from '../middlewares/ensureSchema';
 import serializeRequest from './serializeRequest';
 import serializeResponse from './serializeResponse';
+import Schema from './Schema';
+import ensureModel from './ensureModel';
+import BaseService from './Service';
+import Signals = NodeJS.Signals;
+
+const pkg = require('../../package.json'); // tslint:disable-line no-var-requires
 
 /**
- * Overload Koa to extend Komapi for simple module augmentation
- *
- * TODO: Might want to extend this further
+ * Overload Koa by extending Komapi for simple module augmentation
  */
 declare module 'koa' {
   interface Application extends Komapi {}
@@ -30,84 +41,12 @@ declare module 'koa' {
 /**
  * Types
  */
-declare namespace Komapi {
-  export type Middleware = Koa.Middleware;
-
-  export interface Application {}
-
-  export interface Options {
-    env: Koa['env'];
-    proxy: Koa['proxy'];
-    subdomainOffset: Koa['subdomainOffset'];
-    services: { [P in keyof Services]: ConstructableService<Services[P]> };
-    logOptions: Pino.LoggerOptions;
-    logStream: stream.Writable | stream.Duplex | stream.Transform;
-
-    [key: string]: any;
-  }
-
-  export interface ConstructableService<T extends Service> {
-    new (...args: any[]): T;
-  }
-
-  export interface Services {}
-
-  // Logging
-  export interface SanitizedRequest
-    extends Pick<Koa.Request, 'headers' | 'method' | 'protocol' | 'url' | 'query' | 'ip'> {
-    requestId: string;
-    body?: any;
-    referrer: Koa.Request['header']['referer'] | Koa.Request['header']['referrer'];
-    userAgent: Koa.Request['header']['user-agent'];
-    httpVersion: Koa.Request['req']['httpVersion'];
-    trailers: Koa.Request['req']['trailers'];
-  }
-
-  export interface SanitizedResponse extends Pick<Koa.Response, 'status' | 'headers' | 'length' | 'type'> {
-    body?: string;
-  }
-
-  // Available Koa overloads
-  export interface BaseRequest {}
-
-  export interface Request {
-    startAt: number;
-    requestId: string;
-    log: Komapi['log'];
-  }
-
-  export interface BaseResponse {}
-
-  export interface Response {
-    send: <T extends Koa.Response['body'] = Koa.Response['body']>(this: Koa.Context, body: T) => T;
-  }
-
-  export interface BaseContext {}
-
-  export interface Context {
-    startAt: Request['startAt'];
-    requestId: Request['requestId'];
-    log: Request['log'];
-    send: Response['send'];
-  }
-}
-
-/**
- * Init
- */
-const defaultKomapiOptions: Pick<Komapi.Options, 'env' | 'subdomainOffset' | 'proxy' | 'services'> = {
-  env: 'development',
-  proxy: false,
-  subdomainOffset: 2,
-  services: {},
-};
-const defaultLogOptions: Komapi.Options['logOptions'] = {
-  level: 'info',
-  serializers: {
-    request: serializeRequest(),
-    response: serializeResponse(),
-    err: Pino.stdSerializers.err,
-  },
+type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends Array<infer U>
+    ? Array<DeepPartial<U>>
+    : T[P] extends ReadonlyArray<infer SU>
+    ? ReadonlyArray<DeepPartial<SU>>
+    : DeepPartial<T[P]>
 };
 
 /**
@@ -115,108 +54,327 @@ const defaultLogOptions: Komapi.Options['logOptions'] = {
  */
 declare interface Komapi extends Komapi.Application {}
 class Komapi extends Koa {
-  // Instance properties
-  public readonly config: Komapi.Options;
-  public services: Komapi.Services;
-  public log: Pino.Logger;
-  public schema: Schema;
+  /**
+   * Export helper functions by attaching to Komapi (hack to make it work with named import and module augmentation)
+   */
+  public static Service = BaseService;
+  public static Schema = Schema;
+  public static ensureSchema = ensureSchema;
+  public static ensureModel = ensureModel;
+  public static requestLogger = requestLogger;
+  public static errorHandler = errorHandler;
 
   /**
-   * Create new application instance
-   *
-   * @param {Partial<Komapi.Options>} options
+   * Setup Komapi properties
    */
-  constructor(options: Partial<Komapi.Options> = {}) {
+  public readonly config: Komapi.Options['config'];
+  public readonly transactionContext: cls.Namespace;
+  public readonly services: Komapi.InstantiatedServices;
+  public locals: Komapi.Locals = {};
+  public log: Pino.Logger;
+  public state: Komapi.Lifecycle = Komapi.Lifecycle.SETUP;
+  public readonly waitForReadyState: Promise<Komapi.Lifecycle.READY> = new Promise(
+    resolve => (this._setReadyState = resolve),
+  );
+  protected initHandlers: Komapi.LifecycleHandler[] = [];
+  protected closeHandlers: Komapi.LifecycleHandler[] = [];
+  private _setReadyState!: () => void;
+
+  /**
+   * Create new Komapi instance
+   *
+   * @param {DeepPartial<Komapi.Options>} options
+   */
+  constructor(options: DeepPartial<Komapi.Options> = {}) {
     super();
 
-    /**
-     * Init
-     */
-    // Set config
-    this.config = defaultsDeep({}, options, { env: process.env.NODE_ENV }, defaultKomapiOptions);
-
-    // Instantiate services
-    this.services = Object.entries(options.services || {}).reduce(
-      (acc, [k, v]: [string, any]) => {
-        acc[k] = new v(this);
-        return acc;
+    // Create default options
+    const opts = defaultsDeep({}, options, {
+      config: {
+        env: this.env,
+        proxy: this.proxy,
+        silent: this.silent,
+        keys: this.keys,
+        subdomainOffset: this.subdomainOffset,
+        instanceId: pkg.name,
       },
-      {} as any,
-    ) as Komapi.Services;
-
-    // Create logger
-    this.log = Pino(
-      defaultsDeep(
-        {},
-        options.logOptions,
-        {
-          level: process.env.LOG_LEVEL,
-          base: {
-            pid: process.pid,
-            hostname: os.hostname(),
-            env: this.env,
-          },
+      services: {},
+      locals: {},
+      logOptions: {
+        useLevelLabels: true,
+        level: process.env.LOG_LEVEL || 'info',
+        base: {
+          pid: process.pid,
+          hostname: os.hostname(),
+          env: this.env,
         },
-        defaultLogOptions,
-      ),
-      options.logStream || process.stdout,
-    );
+        serializers: {
+          err: Pino.stdSerializers.err,
+          request: serializeRequest(),
+          response: serializeResponse(),
+        },
+        redact: {
+          paths: ['request.header.authorization', 'request.header.cookie'],
+          censor: '[REDACTED]',
+        },
+      },
+      logStream: (Pino as any).destination(),
+    });
 
-    // Create global schema handler
-    this.schema = new Schema();
+    /**
+     * Initialization
+     */
+    {
+      // Create namespace
+      this.transactionContext = cls.createNamespace(opts.config.instanceId);
+
+      // Set config
+      this.config = opts.config;
+      this.locals = opts.locals;
+      this.log = createLogger(this.transactionContext, opts.logOptions, opts.logStream);
+      this.services = Object.entries(opts.services).reduce(
+        (acc, [k, v]: [string, any]) => {
+          acc[k] = new v(this);
+          return acc;
+        },
+        {} as any,
+      );
+    }
 
     /**
      * Integrate with Koa
      */
-    Object.defineProperty(this, 'env', {
-      get: () => this.config.env,
-      set: v => {
-        this.config.env = v;
-      },
-    });
-
-    Object.defineProperty(this, 'subdomainOffset', {
-      get: () => this.config.subdomainOffset,
-      set: v => {
-        this.config.subdomainOffset = v;
-      },
-    });
-
-    Object.defineProperty(this, 'proxy', {
-      get: () => this.config.proxy,
-      set: v => {
-        this.config.proxy = v;
-      },
-    });
-    Object.assign(this.request, {
-      requestId: undefined,
-      log: this.log,
-    });
-    Object.assign(this.response, {
-      send: function send<T extends Koa.Response['body']>(this: Koa.Context, body: T): T {
-        this.body = body;
-        return body;
-      },
-    });
-    delegate<Koa.BaseContext, Koa.Request>(this.context, 'request')
-      .access('startAt')
-      .access('requestId')
-      .access('log');
-    delegate<Koa.BaseContext, Koa.Response>(this.context, 'response').access('send');
+    {
+      ['env', 'subdomainOffset', 'proxy', 'silent', 'keys'].forEach(prop => {
+        Object.defineProperty(this, prop, {
+          get: () => (this.config as { [key: string]: any })[prop],
+          set: v => {
+            (this.config as { [key: string]: any })[prop] = v;
+          },
+        });
+      });
+      Object.assign(this.context, {
+        services: this.services,
+      });
+      Object.assign(this.request, {
+        auth: null,
+        requestId: null,
+        log: this.log,
+      });
+      Object.assign(this.response, {
+        send: function send<T>(body: T): ReturnType<Koa.Response['send']> {
+          this.body = body;
+          return this.body;
+        },
+        sendAPI: function sendAPI<T, U>(body: T, metadata?: U): ReturnType<Koa.Response['sendAPI']> {
+          this.body = { metadata, data: body };
+          return this.body;
+        },
+      } as Koa.Response);
+      delegate<Koa.BaseContext, Koa.Request>(this.context, 'request')
+        .access('auth')
+        .access('startAt')
+        .access('requestId')
+        .access('log');
+      delegate<Koa.BaseContext, Koa.Response>(this.context, 'response')
+        .access('send')
+        .access('sendAPI');
+    }
 
     /**
-     * Sanity checks
+     * Set up event handlers
      */
-    if (process.env.NODE_ENV !== this.env) {
-      this.log.warn(
-        { NODE_ENV: process.env.NODE_ENV },
-        `NODE_ENV environment mismatch. Your application has been instantiated with '{ env: '${
-          this.env
-        }' }' while 'process.env.NODE_ENV = ${
-          process.env.NODE_ENV
-        }'. It is recommended to start your application with '{ env: process.env.NODE_ENV }' and set the correct environment using the NODE_ENV environment variable.`,
+    {
+      // Log emitted errors
+      this.on('error', (err, ctx) => {
+        (ctx || this).log.error({ err, app: this }, 'Application Error Event');
+      });
+
+      // Graceful shutdown
+      (['SIGTERM', 'SIGINT', 'SIGHUP'] as Signals[]).forEach((signal: Signals) =>
+        process.once(signal, async () => {
+          try {
+            // @ts-ignore
+            this.log = Pino.final(this.log);
+            await this.close();
+            process.exit(0);
+          } catch (err) {
+            this.log.fatal(
+              { err, app: this, metadata: { signal } },
+              `Failed to handle \`${signal}\` gracefully. Exiting with status code 1`,
+            );
+            process.exit(1);
+          }
+        }),
       );
+
+      // Handle application state inconsistencies
+      process.once('uncaughtException', async err => {
+        // @ts-ignore
+        this.log = Pino.final(this.log);
+        this.log.fatal({ err, app: this }, 'Uncaught Exception Error - Stopping application to prevent instability');
+        await this.close();
+        process.exit(1);
+      });
+      process.once('unhandledRejection', async (err, promise) => {
+        // @ts-ignore
+        this.log = Pino.final(this.log);
+        this.log.fatal(
+          { err, app: this, metadata: { promise } },
+          'Unhandled Rejected Promise - Stopping application to prevent instability',
+        );
+        await this.close();
+        process.exit(1);
+      });
+      process.once('multipleResolves', async (type, promise, value) => {
+        // @ts-ignore
+        this.log = Pino.final(this.log);
+        this.log.fatal(
+          { app: this, metadata: { type, promise, value } },
+          'Promise resolved or rejected more than once - Stopping application to prevent instability',
+        );
+        await this.close();
+        process.exit(1);
+      });
+
+      // Listen for warnings
+      process.on('warning', warning => {
+        this.log.warn(
+          { app: this, stack: warning.stack, metadata: { message: warning.message } },
+          'NodeJS warning detected - see metadata and stack property for more information',
+        );
+      });
+
+      // Add close handler for graceful exits
+      process.once('beforeExit', async () => {
+        this.log.debug({ app: this }, 'Before exit event triggered - ensuring graceful shutdown');
+        await this.close();
+      });
     }
+
+    /**
+     * Wire it all up
+     */
+    {
+      // Add service handlers
+      Object.entries(this.services).forEach(([name, service]) => {
+        const serviceInitializer: Komapi.LifecycleHandler = async (...args) => service.init(...args);
+        const serviceCloser: Komapi.LifecycleHandler = async (...args) => service.close(...args);
+        Object.defineProperty(serviceInitializer, 'name', { value: `service:${name}.init` });
+        Object.defineProperty(serviceCloser, 'name', { value: `service:${name}.close` });
+        this.onInit(serviceInitializer);
+        this.onClose(serviceCloser);
+      });
+
+      // Add middlewares
+      this.use(errorHandler());
+      this.use(setTransactionContext(this.transactionContext));
+      this.use(ensureReady());
+    }
+  }
+
+  /**
+   * Add init handlers before services - e.g. connect to database
+   *
+   * @returns {Promise<this>}
+   */
+  public onBeforeInit(...handlers: Komapi.LifecycleHandler[]): this {
+    if (this.state !== Komapi.Lifecycle.SETUP) {
+      throw new Error(`Cannot add init lifecycle handlers when application is in \`${this.state}\` state`);
+    }
+    handlers
+      .slice(0)
+      .reverse()
+      .forEach(handler => this.initHandlers.unshift(handler));
+    return this;
+  }
+
+  /**
+   * Add init handlers after services - e.g. pre-warm cache
+   *
+   * @returns {Promise<this>}
+   */
+  public onInit(...handlers: Komapi.LifecycleHandler[]): this {
+    if (this.state !== Komapi.Lifecycle.SETUP) {
+      throw new Error(`Cannot add init lifecycle handlers when application is in \`${this.state}\` state`);
+    }
+    handlers.forEach(handler => this.initHandlers.push(handler));
+    return this;
+  }
+
+  /**
+   * Add close handlers before services - e.g. close connections
+   *
+   * @returns {Promise<this>}
+   */
+  public onBeforeClose(...handlers: Komapi.LifecycleHandler[]): this {
+    if (this.state === Komapi.Lifecycle.CLOSING || this.state === Komapi.Lifecycle.CLOSED) {
+      throw new Error(`Cannot add close lifecycle handlers when application is in \`${this.state}\` state`);
+    }
+    handlers
+      .slice(0)
+      .reverse()
+      .forEach(handler => this.closeHandlers.unshift(handler));
+    return this;
+  }
+
+  /**
+   * Add close handlers after services close - e.g. clean up temp files
+   *
+   * @returns {Promise<this>}
+   */
+  public onClose(...handlers: Komapi.LifecycleHandler[]): this {
+    if (this.state === Komapi.Lifecycle.CLOSING || this.state === Komapi.Lifecycle.CLOSED) {
+      throw new Error(`Cannot add close lifecycle handlers when application is in \`${this.state}\` state`);
+    }
+    handlers.forEach(handler => this.closeHandlers.push(handler));
+    return this;
+  }
+
+  /**
+   * Set state of application
+   *
+   * @returns {Promise<this>}
+   */
+  public setState(newState: Komapi.Lifecycle): this {
+    const prevState = this.state;
+    switch (newState) {
+      case Komapi.Lifecycle.READYING:
+        if (this.state !== Komapi.Lifecycle.SETUP) {
+          throw new Error(`Cannot change state from \`${this.state}\` => \`${Komapi.Lifecycle.READYING}\``);
+        }
+        this.state = Komapi.Lifecycle.READYING;
+        break;
+      case Komapi.Lifecycle.READY:
+        if (this.state !== Komapi.Lifecycle.READYING) {
+          throw new Error(`Cannot change state from \`${this.state}\` => \`${Komapi.Lifecycle.READY}\``);
+        }
+        this.state = Komapi.Lifecycle.READY;
+
+        // Resolve ready promise
+        this._setReadyState();
+        break;
+      case Komapi.Lifecycle.CLOSING:
+        if (this.state === Komapi.Lifecycle.CLOSING || this.state === Komapi.Lifecycle.CLOSED) {
+          throw new Error(`Cannot change state from \`${this.state}\` => \`${Komapi.Lifecycle.CLOSING}\``);
+        }
+        this.state = Komapi.Lifecycle.CLOSING;
+        break;
+      case Komapi.Lifecycle.CLOSED:
+        if (this.state !== Komapi.Lifecycle.CLOSING) {
+          throw new Error(`Cannot change state from \`${this.state}\` => \`${Komapi.Lifecycle.CLOSED}\``);
+        }
+        this.state = Komapi.Lifecycle.CLOSED;
+        break;
+      default:
+        throw new Error(`Cannot set state to unknown state \`${newState}\``);
+    }
+    // Emit new state?
+    this.log.debug(
+      { metadata: { prevState, newState } },
+      `Application state changed from \`${prevState}\` to \`${newState}\``,
+    );
+    return this;
   }
 
   /**
@@ -225,34 +383,36 @@ class Komapi extends Koa {
    * @returns {Promise<this>}
    */
   public async init(): Promise<this> {
-    const services = Object.values(this.services);
-    for (const service of services) {
-      await service.init();
+    this.setState(Komapi.Lifecycle.READYING);
+    for (const handler of this.initHandlers) {
+      const startDate = Date.now();
+      await handler(this);
+      this.log.trace(
+        { metadata: { name: handler.name || 'UNKNOWN', duration: Date.now() - startDate } },
+        'Init lifecycle handler called',
+      );
     }
+    this.setState(Komapi.Lifecycle.READY);
     return this;
   }
 
   /**
-   * Enable crash guard - this will shutdown the process if an unrecoverable error occurs, optionally calling the provided
-   * callback for cleanup.
+   * Close asynchronous init actions (e.g. services) one-by-one
    *
-   * @param {(err: Error, promise?: Promise<Error>) => void} userErrorHandler - Error handler if you need to clean up on fatal crash
+   * @returns {Promise<this>}
    */
-  public enableCrashGuard(userErrorHandler?: (err: Error, promise?: Promise<Error>) => void) {
-    // Setup global error handling
-    process.on('uncaughtException', err => {
-      this.log.fatal({ err, app: this }, 'Uncaught Exception Error - Stopping application to prevent instability');
-      if (userErrorHandler) Promise.resolve(userErrorHandler(err, undefined)).then(() => process.exit(1));
-      else process.exit(1);
-    });
-    process.on('unhandledRejection', (err, p) => {
-      this.log.fatal(
-        { err, app: this, promise: p },
-        'Unhandled Rejected Promise - Stopping application to prevent instability',
+  public async close(): Promise<this> {
+    this.setState(Komapi.Lifecycle.CLOSING);
+    for (const handler of this.closeHandlers) {
+      const startDate = Date.now();
+      await handler(this);
+      this.log.trace(
+        { metadata: { name: handler.name || 'UNKNOWN', duration: Date.now() - startDate } },
+        'Close lifecycle handler called',
       );
-      if (userErrorHandler) Promise.resolve(userErrorHandler(err, p)).then(() => process.exit(1));
-      else process.exit(1);
-    });
+    }
+    this.setState(Komapi.Lifecycle.CLOSED);
+    return this;
   }
 
   /**
@@ -281,15 +441,135 @@ class Komapi extends Koa {
     Object.assign(ctx.request, {
       requestId,
       startAt: Date.now(),
-      log: ctx.request.log.child({ requestId }),
     });
 
     // Update response
     Object.assign(ctx.response, {
       send: ctx.response.send.bind(ctx.response),
+      sendAPI: ctx.response.sendAPI.bind(ctx.response),
     });
 
     return ctx;
+  }
+
+  /**
+   * @override
+   */
+  public use(path: string | string[] | RegExp, ...middlewares: Komapi.Middleware[]): this;
+  public use(...middlewares: Komapi.Middleware[]): this;
+  public use(...middlewares: [string | string[] | RegExp | Komapi.Middleware, ...Komapi.Middleware[]]): this {
+    const [routePath, ...rest] = middlewares;
+    let mw: Komapi.Middleware;
+
+    if (middlewares.length === 0) throw new Error('No middlewares provided to `app.use()`');
+    else if (typeof routePath === 'string' || Array.isArray(routePath) || routePath instanceof RegExp) {
+      if (rest.length === 0) throw new Error('No middlewares provided to `app.use()`');
+      const router = new Router();
+      router.use(routePath, ...rest);
+      mw = router.routes();
+      this.log.debug(
+        { metadata: { path: routePath, middlewares: rest.map(v => v.name || 'UNKNOWN') } },
+        'Added middlewares',
+      );
+    } else {
+      const mwList = [routePath, ...rest];
+      if (mwList.length > 1) {
+        mw = compose(mwList);
+        Object.defineProperty(mw, 'name', { value: `composed(${mwList.map(v => v.name || 'UNKNOWN').join(',')})` });
+      } else {
+        mw = mwList[0];
+      }
+      this.log.debug({ metadata: { middlewares: mwList.map(v => v.name || 'UNKNOWN') } }, 'Added middlewares');
+    }
+    return super.use(mw);
+  }
+
+  /**
+   * @override
+   */
+  public listen(...args: any[]): ReturnType<Koa['listen']> {
+    const server = super.listen(...args);
+
+    // TODO: Ensure that connections are cleared up within a reasonable time (track sockets and forcefully close them)
+    this.onClose(() => new Promise(resolve => server.close(resolve)));
+    return server;
+  }
+}
+
+/**
+ * Namespace
+ */
+declare namespace Komapi {
+  export type Middleware = Koa.Middleware;
+  export type LifecycleHandler = (app: Komapi) => Promise<any>;
+  export const enum Lifecycle {
+    SETUP = 'SETUP',
+    READYING = 'READYING',
+    READY = 'READY',
+    CLOSING = 'CLOSING',
+    CLOSED = 'CLOSED',
+  }
+  export interface Application {}
+  export interface Options {
+    config: {
+      env: Koa['env'];
+      proxy: Koa['proxy'];
+      subdomainOffset: Koa['subdomainOffset'];
+      silent: Koa['silent'];
+      keys: Koa['keys'];
+      instanceId: string;
+      locals: Locals;
+    };
+    services: Services;
+    locals: Options['config']['locals'];
+    logOptions: Pino.LoggerOptions;
+    logStream: stream.Writable | stream.Duplex | stream.Transform;
+  }
+  export type InstantiatedServices = { [P in keyof Services]: InstanceType<Services[P]> };
+  export interface ConstructableService<T extends Service> {
+    new (...args: any[]): T;
+  }
+
+  // User customizable types
+  export interface Services {
+    [name: string]: ConstructableService<Service>;
+  }
+  export interface Locals {}
+  export interface Authentication {}
+  export interface Service extends BaseService {}
+
+  // Generic types
+  export interface APIResponse<T, U> {
+    metadata?: U;
+    data: T;
+  }
+
+  // Available Koa overloads
+  export interface BaseRequest {}
+  export interface Request {
+    auth: Authentication;
+    requestId: string;
+    log: Komapi['log'];
+    startAt: number;
+  }
+  export interface BaseResponse {}
+  export interface Response {
+    send: <T extends Koa.Response['body'] = Koa.Response['body']>(body: T) => T;
+    sendAPI: <T extends Koa.Response['body'] = Koa.Response['body'], U extends object | undefined = undefined>(
+      body: T,
+      metadata?: U,
+    ) => APIResponse<T, U>;
+  }
+  export interface BaseContext {
+    services: Komapi['services'];
+  }
+  export interface Context {
+    auth: Request['auth'];
+    log: Request['log'];
+    requestId: Request['requestId'];
+    send: Response['send'];
+    sendAPI: Response['sendAPI'];
+    startAt: Request['startAt'];
   }
 }
 

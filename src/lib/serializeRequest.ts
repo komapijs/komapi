@@ -1,8 +1,6 @@
 // Dependencies
-import * as Komapi from './Komapi';
 import Koa from 'koa';
-import sanitize from './sanitize';
-import { defaultsDeep } from 'lodash';
+import defaultsDeep from 'lodash.defaultsdeep';
 
 // Types
 export interface SerializeRequestOptions {
@@ -10,24 +8,22 @@ export interface SerializeRequestOptions {
 }
 // Init
 const defaultOptions: SerializeRequestOptions = {
-  includeBody: request => request.ctx.response.status === 500,
+  includeBody: request => request.ctx.response.status >= 400 && request.ctx.response.status !== 404,
 };
 
 // Exports
 export default function serializeRequestFactory(options: Partial<SerializeRequestOptions> = {}) {
   const opts = defaultsDeep({}, options, defaultOptions);
-  return function serializeRequest(request: Koa.Request): Komapi.SanitizedRequest {
+  return function serializeRequest(request: Koa.Request) {
     const includeBody = typeof opts.includeBody === 'function' ? opts.includeBody(request) : opts.includeBody;
     return {
       requestId: request.requestId,
-      body: includeBody ? sanitize((request as { body?: any }).body) : undefined,
-      headers: Object.assign({}, request.header, {
-        authorization: request.header.authorization ? `${request.header.authorization.split(' ')[0]} ****` : undefined,
-      }),
+      body: includeBody ? (request as { body?: any }).body : undefined,
+      header: request.header,
       method: request.method,
       protocol: request.protocol,
       url: request.url,
-      query: sanitize(request.query),
+      query: request.query,
       ip: request.ip,
       referrer: request.header.referer || request.header.referrer,
       userAgent: request.header['user-agent'],

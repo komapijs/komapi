@@ -1,0 +1,70 @@
+# Generic test steps
+x-checkout: &checkout
+  checkout
+x-restore-cache: &restore-cache
+  restore_cache:
+    keys:
+      - v1-dependencies-{{ arch }}-{{ .Environment.CIRCLE_JOB }}-{{ checksum "package.json" }}
+x-version-check: &version-check
+  run: npm -v && node -v
+x-install-deps: &install-dependencies
+  run: npm install
+x-save-cache: &save-cache
+  save_cache:
+    paths:
+      - node_modules
+    key: v1-dependencies-{{ arch }}-{{ .Environment.CIRCLE_JOB }}-{{ checksum "package.json" }}
+x-run-tests: &run-tests
+  run: npm test
+x-coverage: &coverage
+  run:
+    name: Upload Coverage
+    command: npm install --no-save codecov && ./node_modules/.bin/codecov
+
+version: 2
+jobs:
+  build-node8:
+    docker:
+      - image: circleci/node:8
+    working_directory: ~/repo
+    steps:
+      - *checkout
+      - *restore-cache
+      - *version-check
+      - *install-dependencies
+      - *save-cache
+      - *run-tests
+      - *coverage
+
+  build-node10:
+    docker:
+      - image: circleci/node:10
+    working_directory: ~/repo
+    steps:
+      - *checkout
+      - *restore-cache
+      - *version-check
+      - *install-dependencies
+      - *save-cache
+      - *run-tests
+      - *coverage
+
+  build-node11:
+    docker:
+      - image: circleci/node:11
+    working_directory: ~/repo
+    steps:
+      - *checkout
+      - *restore-cache
+      - *version-check
+      - *install-dependencies
+      - *save-cache
+      - *run-tests
+      - *coverage
+
+workflows:
+  build:
+    jobs:
+      - build-node8
+      - build-node10
+      - build-node11
