@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "diagnostics": false,
+    "declaration": true,
+    "traceResolution": false,
+    "allowJs": false,
+    "checkJs": false,
+    "noEmit": false,
+    "target": "es2017",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "newLine": "lf",
+    "listEmittedFiles": true,
+    "alwaysStrict": true,
+    "strict": true,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noImplicitUseStrict": false,
+    "strictFunctionTypes": true,
+    "strictNullChecks": true,
+    "noFallthroughCasesInSwitch": true,
+    "pretty": true,
+    "sourceMap": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": false,
+    "resolveJsonModule": true,
+    "outDir": "dist"
+  },
+  "include": [
+    "src/**/*",
+    "types"
+  ]
+}

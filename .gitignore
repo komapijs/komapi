@@ -2,21 +2,26 @@
 .*
 
 # Exceptions
-!.gitkeep
-!.gitignore
-!.gitattributes
-!.travis.yml
-!.babelrc
+!.babelrc*
+!.circleci
+!.env.example
 !.eslintrc
 !.eslintignore
 !.editorconfig
+!.gitattributes
+!.gitignore
+!.gitkeep
 !.npmignore
+!.prettierignore
+!.prettierrc
+!.travis.yml
+!.gitlab-ci.yml
 
 # Generated directories
+build
 coverage
 dist
 node_modules
-bower_components
 
 # Other potentionally conflicting files
 *.db
@@ -25,4 +30,3 @@ bower_components
 *.tmp
 *.log
 npm-debug.log*
-yarn.lock
