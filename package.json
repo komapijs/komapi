@@ -23,7 +23,7 @@
   "homepage": "https://github.com/komapijs/komapi#README.md",
   "engines": {
     "node": "^8.11.3",
-    "npm": "^5.6.0"
+    "npm": "^6.0.0"
   },
   "main": "dist/index",
   "types": "dist/index.d.ts",
