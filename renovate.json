@@ -7,8 +7,11 @@
   "semanticCommits": true,
   "lockFileMaintenance": {
     "enabled": true,
-    "extends": "schedule:monthly"
+    "extends": "schedule:weekly"
   },
   "automerge": true,
-  "automergeType": "branch"
+  "automergeType": "branch",
+  "major": {
+    "automerge": false
+  }
 }
