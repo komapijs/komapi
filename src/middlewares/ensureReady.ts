@@ -19,7 +19,9 @@ export default function ensureReadyMiddlewareFactory(): Komapi.Middleware {
       }
       // Is server rejecting new requests?
       else if (ctx.app.state === Komapi.Lifecycle.CLOSING || ctx.app.state === Komapi.Lifecycle.CLOSED) {
-        throw serverUnavailable('Server is closing');
+        const err = serverUnavailable('Application is closing');
+        err.output.headers.Connection = 'close';
+        throw err;
       }
       // Wait for ready state
       await ctx.app.waitForReadyState;

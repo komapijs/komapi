@@ -16,6 +16,7 @@ import ensureReady from '../middlewares/ensureReady';
 import requestLogger from '../middlewares/requestLogger';
 import errorHandler from '../middlewares/errorHandler';
 import ensureSchema from '../middlewares/ensureSchema';
+import healthReporter from '../middlewares/healthReporter';
 import serializeRequest from './serializeRequest';
 import serializeResponse from './serializeResponse';
 import Schema from './Schema';
@@ -63,6 +64,7 @@ class Komapi extends Koa {
   public static ensureModel = ensureModel;
   public static requestLogger = requestLogger;
   public static errorHandler = errorHandler;
+  public static healthReporter = healthReporter;
 
   /**
    * Setup Komapi properties
@@ -97,6 +99,7 @@ class Komapi extends Koa {
         keys: this.keys,
         subdomainOffset: this.subdomainOffset,
         instanceId: pkg.name,
+        healthCheckHandler: healthReporter('/.well_known/_health'),
       },
       services: {},
       locals: {},
@@ -248,7 +251,7 @@ class Komapi extends Koa {
       // Add close handler for graceful exits
       process.once('beforeExit', async () => {
         this.log.debug({ app: this }, 'Before exit event triggered - ensuring graceful shutdown');
-        await this.close();
+        if (this.state !== Komapi.Lifecycle.CLOSING && this.state !== Komapi.Lifecycle.CLOSED) await this.close();
       });
     }
 
@@ -269,6 +272,7 @@ class Komapi extends Koa {
       // Add middlewares
       this.use(errorHandler());
       this.use(setTransactionContext(this.transactionContext));
+      if (this.config.healthCheckHandler) this.use(this.config.healthCheckHandler);
       this.use(ensureReady());
     }
   }
@@ -307,7 +311,7 @@ class Komapi extends Koa {
    *
    * @returns {Promise<this>}
    */
-  public onBeforeClose(...handlers: Komapi.LifecycleHandler[]): this {
+  public onClose(...handlers: Komapi.LifecycleHandler[]): this {
     if (this.state === Komapi.Lifecycle.CLOSING || this.state === Komapi.Lifecycle.CLOSED) {
       throw new Error(`Cannot add close lifecycle handlers when application is in \`${this.state}\` state`);
     }
@@ -323,7 +327,7 @@ class Komapi extends Koa {
    *
    * @returns {Promise<this>}
    */
-  public onClose(...handlers: Komapi.LifecycleHandler[]): this {
+  public onAfterClose(...handlers: Komapi.LifecycleHandler[]): this {
     if (this.state === Komapi.Lifecycle.CLOSING || this.state === Komapi.Lifecycle.CLOSED) {
       throw new Error(`Cannot add close lifecycle handlers when application is in \`${this.state}\` state`);
     }
@@ -398,7 +402,7 @@ class Komapi extends Koa {
 
   /**
    * Close asynchronous init actions (e.g. services) one-by-one
-   *
+   * TODO: Reverse order of closing handlers - LIFO makes sense for closing
    * @returns {Promise<this>}
    */
   public async close(): Promise<this> {
@@ -491,7 +495,10 @@ class Komapi extends Koa {
     const server = super.listen(...args);
 
     // TODO: Ensure that connections are cleared up within a reasonable time (track sockets and forcefully close them)
-    this.onClose(() => new Promise(resolve => server.close(resolve)));
+    // tslint:disable-next-line ter-prefer-arrow-callback
+    this.onClose(function closeHttpServer() {
+      return new Promise(resolve => server.close(resolve));
+    });
     return server;
   }
 }
@@ -518,6 +525,7 @@ declare namespace Komapi {
       silent: Koa['silent'];
       keys: Koa['keys'];
       instanceId: string;
+      healthCheckHandler: Komapi.Middleware | false | null;
       locals: Locals;
     };
     services: Services;

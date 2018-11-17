@@ -34,6 +34,41 @@ describe('instantiation', () => {
     expect(app.silent).toBe(undefined);
     expect(app.keys).toBe(undefined);
     expect(app.log.level).toBe('info');
+    expect(typeof app.config.healthCheckHandler).toBe('function');
+    expect(app.middleware.length).toBe(4);
+
+    // Cleanup
+    process.env.LOG_LEVEL = originalLogLevel;
+    process.env.NODE_ENV = originalEnv;
+  });
+  it('should be configurable', () => {
+    const originalLogLevel = process.env.LOG_LEVEL;
+    const originalEnv = process.env.NODE_ENV;
+    delete process.env.NODE_ENV;
+    delete process.env.LOG_LEVEL;
+    const app = new Komapi({
+      config: {
+        env: 'my-env',
+        proxy: true,
+        subdomainOffset: 3,
+        silent: true,
+        keys: ['asd'],
+        healthCheckHandler: false,
+      },
+      logOptions: {
+        level: 'error',
+      },
+    });
+
+    // Assertions
+    expect(app.env).toBe('my-env');
+    expect(app.proxy).toBe(true);
+    expect(app.subdomainOffset).toBe(3);
+    expect(app.silent).toBe(true);
+    expect(app.keys).toEqual(['asd']);
+    expect(app.log.level).toBe('error');
+    expect(app.config.healthCheckHandler).toBe(false);
+    expect(app.middleware.length).toBe(3);
 
     // Cleanup
     process.env.LOG_LEVEL = originalLogLevel;
@@ -92,10 +127,11 @@ describe('instantiation', () => {
     const app = new Komapi();
 
     // Assertions
-    expect(app.middleware.length).toBe(3);
+    expect(app.middleware.length).toBe(4);
     expect(app.middleware[0].name).toBe('errorHandlerMiddleware');
     expect(app.middleware[1].name).toBe('setTransactionContextMiddleware');
-    expect(app.middleware[2].name).toBe('ensureReadyMiddleware');
+    expect(app.middleware[2].name).toBe('healthReporterMiddleware');
+    expect(app.middleware[3].name).toBe('ensureReadyMiddleware');
   });
   it('should add service lifecycle hooks automatically', async done => {
     expect.assertions(8);
@@ -280,8 +316,8 @@ describe('life cycle', () => {
       'Cannot add init lifecycle handlers when application is in `CLOSED` state',
     );
   });
-  it('should accept close handlers in onClose and onBeforeClose', () => {
-    expect.assertions(4);
+  it('should accept close handlers in onClose and onAfterClose', () => {
+    expect.assertions(5);
     const app = new Komapi();
 
     const handler1 = async () => {};
@@ -293,36 +329,37 @@ describe('life cycle', () => {
 
     // Add handlers
     app.onClose(handler3);
-    app.onBeforeClose(handler2);
+    app.onAfterClose(handler2);
     app.onClose(handler1);
 
     // Assertions
-    expect((app as any).closeHandlers[0]).toBe(handler2);
+    expect((app as any).closeHandlers.length).toBe(3);
+    expect((app as any).closeHandlers[0]).toBe(handler1);
     expect((app as any).closeHandlers[1]).toBe(handler3);
-    expect((app as any).closeHandlers[2]).toBe(handler1);
+    expect((app as any).closeHandlers[2]).toBe(handler2);
   });
-  it('should not accept close handlers in onClose and onBeforeClose if app is in `CLOSING` or `CLOSED` state', () => {
+  it('should not accept close handlers in onClose and onAfterClose if app is in `CLOSING` or `CLOSED` state', () => {
     expect.assertions(10);
     const app = new Komapi();
 
     // Assertions
     app.state = Komapi.Lifecycle.SETUP;
     expect(() => app.onClose(async () => {})).not.toThrow();
-    expect(() => app.onBeforeClose(async () => {})).not.toThrow();
+    expect(() => app.onAfterClose(async () => {})).not.toThrow();
 
     app.state = Komapi.Lifecycle.READYING;
     expect(() => app.onClose(async () => {})).not.toThrow();
-    expect(() => app.onBeforeClose(async () => {})).not.toThrow();
+    expect(() => app.onAfterClose(async () => {})).not.toThrow();
 
     app.state = Komapi.Lifecycle.READY;
     expect(() => app.onClose(async () => {})).not.toThrow();
-    expect(() => app.onBeforeClose(async () => {})).not.toThrow();
+    expect(() => app.onAfterClose(async () => {})).not.toThrow();
 
     app.state = Komapi.Lifecycle.CLOSING;
     expect(() => app.onClose(async () => {})).toThrow(
       'Cannot add close lifecycle handlers when application is in `CLOSING` state',
     );
-    expect(() => app.onBeforeClose(async () => {})).toThrow(
+    expect(() => app.onAfterClose(async () => {})).toThrow(
       'Cannot add close lifecycle handlers when application is in `CLOSING` state',
     );
 
@@ -330,7 +367,7 @@ describe('life cycle', () => {
     expect(() => app.onClose(async () => {})).toThrow(
       'Cannot add close lifecycle handlers when application is in `CLOSED` state',
     );
-    expect(() => app.onBeforeClose(async () => {})).toThrow(
+    expect(() => app.onAfterClose(async () => {})).toThrow(
       'Cannot add close lifecycle handlers when application is in `CLOSED` state',
     );
   });
@@ -452,7 +489,7 @@ describe('life cycle', () => {
       1,
       {
         metadata: {
-          name: 'namedFunction',
+          name: 'UNKNOWN',
           duration: expect.any(Number),
         },
       },
@@ -462,7 +499,7 @@ describe('life cycle', () => {
       2,
       {
         metadata: {
-          name: 'UNKNOWN',
+          name: 'namedFunction',
           duration: expect.any(Number),
         },
       },
@@ -954,6 +991,94 @@ describe('node event handlers', () => {
     expect(listener).not.toBe(undefined);
     await (listener as any)();
     expect(closeSpy).toHaveBeenCalledTimes(1);
+    expect(logSpy).toHaveBeenCalledTimes(1);
+    expect(logSpy).toHaveBeenCalledWith(
+      {
+        app,
+      },
+      'Before exit event triggered - ensuring graceful shutdown',
+    );
+
+    // Cleanup
+    global.process.on = originalOn;
+    global.process.once = originalOnce;
+
+    // Done
+    done();
+  });
+  it('beforeExit should not invoke "app.close()" if state is "CLOSING"', async done => {
+    expect.assertions(4);
+    const originalOn = process.on;
+    const originalOnce = process.once;
+
+    let listener;
+    const closeSpy = jest.fn();
+    const logSpy = jest.fn();
+    const onSpy = jest.fn();
+    const onceSpy = jest.fn((event, handler) => {
+      if (event === 'beforeExit') listener = handler;
+    });
+
+    global.process.on = onSpy as any;
+    global.process.once = onceSpy as any;
+
+    const app = new Komapi();
+    app.state = Komapi.Lifecycle.CLOSING;
+    app.close = closeSpy;
+    app.log = new Proxy(app.log, {
+      get(obj, prop) {
+        return prop === 'debug' ? logSpy : Reflect.get(obj, prop);
+      },
+    });
+
+    // Assertions
+    expect(listener).not.toBe(undefined);
+    await (listener as any)();
+    expect(closeSpy).toHaveBeenCalledTimes(0);
+    expect(logSpy).toHaveBeenCalledTimes(1);
+    expect(logSpy).toHaveBeenCalledWith(
+      {
+        app,
+      },
+      'Before exit event triggered - ensuring graceful shutdown',
+    );
+
+    // Cleanup
+    global.process.on = originalOn;
+    global.process.once = originalOnce;
+
+    // Done
+    done();
+  });
+  it('beforeExit should not invoke "app.close()" if state is "CLOSED"', async done => {
+    expect.assertions(4);
+    const originalOn = process.on;
+    const originalOnce = process.once;
+
+    let listener;
+    const closeSpy = jest.fn();
+    const logSpy = jest.fn();
+    const onSpy = jest.fn();
+    const onceSpy = jest.fn((event, handler) => {
+      if (event === 'beforeExit') listener = handler;
+    });
+
+    global.process.on = onSpy as any;
+    global.process.once = onceSpy as any;
+
+    const app = new Komapi();
+    app.state = Komapi.Lifecycle.CLOSED;
+    app.close = closeSpy;
+    app.log = new Proxy(app.log, {
+      get(obj, prop) {
+        return prop === 'debug' ? logSpy : Reflect.get(obj, prop);
+      },
+    });
+
+    // Assertions
+    expect(listener).not.toBe(undefined);
+    await (listener as any)();
+    expect(closeSpy).toHaveBeenCalledTimes(0);
     expect(logSpy).toHaveBeenCalledTimes(1);
     expect(logSpy).toHaveBeenCalledWith(
       {

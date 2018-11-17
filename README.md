@@ -88,7 +88,7 @@ const app = new Komapi({ services: ... });
   * `subdomainOffset` (number): Offset of .subdomains to ignore. See [Koa documentation for more information](https://koajs.com/#settings). Default: `2`
   * `proxy` (boolean): Trust proxy headers (includes `x-request-id`). See [Koa documentation for more information](https://koajs.com/#settings). Default: `false`
   * `logOptions` (object): Options to pass down to the [Pino](https://github.com/pinojs/pino) logger instance. See [Pino documentation for more information](https://github.com/pinojs/pino)
-  * `logStream` (Writable): A writable stream to receive logs. Default: `process.stdout`
+  * `logStream` (Writable): A writable stream to receive logs. Default: [Pino.destination()](https://github.com/pinojs/pino/blob/master/docs/api.md#pino-destination)
 
 ### License
 
