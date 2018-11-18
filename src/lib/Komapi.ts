@@ -99,7 +99,9 @@ class Komapi extends Koa {
         keys: this.keys,
         subdomainOffset: this.subdomainOffset,
         instanceId: pkg.name,
-        healthCheckHandler: healthReporter('/.well_known/_health'),
+        errorHandler: errorHandler(),
+        requestLogger: requestLogger(),
+        healthReporter: healthReporter('/.well_known/_health'),
       },
       services: {},
       locals: {},
@@ -270,9 +272,10 @@ class Komapi extends Koa {
       });
 
       // Add middlewares
-      this.use(errorHandler());
       this.use(setTransactionContext(this.transactionContext));
-      if (this.config.healthCheckHandler) this.use(this.config.healthCheckHandler);
+      if (this.config.requestLogger) this.use(this.config.requestLogger);
+      if (this.config.errorHandler) this.use(this.config.errorHandler);
+      if (this.config.healthReporter) this.use(this.config.healthReporter);
       this.use(ensureReady());
     }
   }
@@ -525,7 +528,9 @@ declare namespace Komapi {
       silent: Koa['silent'];
       keys: Koa['keys'];
       instanceId: string;
-      healthCheckHandler: Komapi.Middleware | false | null;
+      errorHandler: Komapi.Middleware | false | null;
+      requestLogger: Komapi.Middleware | false | null;
+      healthReporter: Komapi.Middleware | false | null;
       locals: Locals;
     };
     services: Services;
@@ -555,7 +560,7 @@ declare namespace Komapi {
   // Available Koa overloads
   export interface BaseRequest {}
   export interface Request {
-    auth: Authentication;
+    auth: Authentication | null;
     requestId: string;
     log: Komapi['log'];
     startAt: number;

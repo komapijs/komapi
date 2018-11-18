@@ -5,6 +5,7 @@ import mockRequest from '../../fixtures/mockRequest';
 // Tests
 it('should not include body for successful requests', () => {
   const { request } = mockRequest({
+    startAt: Date.now(),
     query: {
       sort: '+created_at',
     },
@@ -14,6 +15,7 @@ it('should not include body for successful requests', () => {
     },
   });
   const expectedRequest = {
+    startAt: expect.any(Number),
     body: undefined,
     header: { 'cache-control': 'no-cache' },
     httpVersion: undefined,
@@ -34,6 +36,7 @@ it('should not include body for successful requests', () => {
 
 it('should support options for determining whether to include body', () => {
   const { request } = mockRequest({
+    startAt: Date.now(),
     query: {
       sort: '+created_at',
     },
@@ -43,6 +46,7 @@ it('should support options for determining whether to include body', () => {
     },
   });
   const expectedRequest = {
+    startAt: expect.any(Number),
     body: { test: true, withString: 'string' },
     header: { 'cache-control': 'no-cache' },
     httpVersion: undefined,
@@ -63,6 +67,7 @@ it('should support options for determining whether to include body', () => {
 it('should not include body for not found', () => {
   const { request } = mockRequest(
     {
+      startAt: Date.now(),
       query: {
         sort: '+created_at',
       },
@@ -74,6 +79,7 @@ it('should not include body for not found', () => {
     { status: 404 },
   );
   const expectedRequest = {
+    startAt: expect.any(Number),
     body: undefined,
     header: { 'cache-control': 'no-cache' },
     httpVersion: undefined,
@@ -94,6 +100,7 @@ it('should not include body for not found', () => {
 it('should include body for bad requests', () => {
   const { request } = mockRequest(
     {
+      startAt: Date.now(),
       query: {
         sort: '+created_at',
       },
@@ -105,6 +112,7 @@ it('should include body for bad requests', () => {
     { status: 400 },
   );
   const expectedRequest = {
+    startAt: expect.any(Number),
     body: { test: true, withString: 'string' },
     header: { 'cache-control': 'no-cache' },
     httpVersion: undefined,
@@ -125,6 +133,7 @@ it('should include body for bad requests', () => {
 it('should include body for internal server errors', () => {
   const { request } = mockRequest(
     {
+      startAt: Date.now(),
       query: {
         sort: '+created_at',
       },
@@ -136,6 +145,7 @@ it('should include body for internal server errors', () => {
     { status: 500 },
   );
   const expectedRequest = {
+    startAt: expect.any(Number),
     body: { test: true, withString: 'string' },
     header: { 'cache-control': 'no-cache' },
     httpVersion: undefined,

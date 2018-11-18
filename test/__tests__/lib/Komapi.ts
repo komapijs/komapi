@@ -34,8 +34,10 @@ describe('instantiation', () => {
     expect(app.silent).toBe(undefined);
     expect(app.keys).toBe(undefined);
     expect(app.log.level).toBe('info');
-    expect(typeof app.config.healthCheckHandler).toBe('function');
-    expect(app.middleware.length).toBe(4);
+    expect(typeof app.config.errorHandler).toBe('function');
+    expect(typeof app.config.requestLogger).toBe('function');
+    expect(typeof app.config.healthReporter).toBe('function');
+    expect(app.middleware.length).toBe(5);
 
     // Cleanup
     process.env.LOG_LEVEL = originalLogLevel;
@@ -53,7 +55,9 @@ describe('instantiation', () => {
         subdomainOffset: 3,
         silent: true,
         keys: ['asd'],
-        healthCheckHandler: false,
+        errorHandler: false,
+        requestLogger: false,
+        healthReporter: false,
       },
       logOptions: {
         level: 'error',
@@ -67,8 +71,10 @@ describe('instantiation', () => {
     expect(app.silent).toBe(true);
     expect(app.keys).toEqual(['asd']);
     expect(app.log.level).toBe('error');
-    expect(app.config.healthCheckHandler).toBe(false);
-    expect(app.middleware.length).toBe(3);
+    expect(app.config.errorHandler).toBe(false);
+    expect(app.config.requestLogger).toBe(false);
+    expect(app.config.healthReporter).toBe(false);
+    expect(app.middleware.length).toBe(2);
 
     // Cleanup
     process.env.LOG_LEVEL = originalLogLevel;
@@ -127,11 +133,12 @@ describe('instantiation', () => {
     const app = new Komapi();
 
     // Assertions
-    expect(app.middleware.length).toBe(4);
-    expect(app.middleware[0].name).toBe('errorHandlerMiddleware');
-    expect(app.middleware[1].name).toBe('setTransactionContextMiddleware');
-    expect(app.middleware[2].name).toBe('healthReporterMiddleware');
-    expect(app.middleware[3].name).toBe('ensureReadyMiddleware');
+    expect(app.middleware.length).toBe(5);
+    expect(app.middleware[0].name).toBe('setTransactionContextMiddleware');
+    expect(app.middleware[1].name).toBe('requestLoggerMiddleware');
+    expect(app.middleware[2].name).toBe('errorHandlerMiddleware');
+    expect(app.middleware[3].name).toBe('healthReporterMiddleware');
+    expect(app.middleware[4].name).toBe('ensureReadyMiddleware');
   });
   it('should add service lifecycle hooks automatically', async done => {
     expect.assertions(8);

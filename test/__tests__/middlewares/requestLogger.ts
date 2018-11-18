@@ -9,9 +9,9 @@ it('should log requests', async done => {
   const app = new Koa();
   const spy = jest.fn();
   const expectedData = {
-    startAt: expect.any(Number),
     latency: expect.any(Number),
     request: expect.objectContaining({
+      startAt: expect.any(Number),
       url: '/',
     }),
     response: expect.objectContaining({
@@ -75,9 +75,9 @@ it('should support custom log level', async done => {
   const infoSpy = jest.fn();
   const traceSpy = jest.fn();
   const expectedData = {
-    startAt: expect.any(Number),
     latency: expect.any(Number),
     request: expect.objectContaining({
+      startAt: expect.any(Number),
       url: '/',
     }),
     response: expect.objectContaining({
