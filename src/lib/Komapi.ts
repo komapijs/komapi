@@ -159,10 +159,10 @@ class Komapi extends Koa {
         });
       });
       Object.assign(this.context, {
+        auth: {},
         services: this.services,
       });
       Object.assign(this.request, {
-        auth: null,
         requestId: null,
         log: this.log,
       });
@@ -177,7 +177,6 @@ class Komapi extends Koa {
         },
       } as Koa.Response);
       delegate<Koa.BaseContext, Koa.Request>(this.context, 'request')
-        .access('auth')
         .access('startAt')
         .access('requestId')
         .access('log');
@@ -405,7 +404,6 @@ class Komapi extends Koa {
 
   /**
    * Close asynchronous init actions (e.g. services) one-by-one
-   * TODO: Reverse order of closing handlers - LIFO makes sense for closing
    * @returns {Promise<this>}
    */
   public async close(): Promise<this> {
@@ -449,6 +447,34 @@ class Komapi extends Koa {
       requestId,
       startAt: Date.now(),
     });
+
+    // Integrate with passport
+    (ctx.auth as any).__defineGetter__('user', () => {
+      const maybePassport = ctx as Koa.Context & {
+        state: {
+          _passport?: {
+            instance?: {
+              _userProperty: string;
+            };
+          };
+        };
+        request: {
+          _passport?: {
+            instance?: {
+              _userProperty: string;
+            };
+          };
+        };
+      };
+      if (maybePassport.request._passport && maybePassport.request._passport.instance) {
+        return ctx.state[maybePassport.request._passport.instance._userProperty];
+      }
+      if (maybePassport.state._passport && maybePassport.state._passport.instance) {
+        return ctx.state[maybePassport.state._passport.instance._userProperty];
+      }
+      return null;
+    });
+    (ctx.auth as any).__defineGetter__('info', () => ctx.authInfo || {});
 
     // Update response
     Object.assign(ctx.response, {
@@ -548,7 +574,10 @@ declare namespace Komapi {
     [name: string]: ConstructableService<Service>;
   }
   export interface Locals {}
-  export interface Authentication {}
+  export interface Authentication {
+    user: {} | null;
+    info: {};
+  }
   export interface Service extends BaseService {}
 
   // Generic types
@@ -560,7 +589,6 @@ declare namespace Komapi {
   // Available Koa overloads
   export interface BaseRequest {}
   export interface Request {
-    auth: Authentication | null;
     requestId: string;
     log: Komapi['log'];
     startAt: number;
@@ -574,10 +602,10 @@ declare namespace Komapi {
     ) => APIResponse<T, U>;
   }
   export interface BaseContext {
+    auth: Authentication;
     services: Komapi['services'];
   }
   export interface Context {
-    auth: Request['auth'];
     log: Request['log'];
     requestId: Request['requestId'];
     send: Response['send'];

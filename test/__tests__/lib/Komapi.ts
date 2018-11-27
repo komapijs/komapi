@@ -121,7 +121,7 @@ describe('instantiation', () => {
     const app = new Komapi();
 
     // Assertions
-    expect(app.request).toHaveProperty('auth');
+    expect(app.context).toHaveProperty('auth');
     expect(app.request).toHaveProperty('log');
     expect(app.request).toHaveProperty('requestId');
     expect(app.response).toHaveProperty('send');
@@ -592,7 +592,7 @@ describe('life cycle', () => {
 });
 describe('request cycle', () => {
   it('should augment koa request, response and context types', async done => {
-    expect.assertions(18);
+    expect.assertions(17);
     const app = new Komapi();
     let requestCtx: Koa.Context;
 
@@ -611,7 +611,7 @@ describe('request cycle', () => {
     const responseAPI = await server.get('/sendAPI');
 
     // Assertions
-    expect(requestCtx!.request.auth).toBe(null);
+    expect(requestCtx!.auth).toEqual({ user: null, info: {} });
     expect(typeof requestCtx!.request.log).toBe('object');
     expect(typeof requestCtx!.request.requestId).toBe('string');
     expect(typeof requestCtx!.request.startAt).toBe('number');
@@ -619,7 +619,6 @@ describe('request cycle', () => {
     expect(typeof requestCtx!.response.sendAPI).toBe('function');
     expect(requestCtx!.services).toBe(app.services);
     expect(requestCtx!.log).toBe(requestCtx!.request.log);
-    expect(requestCtx!.auth).toBe(requestCtx!.request.auth);
     expect(requestCtx!.requestId).toBe(requestCtx!.request.requestId);
     expect(requestCtx!.startAt).toBe(requestCtx!.request.startAt);
     expect(requestCtx!.send).toBe(requestCtx!.response.send);
