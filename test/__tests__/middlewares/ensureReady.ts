@@ -170,11 +170,11 @@ it('should integrate nicely with Komapi error handler', async done => {
   expect(response.body).toEqual({
     error: {
       additionalDevelopmentData: {
-        stack: expect.stringContaining('Error: Server is closing'),
+        stack: expect.stringContaining('Error: Application is closing'),
       },
       code: '',
       error: 'Service Unavailable',
-      message: 'Server is closing',
+      message: 'Application is closing',
       status: 503,
     },
   });

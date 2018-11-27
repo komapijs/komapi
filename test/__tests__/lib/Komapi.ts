@@ -3,6 +3,9 @@ import Koa from 'koa';
 import Komapi from '../../../src/lib/Komapi';
 import Service from '../../../src/lib/Service';
 import request from 'supertest';
+import koaPassport from 'koa-passport';
+import komapiPassport from 'komapi-passport';
+import { Strategy as BearerStrategy } from 'passport-http-bearer';
 
 // Test Setup
 afterEach(() => {
@@ -34,6 +37,47 @@ describe('instantiation', () => {
     expect(app.silent).toBe(undefined);
     expect(app.keys).toBe(undefined);
     expect(app.log.level).toBe('info');
+    expect(typeof app.config.errorHandler).toBe('function');
+    expect(typeof app.config.requestLogger).toBe('function');
+    expect(typeof app.config.healthReporter).toBe('function');
+    expect(app.middleware.length).toBe(5);
+
+    // Cleanup
+    process.env.LOG_LEVEL = originalLogLevel;
+    process.env.NODE_ENV = originalEnv;
+  });
+  it('should be configurable', () => {
+    const originalLogLevel = process.env.LOG_LEVEL;
+    const originalEnv = process.env.NODE_ENV;
+    delete process.env.NODE_ENV;
+    delete process.env.LOG_LEVEL;
+    const app = new Komapi({
+      config: {
+        env: 'my-env',
+        proxy: true,
+        subdomainOffset: 3,
+        silent: true,
+        keys: ['asd'],
+        errorHandler: false,
+        requestLogger: false,
+        healthReporter: false,
+      },
+      logOptions: {
+        level: 'error',
+      },
+    });
+
+    // Assertions
+    expect(app.env).toBe('my-env');
+    expect(app.proxy).toBe(true);
+    expect(app.subdomainOffset).toBe(3);
+    expect(app.silent).toBe(true);
+    expect(app.keys).toEqual(['asd']);
+    expect(app.log.level).toBe('error');
+    expect(app.config.errorHandler).toBe(false);
+    expect(app.config.requestLogger).toBe(false);
+    expect(app.config.healthReporter).toBe(false);
+    expect(app.middleware.length).toBe(2);
 
     // Cleanup
     process.env.LOG_LEVEL = originalLogLevel;
@@ -80,7 +124,7 @@ describe('instantiation', () => {
     const app = new Komapi();
 
     // Assertions
-    expect(app.request).toHaveProperty('auth');
+    expect(app.context).toHaveProperty('auth');
     expect(app.request).toHaveProperty('log');
     expect(app.request).toHaveProperty('requestId');
     expect(app.response).toHaveProperty('send');
@@ -92,10 +136,12 @@ describe('instantiation', () => {
     const app = new Komapi();
 
     // Assertions
-    expect(app.middleware.length).toBe(3);
-    expect(app.middleware[0].name).toBe('errorHandlerMiddleware');
-    expect(app.middleware[1].name).toBe('setTransactionContextMiddleware');
-    expect(app.middleware[2].name).toBe('ensureReadyMiddleware');
+    expect(app.middleware.length).toBe(5);
+    expect(app.middleware[0].name).toBe('setTransactionContextMiddleware');
+    expect(app.middleware[1].name).toBe('requestLoggerMiddleware');
+    expect(app.middleware[2].name).toBe('errorHandlerMiddleware');
+    expect(app.middleware[3].name).toBe('healthReporterMiddleware');
+    expect(app.middleware[4].name).toBe('ensureReadyMiddleware');
   });
   it('should add service lifecycle hooks automatically', async done => {
     expect.assertions(8);
@@ -280,8 +326,8 @@ describe('life cycle', () => {
       'Cannot add init lifecycle handlers when application is in `CLOSED` state',
     );
   });
-  it('should accept close handlers in onClose and onBeforeClose', () => {
-    expect.assertions(4);
+  it('should accept close handlers in onClose and onAfterClose', () => {
+    expect.assertions(5);
     const app = new Komapi();
 
     const handler1 = async () => {};
@@ -293,36 +339,37 @@ describe('life cycle', () => {
 
     // Add handlers
     app.onClose(handler3);
-    app.onBeforeClose(handler2);
+    app.onAfterClose(handler2);
     app.onClose(handler1);
 
     // Assertions
-    expect((app as any).closeHandlers[0]).toBe(handler2);
+    expect((app as any).closeHandlers.length).toBe(3);
+    expect((app as any).closeHandlers[0]).toBe(handler1);
     expect((app as any).closeHandlers[1]).toBe(handler3);
-    expect((app as any).closeHandlers[2]).toBe(handler1);
+    expect((app as any).closeHandlers[2]).toBe(handler2);
   });
-  it('should not accept close handlers in onClose and onBeforeClose if app is in `CLOSING` or `CLOSED` state', () => {
+  it('should not accept close handlers in onClose and onAfterClose if app is in `CLOSING` or `CLOSED` state', () => {
     expect.assertions(10);
     const app = new Komapi();
 
     // Assertions
     app.state = Komapi.Lifecycle.SETUP;
     expect(() => app.onClose(async () => {})).not.toThrow();
-    expect(() => app.onBeforeClose(async () => {})).not.toThrow();
+    expect(() => app.onAfterClose(async () => {})).not.toThrow();
 
     app.state = Komapi.Lifecycle.READYING;
     expect(() => app.onClose(async () => {})).not.toThrow();
-    expect(() => app.onBeforeClose(async () => {})).not.toThrow();
+    expect(() => app.onAfterClose(async () => {})).not.toThrow();
 
     app.state = Komapi.Lifecycle.READY;
     expect(() => app.onClose(async () => {})).not.toThrow();
-    expect(() => app.onBeforeClose(async () => {})).not.toThrow();
+    expect(() => app.onAfterClose(async () => {})).not.toThrow();
 
     app.state = Komapi.Lifecycle.CLOSING;
     expect(() => app.onClose(async () => {})).toThrow(
       'Cannot add close lifecycle handlers when application is in `CLOSING` state',
     );
-    expect(() => app.onBeforeClose(async () => {})).toThrow(
+    expect(() => app.onAfterClose(async () => {})).toThrow(
       'Cannot add close lifecycle handlers when application is in `CLOSING` state',
     );
 
@@ -330,7 +377,7 @@ describe('life cycle', () => {
     expect(() => app.onClose(async () => {})).toThrow(
       'Cannot add close lifecycle handlers when application is in `CLOSED` state',
     );
-    expect(() => app.onBeforeClose(async () => {})).toThrow(
+    expect(() => app.onAfterClose(async () => {})).toThrow(
       'Cannot add close lifecycle handlers when application is in `CLOSED` state',
     );
   });
@@ -452,7 +499,7 @@ describe('life cycle', () => {
       1,
       {
         metadata: {
-          name: 'namedFunction',
+          name: 'UNKNOWN',
           duration: expect.any(Number),
         },
       },
@@ -462,7 +509,7 @@ describe('life cycle', () => {
       2,
       {
         metadata: {
-          name: 'UNKNOWN',
+          name: 'namedFunction',
           duration: expect.any(Number),
         },
       },
@@ -548,7 +595,7 @@ describe('life cycle', () => {
 });
 describe('request cycle', () => {
   it('should augment koa request, response and context types', async done => {
-    expect.assertions(18);
+    expect.assertions(17);
     const app = new Komapi();
     let requestCtx: Koa.Context;
 
@@ -567,7 +614,7 @@ describe('request cycle', () => {
     const responseAPI = await server.get('/sendAPI');
 
     // Assertions
-    expect(requestCtx!.request.auth).toBe(null);
+    expect(requestCtx!.auth).toEqual({ user: null, info: {} });
     expect(typeof requestCtx!.request.log).toBe('object');
     expect(typeof requestCtx!.request.requestId).toBe('string');
     expect(typeof requestCtx!.request.startAt).toBe('number');
@@ -575,7 +622,6 @@ describe('request cycle', () => {
     expect(typeof requestCtx!.response.sendAPI).toBe('function');
     expect(requestCtx!.services).toBe(app.services);
     expect(requestCtx!.log).toBe(requestCtx!.request.log);
-    expect(requestCtx!.auth).toBe(requestCtx!.request.auth);
     expect(requestCtx!.requestId).toBe(requestCtx!.request.requestId);
     expect(requestCtx!.startAt).toBe(requestCtx!.request.startAt);
     expect(requestCtx!.send).toBe(requestCtx!.response.send);
@@ -588,6 +634,74 @@ describe('request cycle', () => {
     expect(response.body).toEqual({ status: 'success' });
     expect(responseAPI.status).toBe(200);
     expect(responseAPI.body).toEqual({ data: { status: 'success' } });
+
+    // Done
+    done();
+  });
+  it('integrates with koa-passport', async done => {
+    expect.assertions(5);
+    const app = new Komapi();
+    const user = {
+      id: 1,
+      name: 'Kent',
+    };
+    const authInfo = {
+      scope: ['read', 'write'],
+      provider: 'myprovider',
+    };
+    koaPassport.use(
+      new BearerStrategy(async (token, doneCallback) => {
+        if (token === 'myCorrectToken') return doneCallback(null, user, authInfo as any);
+        return doneCallback(null, false);
+      }),
+    );
+    app.use(koaPassport.initialize({ userProperty: 'customPassportProp' }));
+    app.use(koaPassport.authenticate('bearer', { session: false }));
+    app.use(ctx => {
+      expect(ctx.state.customPassportProp).toEqual(user);
+      expect(ctx.authInfo).toEqual(undefined);
+      expect(ctx.auth.user).toEqual(user);
+      expect(ctx.auth.info).toEqual({});
+      ctx.body = null;
+    });
+    const res = await request(app.listen())
+      .get('/')
+      .set('Authorization', 'Bearer myCorrectToken');
+    expect(res.status).toBe(204);
+
+    // Done
+    done();
+  });
+  it('integrates with komapi-passport', async done => {
+    expect.assertions(5);
+    const app = new Komapi();
+    const user = {
+      id: 1,
+      name: 'Kent',
+    };
+    const authInfo = {
+      scope: ['read', 'write'],
+      provider: 'myprovider',
+    };
+    komapiPassport.use(
+      new BearerStrategy(async (token, doneCallback) => {
+        if (token === 'myCorrectToken') return doneCallback(null, user, authInfo as any);
+        return doneCallback(null, false);
+      }),
+    );
+    app.use(komapiPassport.initialize({ userProperty: 'customPassportProp' }));
+    app.use(komapiPassport.authenticate('bearer', { session: false }));
+    app.use(ctx => {
+      expect(ctx.state.customPassportProp).toEqual(user);
+      expect(ctx.authInfo).toEqual(authInfo);
+      expect(ctx.auth.user).toEqual(user);
+      expect(ctx.auth.info).toEqual(authInfo);
+      ctx.body = null;
+    });
+    const res = await request(app.listen())
+      .get('/')
+      .set('Authorization', 'Bearer myCorrectToken');
+    expect(res.status).toBe(204);
 
     // Done
     done();
@@ -954,6 +1068,94 @@ describe('node event handlers', () => {
     expect(listener).not.toBe(undefined);
     await (listener as any)();
     expect(closeSpy).toHaveBeenCalledTimes(1);
+    expect(logSpy).toHaveBeenCalledTimes(1);
+    expect(logSpy).toHaveBeenCalledWith(
+      {
+        app,
+      },
+      'Before exit event triggered - ensuring graceful shutdown',
+    );
+
+    // Cleanup
+    global.process.on = originalOn;
+    global.process.once = originalOnce;
+
+    // Done
+    done();
+  });
+  it('beforeExit should not invoke "app.close()" if state is "CLOSING"', async done => {
+    expect.assertions(4);
+    const originalOn = process.on;
+    const originalOnce = process.once;
+
+    let listener;
+    const closeSpy = jest.fn();
+    const logSpy = jest.fn();
+    const onSpy = jest.fn();
+    const onceSpy = jest.fn((event, handler) => {
+      if (event === 'beforeExit') listener = handler;
+    });
+
+    global.process.on = onSpy as any;
+    global.process.once = onceSpy as any;
+
+    const app = new Komapi();
+    app.state = Komapi.Lifecycle.CLOSING;
+    app.close = closeSpy;
+    app.log = new Proxy(app.log, {
+      get(obj, prop) {
+        return prop === 'debug' ? logSpy : Reflect.get(obj, prop);
+      },
+    });
+
+    // Assertions
+    expect(listener).not.toBe(undefined);
+    await (listener as any)();
+    expect(closeSpy).toHaveBeenCalledTimes(0);
+    expect(logSpy).toHaveBeenCalledTimes(1);
+    expect(logSpy).toHaveBeenCalledWith(
+      {
+        app,
+      },
+      'Before exit event triggered - ensuring graceful shutdown',
+    );
+
+    // Cleanup
+    global.process.on = originalOn;
+    global.process.once = originalOnce;
+
+    // Done
+    done();
+  });
+  it('beforeExit should not invoke "app.close()" if state is "CLOSED"', async done => {
+    expect.assertions(4);
+    const originalOn = process.on;
+    const originalOnce = process.once;
+
+    let listener;
+    const closeSpy = jest.fn();
+    const logSpy = jest.fn();
+    const onSpy = jest.fn();
+    const onceSpy = jest.fn((event, handler) => {
+      if (event === 'beforeExit') listener = handler;
+    });
+
+    global.process.on = onSpy as any;
+    global.process.once = onceSpy as any;
+
+    const app = new Komapi();
+    app.state = Komapi.Lifecycle.CLOSED;
+    app.close = closeSpy;
+    app.log = new Proxy(app.log, {
+      get(obj, prop) {
+        return prop === 'debug' ? logSpy : Reflect.get(obj, prop);
+      },
+    });
+
+    // Assertions
+    expect(listener).not.toBe(undefined);
+    await (listener as any)();
+    expect(closeSpy).toHaveBeenCalledTimes(0);
     expect(logSpy).toHaveBeenCalledTimes(1);
     expect(logSpy).toHaveBeenCalledWith(
       {

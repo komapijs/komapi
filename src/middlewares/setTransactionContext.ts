@@ -7,7 +7,8 @@ export default function setTransactionContextMiddlewareFactory(transactionContex
   return async function setTransactionContextMiddleware(ctx, next) {
     return new Promise(resolve => {
       transactionContext.run(() => {
-        // TODO: transactionContext.set('auth', ctx.request.auth.isAuthenticated ? ctx.request.auth.account : null);
+        // @ts-ignore
+        transactionContext.set('auth', ctx.auth);
         transactionContext.set('requestId', ctx.request.requestId);
         resolve(next());
       });

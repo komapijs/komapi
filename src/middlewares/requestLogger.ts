@@ -21,7 +21,6 @@ export default function requestLoggerMiddlewareFactory(options: Partial<RequestL
     } finally {
       ctx.request.log[opts.level](
         {
-          startAt: ctx.request.startAt,
           latency: Math.ceil(Date.now() - ctx.request.startAt),
           request: ctx.request,
           response: ctx.response,

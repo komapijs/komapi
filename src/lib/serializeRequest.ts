@@ -18,6 +18,7 @@ export default function serializeRequestFactory(options: Partial<SerializeReques
     const includeBody = typeof opts.includeBody === 'function' ? opts.includeBody(request) : opts.includeBody;
     return {
       requestId: request.requestId,
+      startAt: request.startAt,
       body: includeBody ? (request as { body?: any }).body : undefined,
       header: request.header,
       method: request.method,
