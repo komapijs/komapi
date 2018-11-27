@@ -1,3 +1,14 @@
+# [0.7.0-4](https://github.com/komapijs/komapi/compare/v0.7.0-3...v0.7.0-4) (2018-11-27)
+
+
+### Features
+
+* add health status endpoint ([c208cb7](https://github.com/komapijs/komapi/commit/c208cb7))
+* add options to override default middlewares ([71e53c7](https://github.com/komapijs/komapi/commit/71e53c7))
+* add support for komapi-passport and koa-passport ([81680f9](https://github.com/komapijs/komapi/commit/81680f9))
+
+
+
 # [0.7.0-3](https://github.com/komapijs/komapi/compare/v0.7.0-2...v0.7.0-3) (2018-11-15)
 
 
