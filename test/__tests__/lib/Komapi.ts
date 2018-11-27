@@ -3,6 +3,9 @@ import Koa from 'koa';
 import Komapi from '../../../src/lib/Komapi';
 import Service from '../../../src/lib/Service';
 import request from 'supertest';
+import koaPassport from 'koa-passport';
+import komapiPassport from 'komapi-passport';
+import { Strategy as BearerStrategy } from 'passport-http-bearer';
 
 // Test Setup
 afterEach(() => {
@@ -631,6 +634,74 @@ describe('request cycle', () => {
     expect(response.body).toEqual({ status: 'success' });
     expect(responseAPI.status).toBe(200);
     expect(responseAPI.body).toEqual({ data: { status: 'success' } });
+
+    // Done
+    done();
+  });
+  it('integrates with koa-passport', async done => {
+    expect.assertions(5);
+    const app = new Komapi();
+    const user = {
+      id: 1,
+      name: 'Kent',
+    };
+    const authInfo = {
+      scope: ['read', 'write'],
+      provider: 'myprovider',
+    };
+    koaPassport.use(
+      new BearerStrategy(async (token, doneCallback) => {
+        if (token === 'myCorrectToken') return doneCallback(null, user, authInfo as any);
+        return doneCallback(null, false);
+      }),
+    );
+    app.use(koaPassport.initialize({ userProperty: 'customPassportProp' }));
+    app.use(koaPassport.authenticate('bearer', { session: false }));
+    app.use(ctx => {
+      expect(ctx.state.customPassportProp).toEqual(user);
+      expect(ctx.authInfo).toEqual(undefined);
+      expect(ctx.auth.user).toEqual(user);
+      expect(ctx.auth.info).toEqual({});
+      ctx.body = null;
+    });
+    const res = await request(app.listen())
+      .get('/')
+      .set('Authorization', 'Bearer myCorrectToken');
+    expect(res.status).toBe(204);
+
+    // Done
+    done();
+  });
+  it('integrates with komapi-passport', async done => {
+    expect.assertions(5);
+    const app = new Komapi();
+    const user = {
+      id: 1,
+      name: 'Kent',
+    };
+    const authInfo = {
+      scope: ['read', 'write'],
+      provider: 'myprovider',
+    };
+    komapiPassport.use(
+      new BearerStrategy(async (token, doneCallback) => {
+        if (token === 'myCorrectToken') return doneCallback(null, user, authInfo as any);
+        return doneCallback(null, false);
+      }),
+    );
+    app.use(komapiPassport.initialize({ userProperty: 'customPassportProp' }));
+    app.use(komapiPassport.authenticate('bearer', { session: false }));
+    app.use(ctx => {
+      expect(ctx.state.customPassportProp).toEqual(user);
+      expect(ctx.authInfo).toEqual(authInfo);
+      expect(ctx.auth.user).toEqual(user);
+      expect(ctx.auth.info).toEqual(authInfo);
+      ctx.body = null;
+    });
+    const res = await request(app.listen())
+      .get('/')
+      .set('Authorization', 'Bearer myCorrectToken');
+    expect(res.status).toBe(204);
 
     // Done
     done();

@@ -71,11 +71,13 @@
     "@types/boom": "^7.2.1",
     "@types/jest": "^23.3.9",
     "@types/koa-compose": "^3.2.2",
+    "@types/koa-passport": "^4.0.2",
     "@types/koa-router": "^7.0.33",
     "@types/lodash.clonedeep": "^4.5.4",
     "@types/lodash.defaultsdeep": "^4.6.4",
     "@types/lodash.pick": "^4.4.4",
     "@types/node": "^10.12.5",
+    "@types/passport-http-bearer": "^1.0.33",
     "@types/supertest": "^2.0.6",
     "@types/uuid": "^3.4.4",
     "conventional-changelog-cli": "^2.0.11",
@@ -83,8 +85,11 @@
     "del-cli": "^1.1.0",
     "husky": "^1.1.4",
     "jest": "^23.6.0",
+    "koa-passport": "^4.1.1",
+    "komapi-passport": "^0.4.2",
     "np": "^3.0.4",
     "npm-run-all": "^4.1.5",
+    "passport-http-bearer": "^1.0.1",
     "prettier": "^1.15.2",
     "supertest": "^3.3.0",
     "ts-jest": "^23.10.4",
@@ -107,10 +112,10 @@
     "coverageDirectory": ".coverage",
     "coverageThreshold": {
       "global": {
-        "branches": 90,
-        "functions": 90,
-        "lines": 90,
-        "statements": 90
+        "branches": 100,
+        "functions": 100,
+        "lines": 100,
+        "statements": 100
       }
     },
     "moduleFileExtensions": [
