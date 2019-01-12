@@ -565,9 +565,7 @@ declare namespace Komapi {
     logStream: stream.Writable | stream.Duplex | stream.Transform;
   }
   export type InstantiatedServices = { [P in keyof Services]: InstanceType<Services[P]> };
-  export interface ConstructableService<T extends Service> {
-    new (...args: any[]): T;
-  }
+  export type ConstructableService<T extends Service> = new (...args: any[]) => T;
 
   // User customizable types
   export interface Services {
@@ -606,6 +604,7 @@ declare namespace Komapi {
     services: Komapi['services'];
   }
   export interface Context {
+    authInfo?: {};
     log: Request['log'];
     requestId: Request['requestId'];
     send: Response['send'];

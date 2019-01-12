@@ -4,13 +4,14 @@ Komapi is an opinionated Node.js framework with official typescript support buil
  
 Disclaimer: There will be breaking changes and outdated documentation during the pre-v1.0.0 cycles.
 
-[![npm](https://img.shields.io/npm/v/komapi.svg)](https://npmjs.org/package/komapi)
-[![CircleCI](https://img.shields.io/circleci/project/github/komapijs/komapi/master.svg)](https://circleci.com/gh/komapijs/komapi/tree/master)
-[![Codecov branch](https://img.shields.io/codecov/c/github/komapijs/komapi/master.svg)](https://codecov.io/gh/komapijs/komapi/tree/master)
-[![David](https://img.shields.io/david/komapijs/komapi/master.svg)](https://david-dm.org/komapijs/komapi/master)
-[![Known Vulnerabilities](https://snyk.io/test/github/komapijs/komapi/master/badge.svg)](https://snyk.io/test/github/komapijs/komapi/master)
-[![renovate-app badge](https://img.shields.io/badge/renovate-app-blue.svg)](https://renovateapp.com/)
-[![license](https://img.shields.io/github/license/komapijs/komapi.svg)](https://github.com/komapijs/komapi/blob/master/LICENSE.md)
+[![npm][npm-image]][npm-url]
+[![CircleCI][circleci-image]][circleci-url]
+[![Codecov branch][codecov-image]][codecov-url]
+[![David][david-image]][david-url]
+[![Known Vulnerabilities][snyk-image]][snyk-url]
+[![renovate-app badge][renovate-image]][renovate-url]
+[![Conventional Commits][conventional-commits-image]][conventional-commits-url]
+[![license][license-image]][license-url]
 
 Komapi is essentially Koa+typescript with some added sugar, which means that you can use any Koa compatible middleware and use the Koa documentation as reference. Even though it is recommended to follow the conventions defined in the framework, it is entirely possible to use this exactly as you would use Koa.
 
@@ -93,3 +94,21 @@ const app = new Komapi({ services: ... });
 ### License
 
   [MIT](LICENSE.md)
+
+
+[npm-url]: https://npmjs.org/package/komapi
+[npm-image]: https://img.shields.io/npm/v/komapi.svg
+[circleci-url]: https://circleci.com/gh/komapijs/komapi/tree/master
+[circleci-image]: https://img.shields.io/circleci/project/github/komapijs/komapi/master.svg
+[codecov-url]: https://codecov.io/gh/komapijs/komapi/tree/master
+[codecov-image]: https://img.shields.io/codecov/c/github/komapijs/komapi/master.svg
+[david-url]: https://david-dm.org/komapijs/komapi/master
+[david-image]: https://img.shields.io/david/komapijs/komapi/master.svg
+[snyk-url]: https://snyk.io/test/github/komapijs/komapi/master
+[snyk-image]: https://snyk.io/test/github/komapijs/komapi/master/badge.svg
+[renovate-url]: https://renovateapp.com/
+[renovate-image]: https://img.shields.io/badge/renovate-app-blue.svg
+[conventional-commits-image]: https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg
+[conventional-commits-url]: https://conventionalcommits.org/
+[license-url]: https://github.com/komapijs/komapi/blob/master/LICENSE.md
+[license-image]: https://img.shields.io/github/license/komapijs/komapi.svg
