@@ -87,7 +87,7 @@
     "conventional-recommended-bump": "^4.0.4",
     "del-cli": "^1.1.0",
     "husky": "^1.3.1",
-    "jest": "^23.6.0",
+    "jest": "^24.0.0",
     "koa-passport": "^4.1.1",
     "komapi-passport": "^0.4.2",
     "np": "^4.0.0",
