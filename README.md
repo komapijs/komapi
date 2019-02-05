@@ -1,6 +1,6 @@
 # KomAPI
 
-Komapi is an opinionated Node.js framework with official typescript support built on top of Koa v2.5 and requires Node.js v8.11.1 or higher.
+Komapi is an opinionated Node.js framework with official typescript support built on top of [Koa][koa-url] and requires Node.js v8.11.1 or higher.
  
 Disclaimer: There will be breaking changes and outdated documentation during the pre-v1.0.0 cycles.
 
@@ -13,7 +13,7 @@ Disclaimer: There will be breaking changes and outdated documentation during the
 [![Conventional Commits][conventional-commits-image]][conventional-commits-url]
 [![license][license-image]][license-url]
 
-Komapi is essentially Koa+typescript with some added sugar, which means that you can use any Koa compatible middleware and use the Koa documentation as reference. Even though it is recommended to follow the conventions defined in the framework, it is entirely possible to use this exactly as you would use Koa.
+Komapi is essentially [Koa][koa-url]+[typescript][typescript-url] with some added sugar, which means that you can use any [Koa][koa-url] compatible middleware and use the [Koa][koa-url] documentation as reference. Even though it is recommended to follow the conventions defined in the framework, it is entirely possible to use this exactly as you would use [Koa][koa-url].
 
 ## Usage
 - [Installation](#installation)
@@ -29,12 +29,115 @@ $ npm install --save komapi
 
 ### Usage
 
-```js
+**Note:** Komapi extends [Koa][koa-url] with common use cases and patterns for rapid development and best practices.
+This documentation only serves as documentation for Komapi specific features and functionality on top of [Koa][koa-url].
+For features or functionality not covered in this documentation, consult the official [Koa][koa-url] documentation.
+
+#### Getting started - Hello world
+
+See [Komapi API](#api-komapi) for more information on configuration options.
+
+```typescript
+import Komapi from 'komapi';
+
+// Create app
 const app = new Komapi({
   config: {
     env: process.env.NODE_ENV, // Default: 'development'
   },
 });
+
+// Add middleware that always respond 'Hello World!'
+app.use(ctx => ctx.send('Hello World!'));
+
+// Start listening
+app.listen(process.env.PORT || 3000);
+```
+
+#### Transaction Context
+
+Komapi creates a transaction context upon instantiation that is very useful for tracking context throughout the application. 
+This context is most often used in the request-response cycle for keeping track of authentication, transaction-type and request-id in logs or even in code to make it context aware, without having to pass around a context object.
+
+By default, Komapi creates a separate context for each request-response cycle through a custom middleware that is available on the `app.transactionContext` property.
+
+Example middleware on how to access transaction context
+```typescript
+export default function logTransactionContextMiddleware(ctx, next) {
+  // Example on how to utilize the transaction context to access variables.
+  // You can also use transactionContext.set('myVar', 'myValue') to set transaction values that should be available in other parts of your application
+  console.log(`Current requestId from transactionContext: ${ctx.app.transactionContext.get('requestId')}`);
+
+
+  // In this example, the request id is also available from the middleware request object
+  console.log(`Current requestId from ctx.request.requestId: ${ctx.request.requestId}`);
+  
+  // Continue
+  return next();
+}
+```
+
+If you need to use transaction context outside of a request-response cycle (e.g. in a script), then you can run your code in `app.run(() => myFunction())`.
+Alternatively you can create the transaction context yourself and handle it manually. See [cls-hooked][cls-hooked-url] for more information. The existing namespace is available in `app.transactionContext`.
+
+Example on how to utilize the transaction context outside of the request-response cycle
+```typescript
+import Komapi from 'komapi';
+import { getNamespace } from 'cls-hooked';
+
+// Create app isntance
+const app = new Komapi({
+  config: {
+    instanceId: 'komapi-instanceid',
+  },
+});
+
+// Function for logging transaction context.
+async function logTransactionContext() {
+  // Log transaction context with app available
+  console.log(`Transaction context variable Foo: ${app.transactionContext.get('Foo')}`);
+
+  // You can also log transaction context without app available - must know the instance id in advance.
+  const transactionContext = getNamespace('komapi-instanceid');
+  console.log(`Transaction context variable Foo: ${transactionContext.get('Foo')}`);
+}
+
+// Run async code with transaction context
+app.run(async () => {
+  // Set transaction context
+  app.transactionContext.get('Foo', 'My Value');
+  
+  // Run my function
+  await logTransactionContext();
+  
+  console.log('Done')
+});
+```
+
+
+#### Services
+
+Komapi has a concept of `services` which encapsulates re-usable stateful functionality and makes it available throughout the application.
+Services can be as simple or as complex as needed for the application, and can be inter-connected and dependend on the context 
+
+
+Komapi comes with sensible defaults, but allows for customizations for a wide variety of use cases. 
+
+```typescript
+import Komapi from 'komapi';
+
+// Create app
+const app = new Komapi({
+  config: {
+    env: process.env.NODE_ENV, // Default: 'development'
+  },
+});
+
+// Add middleware that always respond 'Hello World!'
+app.use(ctx => ctx.send('Hello World!'));
+
+// Start listening
+app.listen(process.env.PORT || 3000);
 ```
 
 #### Types
@@ -78,7 +181,10 @@ declare module 'komapi/dist/lib/Komapi' {
 const app = new Komapi({ services: ... });
 ```
 
+<a id="api"></a>
 ### API
+
+<a id="api-komapi"></a>
 #### Komapi
 `new Komapi([options])`
 
@@ -86,10 +192,14 @@ const app = new Komapi({ services: ... });
 + `options` (object): Object with options
   * `env` (string): Environment setting - it is **highly** recommended to set this to `NODE_ENV`. Default: `development`
   * `name` (string): The name of the application. Default: `Komapi application`
-  * `subdomainOffset` (number): Offset of .subdomains to ignore. See [Koa documentation for more information](https://koajs.com/#settings). Default: `2`
-  * `proxy` (boolean): Trust proxy headers (includes `x-request-id`). See [Koa documentation for more information](https://koajs.com/#settings). Default: `false`
-  * `logOptions` (object): Options to pass down to the [Pino](https://github.com/pinojs/pino) logger instance. See [Pino documentation for more information](https://github.com/pinojs/pino)
-  * `logStream` (Writable): A writable stream to receive logs. Default: [Pino.destination()](https://github.com/pinojs/pino/blob/master/docs/api.md#pino-destination)
+  * `subdomainOffset` (number): Offset of .subdomains to ignore. See [Koa documentation][koa-documentation-url] for more information. Default: `2`
+  * `proxy` (boolean): Trust proxy headers (includes `x-request-id` and `x-forwarded-for`). See [Koa documentation][koa-documentation-url] for more information. Default: `false`
+  + `logOptions` (object): Options to pass down to the [Pino][pino-url] logger instance. See [Pino documentation][pino-url] for more information
+    * `level` (`fatal` | `error` | `warn` | `info` | `debug` | `trace` | `silent`): Log level verbosity Default: process.env.LOG_LEVEL || 'info'
+    * (...) - See [Pino options][pino-documentation-options-url] for more information
+  * `logStream` (Writable): A writable stream to receive logs. Default: [Pino.destination()][pino-documentation-destination-url]
++ `services` (object): Object with map of string to classes that extend the `Service` class
+
 
 ### License
 
@@ -112,3 +222,11 @@ const app = new Komapi({ services: ... });
 [conventional-commits-url]: https://conventionalcommits.org/
 [license-url]: https://github.com/komapijs/komapi/blob/master/LICENSE.md
 [license-image]: https://img.shields.io/github/license/komapijs/komapi.svg
+
+[koa-url]: https://github.com/koajs/koa
+[koa-documentation-url]: https://koajs.com/#settings
+[pino-url]: https://github.com/pinojs/pino
+[pino-documentation-options-url]: https://github.com/pinojs/pino/blob/master/docs/api.md#options
+[pino-documentation-destination-url]: https://github.com/pinojs/pino/blob/master/docs/api.md#pino-destination
+[typescript-url]: https://github.com/microsoft/typescript
+[cls-hooked-url]: https://github.com/jeff-lewis/cls-hooked
