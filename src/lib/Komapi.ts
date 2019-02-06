@@ -12,7 +12,9 @@ import Service from './Service';
 import serializeRequest from './serializeRequest';
 import serializeResponse from './serializeResponse';
 import setTransactionContext from '../middlewares/setTransactionContext';
-import { name } from '../../package.json';
+
+// tslint:disable-next-line no-var-requires
+const { name } = require('../../package.json');
 
 /**
  * Overload Koa by extending Komapi for simple module augmentation
@@ -50,7 +52,7 @@ class Komapi<CustomStateT = any, CustomContextT = {}> extends Koa<CustomStateT, 
   /**
    * Create new Komapi instance
    *
-   * @param {DeepPartial<Komapi.Options<CustomStateT, CustomContextT>>=} options
+   * @param {DeepPartial<Komapi.Options<CustomStateT, CustomContextT>>} options
    */
   constructor(options?: DeepPartial<Komapi.Options<CustomStateT, CustomContextT>>) {
     super();
@@ -175,7 +177,6 @@ class Komapi<CustomStateT = any, CustomContextT = {}> extends Koa<CustomStateT, 
  * Namespace
  */
 declare namespace Komapi {
-
   // User customizable types
   export interface Services {
     [name: string]: ConstructableService<Service>;

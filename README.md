@@ -13,7 +13,8 @@ Disclaimer: There will be breaking changes and outdated documentation during the
 [![Conventional Commits][conventional-commits-image]][conventional-commits-url]
 [![license][license-image]][license-url]
 
-Komapi is essentially [Koa][koa-url]+[typescript][typescript-url] with some added sugar, which means that you can use any [Koa][koa-url] compatible middleware and use the [Koa][koa-url] documentation as reference. Even though it is recommended to follow the conventions defined in the framework, it is entirely possible to use this exactly as you would use [Koa][koa-url].
+Komapi is essentially [Koa][koa-url]+[typescript][typescript-url] with some added sugar, which means that you can use any [Koa][koa-url] compatible middleware and use the [Koa][koa-url] documentation as reference.
+Even though it is recommended to follow the conventions defined in the framework, it is entirely possible to use Komapi exactly as you would use [Koa][koa-url] and still enjoy most of the built-in features.
 
 ## Usage
 - [Installation](#installation)
@@ -37,7 +38,7 @@ For features or functionality not covered in this documentation, consult the off
 
 See [Komapi API](#api-komapi) for more information on configuration options.
 
-```typescript
+```js
 import Komapi from 'komapi';
 
 // Create app
@@ -62,14 +63,13 @@ This context is most often used in the request-response cycle for keeping track 
 By default, Komapi creates a separate context for each request-response cycle through a custom middleware that is available on the `app.transactionContext` property.
 
 Example middleware on how to access transaction context
-```typescript
+```js
 export default function logTransactionContextMiddleware(ctx, next) {
-  // Example on how to utilize the transaction context to access variables.
-  // You can also use transactionContext.set('myVar', 'myValue') to set transaction values that should be available in other parts of your application
+  // You use transactionContext.set('myVar', 'myValue') to set transaction values that should be available in other parts of your application
   console.log(`Current requestId from transactionContext: ${ctx.app.transactionContext.get('requestId')}`);
 
 
-  // In this example, the request id is also available from the middleware request object
+  // The request id is also available from the middleware request object
   console.log(`Current requestId from ctx.request.requestId: ${ctx.request.requestId}`);
   
   // Continue
@@ -81,11 +81,11 @@ If you need to use transaction context outside of a request-response cycle (e.g.
 Alternatively you can create the transaction context yourself and handle it manually. See [cls-hooked][cls-hooked-url] for more information. The existing namespace is available in `app.transactionContext`.
 
 Example on how to utilize the transaction context outside of the request-response cycle
-```typescript
+```js
 import Komapi from 'komapi';
 import { getNamespace } from 'cls-hooked';
 
-// Create app isntance
+// Create app instance
 const app = new Komapi({
   config: {
     instanceId: 'komapi-instanceid',
@@ -105,7 +105,7 @@ async function logTransactionContext() {
 // Run async code with transaction context
 app.run(async () => {
   // Set transaction context
-  app.transactionContext.get('Foo', 'My Value');
+  app.transactionContext.set('Foo', 'My Value');
   
   // Run my function
   await logTransactionContext();
@@ -118,12 +118,71 @@ app.run(async () => {
 #### Services
 
 Komapi has a concept of `services` which encapsulates re-usable stateful functionality and makes it available throughout the application.
-Services can be as simple or as complex as needed for the application, and can be inter-connected and dependend on the context 
+Services can be as simple or as complex as needed for the application, and can be inter-connected and context dependent.
+Typically services should encapsulate models, complex logic (e.g. events, authorization and data visibility) and usage of other services so that your routes and controllers can be decoupled and as small as possible.
 
+Common examples of services:
+  * `AccountService`: provides a simple interface for `create`, `update`, `disable`, `delete`, `notify`, `getActiveAccount`, `getAccountsWithOutstandingInvoices` etc.
+    Most of these methods involve complex logic such as sending out events to an eventbus, querying multiple services, ensure that data visibility is restricted based on the current authenticated context 
+  * `ChatService`: provides a simple interface for `sendMessage` and `createGroup` etc.
+    The complexity of authorization, event handling and connecting to the data store is hidden from the consumer of the service
+  * `EventService`: Enables other services to public (and subscribe to) events in a message bus, websockets, push notifications, redis cache or just locally in the application depending on needs.
+  * `WebSocketService`: Manage websocket connections so that a single websocket connection can handle many different channels and events. 
+  * `DatabaseService`: Handle migrations, database connections and clean up when application shuts down.
 
+All services must inherit from the base Komapi service, either directly or indirectly.
+The services must also implement the `service.init()` and `service.close()` methods if initialization or resource cleanup must be done on application start and shutdown respectively.
+This is especially important for services that create connections or handle state - e.g. managing connections to databases, websockets, message queues and repopulating caches etc.
+Typical use case for these handlers include setting up connections, and closing connections when application shuts down.
+You can even publish events to let clients know that your application is shutting down and that they should reconnect to a different endpoint.
+
+Services are initiated with Komapi in the `options` object under `options.services`
+
+```js
+import Komapi from 'komapi';
+import AccountService from './services/Account';
+import ImageService from './services/Image';
+
+// Create app
+const app = new Komapi({
+  services: {
+    Account: AccountService,
+    Image: ImageService,
+  },
+});
+
+// Service instances are available under app.services
+const newAccount = app.services.Account.create({ firstName: 'Joe', lastName: 'Smith' });
+```
+ 
+Example service `AccountService` with 
+
+```js
+import { Service } from 'komapi';
+import { unauthorized } from 'boom';
+import AccountModel from '../models/Account';
+
+export default class AccountService extends Service {
+  
+  create(account) {
+    // Get current authentication context
+    const auth = this.app.transactionContext.get('auth');
+    
+    // Check transaction context whether we are allowed to create users
+    if (!auth || !auth.scope.includes('create_user')) throw unauthorized('Valid authentication with scope "create_user" required to create new accounts!');
+    
+    // Check if first and last name is set
+    if (!account.firstName || !account.lastName) throw new Error('Both firstName and lastName is required!');
+    
+    return AccountModel.query().insert({ firstName: account.firstName, lastName: account.lastName, createdBy: auth.id });    
+  }
+}
+``` 
+
+ 
 Komapi comes with sensible defaults, but allows for customizations for a wide variety of use cases. 
 
-```typescript
+```js
 import Komapi from 'komapi';
 
 // Create app
@@ -146,7 +205,7 @@ You can provide your own types to override the default ones (e.g. services avail
 
 To set the services and/or locals interface you can use one of the following alternatives. The difference is that alternative 2 will provide type safety during class instantiation, but is more verbose.
 
-```typescript
+```js
 // Dependencies
 import UserService from './services/User';
 

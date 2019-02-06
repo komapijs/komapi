@@ -10,19 +10,12 @@ function wrapLogger(baseLogger: Pino.Logger, transactionContext?: cls.Namespace)
     (acc, level: Pino.Level) => {
       acc[level] = new Proxy(baseLogger[level], {
         apply(target, thisArg, argumentsList) {
-          const loggerContext = argumentsList[0];
           const { _ns_name, id, ...currentTransactionContext } = thisArg.transactionContext.active || {
             _ns_name: null,
             id: null,
           };
           const logContext = { context: currentTransactionContext };
-          let args;
-          if (typeof loggerContext !== 'object') args = argumentsList;
-          else {
-            Object.assign(logContext, loggerContext);
-            args = argumentsList.slice(1);
-          }
-          return target.apply(thisArg, [logContext, args]);
+          return target.apply(thisArg, [logContext, argumentsList]);
         },
       });
       return acc;
