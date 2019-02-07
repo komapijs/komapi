@@ -16,6 +16,7 @@
 !.prettierrc
 !.travis.yml
 !.gitlab-ci.yml
+!.nojekyll
 
 # Generated directories
 build

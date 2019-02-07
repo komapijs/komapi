@@ -2,7 +2,6 @@
 import Koa from 'koa';
 import os from 'os';
 import stream from 'stream';
-import { DeepPartial } from 'ts-essentials';
 import defaultsDeep from 'lodash.defaultsdeep';
 import Pino from 'pino';
 import cls from 'cls-hooked';
@@ -15,6 +14,15 @@ import setTransactionContext from '../middlewares/setTransactionContext';
 
 // tslint:disable-next-line no-var-requires
 const { name } = require('../../package.json');
+
+// Types
+type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends Array<infer U>
+    ? Array<DeepPartial<U>>
+    : T[P] extends ReadonlyArray<infer SU>
+    ? ReadonlyArray<DeepPartial<SU>>
+    : DeepPartial<T[P]>
+};
 
 /**
  * Overload Koa by extending Komapi for simple module augmentation
@@ -35,7 +43,11 @@ declare module 'koa' {
  * Komapi base class
  *
  */
-class Komapi<CustomStateT = any, CustomContextT = {}> extends Koa<CustomStateT, CustomContextT> {
+class Komapi<
+  CustomStateT = {},
+  CustomContextT = {},
+  CustomServicesT extends Komapi.Services = Komapi.Services
+> extends Koa<CustomStateT, CustomContextT> {
   /**
    * Export helper functions by attaching to Komapi (hack to make it work with named import and module augmentation)
    */
@@ -45,16 +57,16 @@ class Komapi<CustomStateT = any, CustomContextT = {}> extends Koa<CustomStateT, 
    * Public instance properties
    */
   public readonly config: Komapi.Options['config'];
-  public readonly services: Komapi.InstantiatedServices;
+  public readonly services: Komapi.InstantiatedServices<CustomServicesT>;
   public readonly transactionContext: cls.Namespace;
   public log: Pino.Logger;
 
   /**
    * Create new Komapi instance
    *
-   * @param {DeepPartial<Komapi.Options<CustomStateT, CustomContextT>>} options
+   * @param {DeepPartial<Komapi.Options>=} options
    */
-  constructor(options?: DeepPartial<Komapi.Options<CustomStateT, CustomContextT>>) {
+  constructor(options?: DeepPartial<Komapi.Options>) {
     super();
 
     // Create default options
@@ -86,7 +98,7 @@ class Komapi<CustomStateT = any, CustomContextT = {}> extends Koa<CustomStateT, 
           censor: '[REDACTED]',
         },
       },
-      logStream: (Pino as any).destination(),
+      logStream: Pino.destination(),
     });
 
     /**
@@ -123,9 +135,6 @@ class Komapi<CustomStateT = any, CustomContextT = {}> extends Koa<CustomStateT, 
             (this.config as { [key: string]: any })[prop] = v;
           },
         });
-      });
-      Object.assign(this.context, {
-        services: this.services,
       });
       Object.assign(this.request, {
         requestId: 'UNKNOWN',
@@ -171,6 +180,26 @@ class Komapi<CustomStateT = any, CustomContextT = {}> extends Koa<CustomStateT, 
       });
     });
   }
+
+  /**
+   * @override
+   */
+  public use<NewCustomStateT = {}, NewCustomContextT = {}, NewCustomServicesT extends Komapi.Services = {}>(
+    middleware: Komapi.Middleware<
+      CustomStateT & NewCustomStateT,
+      CustomContextT & NewCustomContextT,
+      CustomServicesT & NewCustomServicesT
+    >,
+  ): Komapi<CustomStateT & NewCustomStateT, CustomContextT & NewCustomContextT, CustomServicesT & NewCustomServicesT> {
+    return super.use<NewCustomStateT, NewCustomContextT>(middleware as Koa.Middleware<
+      NewCustomStateT,
+      NewCustomContextT
+    >) as Komapi<
+      CustomStateT & NewCustomStateT,
+      CustomContextT & NewCustomContextT,
+      CustomServicesT & NewCustomServicesT
+    >;
+  }
 }
 
 /**
@@ -183,10 +212,18 @@ declare namespace Komapi {
   }
 
   // Komapi native types
-  export type Middleware<CustomStateT = any, CustomContextT = {}> = Koa.Middleware<CustomStateT, CustomContextT>;
-  export type InstantiatedServices = { [P in keyof Services]: InstanceType<Services[P]> };
+  export type Middleware<
+    CustomStateT = {},
+    CustomContextT = {},
+    CustomServicesT extends Services = Services
+  > = Koa.Middleware<CustomStateT, ContextBridge<CustomContextT, CustomServicesT>>;
+  export type InstantiatedServices<T extends Services = Services> = { [P in keyof T]: InstanceType<T[P]> };
   export type ConstructableService<T extends Service> = new (...args: any[]) => T;
-  export interface Options<CustomStateT = any, CustomContextT = {}> {
+  export type ContextBridge<CustomContextT = {}, CustomServicesT extends Services = Services> = CustomContextT & {
+    app: Komapi<{}, {}, CustomServicesT>;
+  };
+
+  export interface Options {
     config: {
       env: Koa['env'];
       proxy: Koa['proxy'];
@@ -194,9 +231,9 @@ declare namespace Komapi {
       silent: Koa['silent'];
       keys: Koa['keys'];
       instanceId: string;
-      errorHandler: Komapi.Middleware<CustomStateT, CustomContextT> | false | null;
-      requestLogger: Komapi.Middleware<CustomStateT, CustomContextT> | false | null;
-      healthReporter: Komapi.Middleware<CustomStateT, CustomContextT> | false | null;
+      // errorHandler: Komapi.Middleware<CustomStateT, CustomContextT> | false | null;
+      // requestLogger: Komapi.Middleware<CustomStateT, CustomContextT> | false | null;
+      // healthReporter: Komapi.Middleware<CustomStateT, CustomContextT> | false | null;
     };
     services: Services;
     logOptions: Pino.LoggerOptions;
@@ -217,7 +254,6 @@ declare namespace Komapi {
     requestId: BaseRequest['requestId'];
     // send: Response['send'];
     // sendAPI: Response['sendAPI'];
-    services: Komapi['services'];
     startAt: BaseRequest['startAt'];
   }
   export interface Request {}

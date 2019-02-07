@@ -1,7 +1,7 @@
 {
   "name": "komapi",
   "version": "0.7.0-4",
-  "description": "Komapi is an opinionated Node.js typescript framework built on top of Koa 2.0",
+  "description": "Komapi is an opinionated Node.js typescript framework built on top of Koa 2.5",
   "author": "ersims",
   "repository": {
     "type": "git",
@@ -54,7 +54,7 @@
   "dependencies": {
     "@types/cls-hooked": "^4.2.1",
     "@types/koa": "^2.0.48",
-    "@types/pino": "^5.20.0",
+    "@types/pino": "^5.8.4",
     "ajv": "^6.8.1",
     "boom": "^7.3.0",
     "cls-hooked": "^4.2.2",
@@ -95,7 +95,6 @@
     "passport-http-bearer": "^1.0.1",
     "prettier": "^1.16.4",
     "supertest": "^3.4.2",
-    "ts-essentials": "^1.0.4",
     "ts-jest": "^23.10.4",
     "tslint": "^5.12.1",
     "tslint-config-airbnb": "^5.11.0",

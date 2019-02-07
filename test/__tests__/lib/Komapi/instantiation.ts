@@ -72,6 +72,10 @@ it('should be configurable', () => {
     },
     logOptions: {
       level: 'error',
+      redact: {
+        paths: ['request.header.authorization', 'request.header.cookie'],
+        censor: '[REDACTED]',
+      },
     },
   });
 

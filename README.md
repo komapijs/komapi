@@ -23,18 +23,22 @@ Even though it is recommended to follow the conventions defined in the framework
 - [License](#license)
   
 ### Installation
-Install through npm and require it in your `index.js` file.
+
+Install through npm and make it a production dependency in your application.
+
 ```bash
 $ npm install --save komapi
 ```
 
 ### Usage
 
+
 **Note:** Komapi extends [Koa][koa-url] with common use cases and patterns for rapid development and best practices.
 This documentation only serves as documentation for Komapi specific features and functionality on top of [Koa][koa-url].
-For features or functionality not covered in this documentation, consult the official [Koa][koa-url] documentation.
+For features or functionality not covered in this documentation, please consult the official [Koa][koa-url] documentation.
 
-#### Getting started - Hello world
+
+#### Hello World!
 
 See [Komapi API](#api-komapi) for more information on configuration options.
 
@@ -48,12 +52,110 @@ const app = new Komapi({
   },
 });
 
-// Add middleware that always respond 'Hello World!'
+// Add middleware that always respond 'Hello World!' - using the built in `ctx.send()` helper
 app.use(ctx => ctx.send('Hello World!'));
 
 // Start listening
 app.listen(process.env.PORT || 3000);
 ```
+
+
+#### Configuration
+ 
+Komapi comes with sensible defaults, but allows for customizations for a wide variety of use cases.
+
+```js
+const app = new Komapi({
+  config: {
+    env: 'production',
+    proxy: true,
+    subdomainOffset: 3,
+    silent: true,
+    keys: ['my-super-secret-key'],
+    instanceId: 'my-custom-instance-id',
+  },
+  services: {
+    Account: AccountService,
+    Chat: ChatService,
+  },
+  logOptions: { // This is passed throug directly to Pino. See Pino documentation for more information
+    level: 'trace',
+    redact: {
+      paths: ['request.header.authorization', 'request.header.cookie'],
+      censor: '[REDACTED]',
+    },
+  },
+  logStream: new CustomWriteableLogStream(), // The writeable stream to output logs to
+});
+
+// Access current config through app.config
+console.log(`Current instance id: ${app.config.instanceId}`);
+```
+
+
+#### Services
+
+Komapi has a concept of `services` which encapsulates re-usable stateful functionality and makes it available throughout the application.
+Services can be as simple or as complex as needed for the application, and can be inter-connected and context dependent.
+Typically services should encapsulate models, complex logic (e.g. events, authorization and data visibility) and usage of other services so that your routes and controllers can be decoupled and as small as possible.
+
+Common examples of services:
+  * `AccountService`: provides a simple interface for `create`, `update`, `disable`, `delete`, `notify`, `getActiveAccount`, `getAccountsWithOutstandingInvoices` etc.
+    Most of these methods involve complex logic such as sending out events to an eventbus, querying multiple services, ensure that data visibility is restricted based on the current authenticated context 
+  * `ChatService`: provides a simple interface for `sendMessage` and `createGroup` etc.
+    The complexity of authorization, event handling and connecting to the data store is hidden from the consumer of the service
+  * `EventService`: Enables other services to public (and subscribe to) events in a message bus, websockets, push notifications, redis cache or just locally in the application depending on needs.
+  * `WebSocketService`: Manage websocket connections so that a single websocket connection can handle many different channels and events. 
+  * `DatabaseService`: Handle migrations, database connections and clean up when application shuts down.
+
+All services must inherit from the base Komapi service, either directly or indirectly.
+The services must also implement the `service.init()` and `service.close()` methods if initialization or resource cleanup must be done on application start and shutdown respectively.
+This is especially important for services that create connections or handle state - e.g. managing connections to databases, websockets, message queues and repopulating caches etc.
+Typical use case for these handlers include setting up connections, and closing connections when application shuts down.
+You can even publish events to let clients know that your application is shutting down and that they should reconnect to a different endpoint.
+
+Services are initiated with Komapi in the `options` object under `options.services`
+
+```js
+import Komapi from 'komapi';
+import AccountService from './services/Account';
+import ImageService from './services/Image';
+
+// Create app
+const app = new Komapi({
+  services: {
+    Account: AccountService,
+    Image: ImageService,
+  },
+});
+
+// Service instances are available under app.services
+const newAccount = app.services.Account.create({ firstName: 'Joe', lastName: 'Smith' });
+```
+ 
+Example service `AccountService`
+
+```js
+import { Service } from 'komapi';
+import { unauthorized } from 'boom';
+import AccountModel from '../models/Account';
+
+export default class AccountService extends Service {
+  
+  create(account) {
+    // Get current authentication context - See documentation on Transaction Context for more information
+    const auth = this.app.transactionContext.get('auth');
+    
+    // Check transaction context whether we are allowed to create users
+    if (!auth || !auth.scope.includes('create_user')) throw unauthorized('Valid authentication with scope "create_user" required to create new accounts!');
+    
+    // Check if first and last name is set
+    if (!account.firstName || !account.lastName) throw new Error('Both firstName and lastName is required!');
+    
+    return AccountModel.query().insert({ firstName: account.firstName, lastName: account.lastName, createdBy: auth.id });    
+  }
+}
+``` 
 
 #### Transaction Context
 
@@ -114,130 +216,138 @@ app.run(async () => {
 });
 ```
 
+#### Typescript
 
-#### Services
+Komapi is built in typescript and provides full support for types out of the box.
+There are several options for augmenting Komapi with your own types depending on your use case.
 
-Komapi has a concept of `services` which encapsulates re-usable stateful functionality and makes it available throughout the application.
-Services can be as simple or as complex as needed for the application, and can be inter-connected and context dependent.
-Typically services should encapsulate models, complex logic (e.g. events, authorization and data visibility) and usage of other services so that your routes and controllers can be decoupled and as small as possible.
+##### Option 1: Augmenting Komapi with your own types
 
-Common examples of services:
-  * `AccountService`: provides a simple interface for `create`, `update`, `disable`, `delete`, `notify`, `getActiveAccount`, `getAccountsWithOutstandingInvoices` etc.
-    Most of these methods involve complex logic such as sending out events to an eventbus, querying multiple services, ensure that data visibility is restricted based on the current authenticated context 
-  * `ChatService`: provides a simple interface for `sendMessage` and `createGroup` etc.
-    The complexity of authorization, event handling and connecting to the data store is hidden from the consumer of the service
-  * `EventService`: Enables other services to public (and subscribe to) events in a message bus, websockets, push notifications, redis cache or just locally in the application depending on needs.
-  * `WebSocketService`: Manage websocket connections so that a single websocket connection can handle many different channels and events. 
-  * `DatabaseService`: Handle migrations, database connections and clean up when application shuts down.
+This is the recommended approach, but requires that you only use a single Komapi configuration in your application.
+The benefits here outweighs the drawbacks for the vast majority of use cases, and enables [Koa][koa-url] native libraries to function with Komapi without any bridging necessary.
+The obvious drawback here is that the typings will be globals so you cannot have different configurations of Komapi active at the same time.
+E.g. If you want to have different state, context or services, between different instances of Komapi, then this is not the option for you.
 
-All services must inherit from the base Komapi service, either directly or indirectly.
-The services must also implement the `service.init()` and `service.close()` methods if initialization or resource cleanup must be done on application start and shutdown respectively.
-This is especially important for services that create connections or handle state - e.g. managing connections to databases, websockets, message queues and repopulating caches etc.
-Typical use case for these handlers include setting up connections, and closing connections when application shuts down.
-You can even publish events to let clients know that your application is shutting down and that they should reconnect to a different endpoint.
-
-Services are initiated with Komapi in the `options` object under `options.services`
-
-```js
+```typescript
 import Komapi from 'komapi';
-import AccountService from './services/Account';
-import ImageService from './services/Image';
+import services from '../services';
 
-// Create app
-const app = new Komapi({
-  services: {
-    Account: AccountService,
-    Image: ImageService,
-  },
-});
-
-// Service instances are available under app.services
-const newAccount = app.services.Account.create({ firstName: 'Joe', lastName: 'Smith' });
-```
- 
-Example service `AccountService` with 
-
-```js
-import { Service } from 'komapi';
-import { unauthorized } from 'boom';
-import AccountModel from '../models/Account';
-
-export default class AccountService extends Service {
-  
-  create(account) {
-    // Get current authentication context
-    const auth = this.app.transactionContext.get('auth');
-    
-    // Check transaction context whether we are allowed to create users
-    if (!auth || !auth.scope.includes('create_user')) throw unauthorized('Valid authentication with scope "create_user" required to create new accounts!');
-    
-    // Check if first and last name is set
-    if (!account.firstName || !account.lastName) throw new Error('Both firstName and lastName is required!');
-    
-    return AccountModel.query().insert({ firstName: account.firstName, lastName: account.lastName, createdBy: auth.id });    
-  }
+// Custom Types
+interface MyCustomState {
+  isAdmin: boolean;
 }
-``` 
-
- 
-Komapi comes with sensible defaults, but allows for customizations for a wide variety of use cases. 
-
-```js
-import Komapi from 'komapi';
-
-// Create app
-const app = new Komapi({
-  config: {
-    env: process.env.NODE_ENV, // Default: 'development'
-  },
-});
-
-// Add middleware that always respond 'Hello World!'
-app.use(ctx => ctx.send('Hello World!'));
-
-// Start listening
-app.listen(process.env.PORT || 3000);
-```
-
-#### Types
-
-You can provide your own types to override the default ones (e.g. services available on `app.services` and locals on `app.locals`) by augmenting the Komapi.
-
-To set the services and/or locals interface you can use one of the following alternatives. The difference is that alternative 2 will provide type safety during class instantiation, but is more verbose.
-
-```js
-// Dependencies
-import UserService from './services/User';
+interface MyCustomContext {
+  getCurrentUser: () => User | null;
+}
+type MyServices = typeof services;
 
 /**
- * Alternative 1
- * 
- * Less verbose, but not type safe `new Komapi({ services: ... })` instantiation (it is type safe on app.services though)
+ * Globally augment Komapi with custom types according to your application
  */
 declare module 'komapi' {
-  interface Locals {
-    myCustomProperty: string;
-  }
-  interface Services {
-    User: UserService;
-  }
+  interface Services extends MyServices {}
 }
 
-/**
- * Alternative 2
- * 
- * More verbose, but type safe `new Komapi({ services: ... })` instantiation
- */
-declare module 'komapi/dist/lib/Komapi' {
-  interface Locals {
-    myCustomProperty: string;
-  }
-  interface Services {
-    User: UserService;
-  }
+// Create app
+const appWithCustomContext = new Komapi<MyCustomState, MyCustomContext>({ services });
+
+// Utilize custom context in your middlewares
+appWithCustomContext.use(async (ctx, next) => {
+  // Is this user an admin?
+  if (ctx.state.isAdmin) console.log('Current user is an admin');
+  else console.log('Current user is NOT an admin');
+  
+  // Get current user
+  const user = await ctx.getCurrentUser();
+  console.log('Current user:', user);
+  
+  // Use the account service to notify the user about something
+  await ctx.app.services.Account.notify(user);
+  
+  return next();
+});
+```
+
+##### Option 2: Using Koa generics
+
+Another option is to utilize the generics option in [Koa][koa-url] to add state and augment the context.
+For convenience, we have added a third generic that you can use to add strong typing for your services.
+
+The benefit of this option is that it keeps the scope of your types limited to only the specific instance of you application.
+The drawback is that you need to specify types when using other external libraries - and they must support generic types - as they only assume default [Koa][koa-url] types.
+Most libraries are only made for use within [Koa][koa-url] and you will therefore lose your instance specific typing - e.g. `app.services` and `app.log`.
+
+```typescript
+import Komapi from 'komapi';
+import services from '../services';
+
+// Custom Types
+interface MyCustomState {
+  isAdmin: boolean;
+}
+interface MyCustomContext {
+  getCurrentUser: () => User | null;
+}
+interface MyCustomServices {
+  Account: AccountService;
 }
 
-const app = new Komapi({ services: ... });
+// Create app
+const appWithCustomContext = new Komapi<MyCustomState, MyCustomContext, MyCustomServices>({ services });
+
+// Utilize custom context in your middlewares
+appWithCustomContext.use(async (ctx, next) => {
+  // Is this user an admin?
+  if (ctx.state.isAdmin) console.log('Current user is an admin');
+  else console.log('Current user is NOT an admin');
+  
+  // Get current user
+  const user = await ctx.getCurrentUser();
+  console.log('Current user:', user);
+  
+  // Create user
+  await ctx.app.services.Account.create(user);
+  
+  return next();
+});
+```
+
+To help with using libraries initially intended for [Koa][koa-url], we provide a generic type `ContextBridge` that makes it a bit easier to handle typings using this approach.
+
+```typescript
+import Router from 'koa-router';
+import { ContextBridge } from 'komapi';
+import services from '../services';
+
+// Types
+interface MyCustomState {
+  isAdmin: boolean;
+}
+interface MyCustomContext {
+  getCurrentUser: () => User | null;
+}
+
+// Init
+const router = new Router<MyCustomState, ContextBridge<MyCustomContext, typeof services>>({ services });
+
+// Routes
+router.get('/test', async (ctx, next) => {
+  // Is this user an admin?
+  if (ctx.state.isAdmin) console.log('Current user is an admin');
+  else console.log('Current user is NOT an admin');
+
+  // Get current user
+  const user = await ctx.getCurrentUsers();
+  console.log('Current user:', user);
+
+  // Create user
+  await ctx.app.services.Account.create(user);
+
+  return next();
+});
+
+// Exports
+export default router;
 ```
 
 <a id="api"></a>
