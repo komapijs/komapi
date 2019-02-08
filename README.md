@@ -229,6 +229,16 @@ All applications have some life cycle events and it is important to be aware of 
 Most applications do some initialization before actually doing the work (e.g. serving http requests) followed by some clean up before shutting down.
 A typical web application do some initialization, such as establishing a database connection before accepting work (e.g. handling http requests), followed by a period of time in a running state while accepting work then stops accepting work before the connection is closed (to prevent connection leaks) and finally stop executing. 
 
+
+The current state is available in `app.state`, and may be one of 4 different states
+| State | Description |
+| ----- | ----------- |
+| `STARTING` | Application is transitioning to `STARTED` state - triggered from `app.start()` |
+| `STARTED` | Application is fully initialized and accepting work |
+| `STOPPING` | Application is transitioning to `STOPPED` state - triggered from `app.stop()` |
+| `STOPPED` | Application is in stopped state (or not started yet) |
+
+
 There are 2 lifecycle handlers in Komapi - `app.start()` and `app.stop()` that must be called before accepting work and before termination of the application.
 Komapi automatically registers the `app.close()` handler on application termination events so you should normally not need to call it manually.
 

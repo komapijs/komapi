@@ -74,10 +74,18 @@ class Komapi<
   public readonly config: Komapi.Options['config'];
   public readonly services: Komapi.InstantiatedServices<CustomServicesT>;
   public readonly transactionContext: cls.Namespace;
+  public state: Komapi.LifecycleState = Komapi.LifecycleState.STOPPED;
   public log: Pino.Logger;
 
   /**
-   * Create new Komapi instance
+   * Internal instance properties
+   */
+  protected waitForStartedState: Promise<void> = Promise.resolve();
+  protected readonly startHandlers: Array<Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>>> = [];
+  protected readonly stopHandlers: Array<Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>>> = [];
+
+  /**
+   * Create a new Komapi instance
    *
    * @param {DeepPartial<Komapi.Options>=} options
    */
@@ -179,11 +187,114 @@ class Komapi<
   }
 
   /**
-   * Run a function with transaction context
+   * Add handlers before other handlers
+   *
+   * @returns {Promise<this>}
+   */
+  public onBeforeStart(...handlers: Array<Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>>>): this {
+    handlers
+      .slice(0)
+      .reverse()
+      .forEach(handler => this.startHandlers.unshift(handler));
+    return this;
+  }
+
+  /**
+   * Add handlers after other handlers
+   *
+   * @returns {Promise<this>}
+   */
+  public onStart(...handlers: Array<Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>>>): this {
+    handlers.forEach(handler => this.startHandlers.push(handler));
+    return this;
+  }
+
+  /**
+   * Add handlers before other handlers
+   *
+   * @returns {Promise<this>}
+   */
+  public onStop(...handlers: Array<Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>>>): this {
+    handlers
+      .slice(0)
+      .reverse()
+      .forEach(handler => this.stopHandlers.unshift(handler));
+    return this;
+  }
+
+  /**
+   * Add handlers after other handlers
+   *
+   * @returns {Promise<this>}
+   */
+  public onAfterStop(...handlers: Array<Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>>>): this {
+    handlers.forEach(handler => this.stopHandlers.push(handler));
+    return this;
+  }
+
+  /**
+   * Start the application - safe to be called multiple times to ensure STARTED state
+   *
+   * @returns {Promise<void>}
+   */
+  public async start(): Promise<void> {
+    // Check if we should short circuit early
+    if (this.state === Komapi.LifecycleState.STARTED) return;
+    if (this.state === Komapi.LifecycleState.STOPPING) throw new Error('Cannot start application while in `STOPPING` state');
+    else if (this.state === Komapi.LifecycleState.STARTING) return this.waitForStartedState;
+
+    // Set STARTING state
+    this.state = Komapi.LifecycleState.STARTING;
+    this.waitForStartedState = new Promise(async (resolve) => {
+      // Call lifecycle handlers
+      for (const handler of this.startHandlers) {
+        await handler(this);
+      }
+
+      // Set new STARTED state
+      this.state = Komapi.LifecycleState.STARTED;
+      resolve();
+    });
+
+    // Run startup initialization
+    return this.waitForStartedState;
+  }
+
+  /**
+   * Stop the application - safe to be called multiple times to ensure STOPPED state
+   *
+   * @returns {Promise<void>}
+   */
+  public async stop(): Promise<void> {
+    // Check if we should short circuit early
+    if (this.state === Komapi.LifecycleState.STOPPED) return;
+    if (this.state === Komapi.LifecycleState.STARTING) throw new Error('Cannot stop application while in `STARTING` state');
+    else if (this.state === Komapi.LifecycleState.STOPPING) return this.waitForStartedState;
+
+    // Set STOPPING state
+    this.state = Komapi.LifecycleState.STOPPING;
+    return new Promise(async (resolve) => {
+      // Call lifecycle handlers
+      for (const handler of this.stopHandlers) {
+        await handler(this);
+      }
+
+      // Set new STOPPED state
+      this.state = Komapi.LifecycleState.STOPPED;
+      resolve();
+    });
+  }
+
+  /**
+   * Run a function with transaction context and ensuring the correct lifecycle state
    *
    * @param {() => any} func
    */
   public async run<ReturnValue = any>(func: () => any): Promise<ReturnValue> {
+    // Ensure application is ready
+    await this.start();
+
+    // Run the function with context
     return new Promise(resolve => {
       this.transactionContext.run(async () => {
         const res = await func();
@@ -218,12 +329,23 @@ class Komapi<
  * Namespace
  */
 declare namespace Komapi {
-  // User customizable types
+  /**
+   * User customizable types
+   */
   export interface Services {
     [name: string]: ConstructableService<Service>;
   }
 
-  // Komapi native types
+  /**
+   * Komapi native types
+   */
+  export const enum LifecycleState {
+    STARTING = 'STARTING',
+    STARTED = 'STARTED',
+    STOPPING = 'STOPPING',
+    STOPPED = 'STOPPED',
+  }
+  export type LifecycleHandler<Application = Komapi> = (app: Application) => any;
   export type Middleware<
     CustomStateT = {},
     CustomContextT = {},
