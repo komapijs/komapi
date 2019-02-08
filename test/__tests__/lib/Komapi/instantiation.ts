@@ -1,5 +1,4 @@
 // Imports
-import Koa from 'koa';
 import Komapi from '../../../../src/lib/Komapi';
 import Account from '../../../fixtures/services/Account';
 

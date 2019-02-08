@@ -16,7 +16,7 @@ Disclaimer: There will be breaking changes and outdated documentation during the
 Komapi is essentially [Koa][koa-url]+[typescript][typescript-url] with some added sugar, which means that you can use any [Koa][koa-url] compatible middleware and use the [Koa][koa-url] documentation as reference.
 Even though it is recommended to follow the conventions defined in the framework, it is entirely possible to use Komapi exactly as you would use [Koa][koa-url] and still enjoy most of the built-in features.
 
-## Usage
+## Documentation
 - [Installation](#installation)
 - [Usage](#usage)
 - [API](#api)
@@ -108,8 +108,8 @@ Common examples of services:
   * `WebSocketService`: Manage websocket connections so that a single websocket connection can handle many different channels and events. 
   * `DatabaseService`: Handle migrations, database connections and clean up when application shuts down.
 
-All services must inherit from the base Komapi service, either directly or indirectly.
-The services must also implement the `service.init()` and `service.close()` methods if initialization or resource cleanup must be done on application start and shutdown respectively.
+All services must inherit from the base Komapi service (named export `Service`), either directly or indirectly.
+The services must also implement the `service.start()` and `service.stop()` methods if initialization or resource cleanup must be done on application `app.start()` and `app.stop()` respectively.
 This is especially important for services that create connections or handle state - e.g. managing connections to databases, websockets, message queues and repopulating caches etc.
 Typical use case for these handlers include setting up connections, and closing connections when application shuts down.
 You can even publish events to let clients know that your application is shutting down and that they should reconnect to a different endpoint.
@@ -129,8 +129,15 @@ const app = new Komapi({
   },
 });
 
-// Service instances are available under app.services
-const newAccount = app.services.Account.create({ firstName: 'Joe', lastName: 'Smith' });
+/**
+ * Note that we wrap the code in `app.run()` to ensure that the context is preserved and lifecycle handlers are called correctly
+ * 
+ * This is the only supported way of running arbitrary code outside of `app.listen()`
+ */
+app.run(async () => {
+  // Service instances are available under app.services
+  const newAccount = await app.services.Account.create({ firstName: 'Joe', lastName: 'Smith' });
+});
 ```
  
 Example service `AccountService`
@@ -214,6 +221,41 @@ app.run(async () => {
   
   console.log('Done')
 });
+```
+
+#### Lifecycle
+
+All applications have some life cycle events and it is important to be aware of what these means for your application.
+Most applications do some initialization before actually doing the work (e.g. serving http requests) followed by some clean up before shutting down.
+A typical web application do some initialization, such as establishing a database connection before accepting work (e.g. handling http requests), followed by a period of time in a running state while accepting work then stops accepting work before the connection is closed (to prevent connection leaks) and finally stop executing. 
+
+There are 2 lifecycle handlers in Komapi - `app.start()` and `app.stop()` that must be called before accepting work and before termination of the application.
+Komapi automatically registers the `app.close()` handler on application termination events so you should normally not need to call it manually.
+
+Even though you do not need to call the `app.start()` handler manually if you only run code in `app.run()` or through `app.listen()`, it is highly recommended to be explicit and call it manually.
+This ensures that any initialization is performed _before_ accepting work and not as part of accepting the first unit of work.
+If you do not call it manually and start your web application with `app.listen()`, then the first request will trigger `app.start()` and wait for it before handling the request (this also applies to all requests that come in while the initialization is performed).
+This can result in very high latency on the first few requests.
+
+Best practice examples on using lifecycle in Komapi
+
+```js
+import Komapi from 'komapi';
+
+// Create app instance
+const app = new Komapi();
+
+/**
+ * Alternative 1: Web application
+ */
+app.start().then(() => app.listen(3000));
+
+/**
+ * Alternative 2: Run arbitrary code
+ */
+app.start().then(() => app.run(async () => {
+  console.log('Running custom code');
+}));
 ```
 
 #### Typescript

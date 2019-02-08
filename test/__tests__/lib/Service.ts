@@ -10,11 +10,11 @@ it('should expose a standard interface', async done => {
 
   // Assertions
   expect(service.app).toBe(app);
-  expect(typeof service.init).toBe('function');
-  expect(typeof service.close).toBe('function');
+  expect(typeof service.start).toBe('function');
+  expect(typeof service.stop).toBe('function');
 
-  const initResult = await service.init(app);
-  const closeResult = await service.close(app);
+  const initResult = await service.start(app);
+  const closeResult = await service.stop(app);
   expect(initResult).toBe(undefined);
   expect(closeResult).toBe(undefined);
 

@@ -6,6 +6,8 @@ import defaultsDeep from 'lodash.defaultsdeep';
 import Pino from 'pino';
 import cls from 'cls-hooked';
 import delegate from 'delegates';
+import { IncomingMessage, ServerResponse } from 'http';
+import uuidv4 from 'uuid';
 import createLogger from './createLogger';
 import Service from './Service';
 import serializeRequest from './serializeRequest';
@@ -43,6 +45,19 @@ declare module 'koa' {
  * Komapi base class
  *
  */
+interface Komapi<
+  CustomStateT = {},
+  CustomContextT = {},
+  CustomServicesT extends Komapi.Services = Komapi.Services
+  > {
+  use<NewCustomStateT = {}, NewCustomContextT = {}, NewCustomServicesT extends Komapi.Services = {}>(
+    middleware: Komapi.Middleware<
+      CustomStateT & NewCustomStateT,
+      CustomContextT & NewCustomContextT,
+      CustomServicesT & NewCustomServicesT
+      >
+  ): Komapi<CustomStateT & NewCustomStateT, CustomContextT & NewCustomContextT, CustomServicesT & NewCustomServicesT>;
+}
 class Komapi<
   CustomStateT = {},
   CustomContextT = {},
@@ -136,27 +151,23 @@ class Komapi<
           },
         });
       });
-      Object.assign(this.request, {
-        requestId: 'UNKNOWN',
+      Object.assign(this.context, {
         log: this.log,
       });
-      // Object.assign(this.response, {
-      //   send: function send<T>(body: T): ReturnType<Koa.Response['send']> {
-      //     this.body = body;
-      //     return this.body;
-      //   },
-      //   sendAPI: function sendAPI<T, U>(body: T, metadata?: U): ReturnType<Koa.Response['sendAPI']> {
-      //     this.body = { metadata, data: body };
-      //     return this.body;
-      //   },
-      // } as Koa.Response);
+      Object.assign(this.request, {
+        requestId: 'UNKNOWN',
+      });
+      Object.assign(this.response, {
+        send: function send(body) {
+          this.body = body;
+          return this.body;
+        },
+      } as Koa.Response);
       delegate<Koa.BaseContext, Koa.Request>(this.context, 'request')
         .access('startAt')
-        .access('requestId')
-        .access('log');
-      // delegate<Koa.BaseContext, Koa.Response>(this.context, 'response')
-      //   .access('send')
-      //   .access('sendAPI');
+        .access('requestId');
+      delegate<Koa.BaseContext, Koa.Response>(this.context, 'response')
+        .access('send');
     }
     /**
      * Wire it all up
@@ -184,21 +195,22 @@ class Komapi<
   /**
    * @override
    */
-  public use<NewCustomStateT = {}, NewCustomContextT = {}, NewCustomServicesT extends Komapi.Services = {}>(
-    middleware: Komapi.Middleware<
-      CustomStateT & NewCustomStateT,
-      CustomContextT & NewCustomContextT,
-      CustomServicesT & NewCustomServicesT
-    >,
-  ): Komapi<CustomStateT & NewCustomStateT, CustomContextT & NewCustomContextT, CustomServicesT & NewCustomServicesT> {
-    return super.use<NewCustomStateT, NewCustomContextT>(middleware as Koa.Middleware<
-      NewCustomStateT,
-      NewCustomContextT
-    >) as Komapi<
-      CustomStateT & NewCustomStateT,
-      CustomContextT & NewCustomContextT,
-      CustomServicesT & NewCustomServicesT
-    >;
+  public createContext(req: IncomingMessage, res: ServerResponse) {
+    const ctx = super.createContext(req, res);
+    const requestId = (this.proxy && ctx.request.get('x-request-id')) || uuidv4();
+
+    // Update request
+    Object.assign(ctx.request, {
+      requestId,
+      startAt: Date.now(),
+    });
+
+    // Update response
+    Object.assign(ctx.response, {
+      send: ctx.response.send.bind(ctx.response),
+    });
+
+    return ctx;
   }
 }
 
@@ -222,7 +234,6 @@ declare namespace Komapi {
   export type ContextBridge<CustomContextT = {}, CustomServicesT extends Services = Services> = CustomContextT & {
     app: Komapi<{}, {}, CustomServicesT>;
   };
-
   export interface Options {
     config: {
       env: Koa['env'];
@@ -231,6 +242,7 @@ declare namespace Komapi {
       silent: Koa['silent'];
       keys: Koa['keys'];
       instanceId: string;
+
       // errorHandler: Komapi.Middleware<CustomStateT, CustomContextT> | false | null;
       // requestLogger: Komapi.Middleware<CustomStateT, CustomContextT> | false | null;
       // healthReporter: Komapi.Middleware<CustomStateT, CustomContextT> | false | null;
@@ -238,22 +250,21 @@ declare namespace Komapi {
     services: Services;
     logOptions: Pino.LoggerOptions;
     logStream: stream.Writable | stream.Duplex | stream.Transform;
+
   }
   export interface BaseRequest {
     requestId: string;
-    log: Komapi['log'];
     startAt: number;
   }
   export interface BaseResponse {
     requestId: string;
-    log: Komapi['log'];
     startAt: number;
+    send: <T extends Koa.Response['body'] = Koa.Response['body']>(body: T) => T;
   }
   export interface BaseContext {
-    log: BaseRequest['log'];
+    log: Komapi['log'];
     requestId: BaseRequest['requestId'];
-    // send: Response['send'];
-    // sendAPI: Response['sendAPI'];
+    send: BaseResponse['send'];
     startAt: BaseRequest['startAt'];
   }
   export interface Request {}

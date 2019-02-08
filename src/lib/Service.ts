@@ -16,12 +16,12 @@ class Service<Application extends Komapi = Komapi> {
   /**
    * Initialization
    */
-  public async init(app: Application) {}
+  public async start(app: Application) {}
 
   /**
    * Graceful shutdown
    */
-  public async close(app: Application) {}
+  public async stop(app: Application) {}
 }
 
 // Exports
