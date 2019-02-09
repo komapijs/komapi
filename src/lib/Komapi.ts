@@ -13,6 +13,9 @@ import Service from './Service';
 import serializeRequest from './serializeRequest';
 import serializeResponse from './serializeResponse';
 import setTransactionContext from '../middlewares/setTransactionContext';
+import requestLogger from '../middlewares/requestLogger';
+import errorHandler from '../middlewares/errorHandler';
+import ensureStarted from '../middlewares/ensureStarted';
 
 // tslint:disable-next-line no-var-requires
 const { name } = require('../../package.json');
@@ -45,17 +48,13 @@ declare module 'koa' {
  * Komapi base class
  *
  */
-interface Komapi<
-  CustomStateT = {},
-  CustomContextT = {},
-  CustomServicesT extends Komapi.Services = Komapi.Services
-  > {
+interface Komapi<CustomStateT = {}, CustomContextT = {}, CustomServicesT extends Komapi.Services = Komapi.Services> {
   use<NewCustomStateT = {}, NewCustomContextT = {}, NewCustomServicesT extends Komapi.Services = {}>(
     middleware: Komapi.Middleware<
       CustomStateT & NewCustomStateT,
       CustomContextT & NewCustomContextT,
       CustomServicesT & NewCustomServicesT
-      >
+    >,
   ): Komapi<CustomStateT & NewCustomStateT, CustomContextT & NewCustomContextT, CustomServicesT & NewCustomServicesT>;
 }
 class Komapi<
@@ -81,8 +80,12 @@ class Komapi<
    * Internal instance properties
    */
   protected waitForStartedState: Promise<void> = Promise.resolve();
-  protected readonly startHandlers: Array<Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>>> = [];
-  protected readonly stopHandlers: Array<Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>>> = [];
+  protected readonly startHandlers: Array<
+    Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>>
+  > = [];
+  protected readonly stopHandlers: Array<
+    Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>>
+  > = [];
 
   /**
    * Create a new Komapi instance
@@ -174,15 +177,17 @@ class Komapi<
       delegate<Koa.BaseContext, Koa.Request>(this.context, 'request')
         .access('startAt')
         .access('requestId');
-      delegate<Koa.BaseContext, Koa.Response>(this.context, 'response')
-        .access('send');
+      delegate<Koa.BaseContext, Koa.Response>(this.context, 'response').access('send');
     }
     /**
      * Wire it all up
      */
     {
-      // Add middlewares
-      this.use(setTransactionContext(this.transactionContext));
+      // Add default middlewares
+      this.middleware.push(setTransactionContext(this.transactionContext));
+      this.middleware.push(requestLogger());
+      this.middleware.push(errorHandler());
+      this.middleware.push(ensureStarted());
     }
   }
 
@@ -191,7 +196,9 @@ class Komapi<
    *
    * @returns {Promise<this>}
    */
-  public onBeforeStart(...handlers: Array<Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>>>): this {
+  public onBeforeStart(
+    ...handlers: Array<Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>>>
+  ): this {
     handlers
       .slice(0)
       .reverse()
@@ -204,7 +211,9 @@ class Komapi<
    *
    * @returns {Promise<this>}
    */
-  public onStart(...handlers: Array<Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>>>): this {
+  public onStart(
+    ...handlers: Array<Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>>>
+  ): this {
     handlers.forEach(handler => this.startHandlers.push(handler));
     return this;
   }
@@ -214,7 +223,9 @@ class Komapi<
    *
    * @returns {Promise<this>}
    */
-  public onStop(...handlers: Array<Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>>>): this {
+  public onStop(
+    ...handlers: Array<Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>>>
+  ): this {
     handlers
       .slice(0)
       .reverse()
@@ -227,7 +238,9 @@ class Komapi<
    *
    * @returns {Promise<this>}
    */
-  public onAfterStop(...handlers: Array<Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>>>): this {
+  public onAfterStop(
+    ...handlers: Array<Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>>>
+  ): this {
     handlers.forEach(handler => this.stopHandlers.push(handler));
     return this;
   }
@@ -240,12 +253,13 @@ class Komapi<
   public async start(): Promise<void> {
     // Check if we should short circuit early
     if (this.state === Komapi.LifecycleState.STARTED) return;
-    if (this.state === Komapi.LifecycleState.STOPPING) throw new Error('Cannot start application while in `STOPPING` state');
+    if (this.state === Komapi.LifecycleState.STOPPING)
+      throw new Error('Cannot start application while in `STOPPING` state');
     else if (this.state === Komapi.LifecycleState.STARTING) return this.waitForStartedState;
 
     // Set STARTING state
     this.state = Komapi.LifecycleState.STARTING;
-    this.waitForStartedState = new Promise(async (resolve) => {
+    this.waitForStartedState = new Promise(async resolve => {
       // Call lifecycle handlers
       for (const handler of this.startHandlers) {
         await handler(this);
@@ -268,12 +282,13 @@ class Komapi<
   public async stop(): Promise<void> {
     // Check if we should short circuit early
     if (this.state === Komapi.LifecycleState.STOPPED) return;
-    if (this.state === Komapi.LifecycleState.STARTING) throw new Error('Cannot stop application while in `STARTING` state');
+    if (this.state === Komapi.LifecycleState.STARTING)
+      throw new Error('Cannot stop application while in `STARTING` state');
     else if (this.state === Komapi.LifecycleState.STOPPING) return this.waitForStartedState;
 
     // Set STOPPING state
     this.state = Komapi.LifecycleState.STOPPING;
-    return new Promise(async (resolve) => {
+    return new Promise(async resolve => {
       // Call lifecycle handlers
       for (const handler of this.stopHandlers) {
         await handler(this);
@@ -372,7 +387,6 @@ declare namespace Komapi {
     services: Services;
     logOptions: Pino.LoggerOptions;
     logStream: stream.Writable | stream.Duplex | stream.Transform;
-
   }
   export interface BaseRequest {
     requestId: string;

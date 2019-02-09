@@ -17,10 +17,6 @@ it('should use sane defaults', () => {
   expect(app.silent).toBe(undefined);
   expect(app.keys).toBe(undefined);
   expect(app.log.level).toBe('info');
-  // expect(typeof app.config.errorHandler).toBe('function');
-  // expect(typeof app.config.requestLogger).toBe('function');
-  // expect(typeof app.config.healthReporter).toBe('function');
-  expect(app.middleware.length).toBe(1);
   expect(app.services).toEqual({});
 
   // Cleanup
@@ -86,10 +82,6 @@ it('should be configurable', () => {
   expect(app.keys).toEqual(['asd']);
   expect(app.config.instanceId).toBe('my-instance-id');
   expect(app.log.level).toBe('error');
-  // expect(app.config.errorHandler).toBe(false);
-  // expect(app.config.requestLogger).toBe(false);
-  // expect(app.config.healthReporter).toBe(false);
-  expect(app.middleware.length).toBe(1);
   expect(app.services).toEqual({});
 
   // Cleanup
@@ -148,4 +140,42 @@ it('should instantiate services', () => {
 
   // Cleanup
   process.env.NODE_ENV = originalEnv;
+});
+it('should start in STOPPED state', () => {
+  const app = new Komapi();
+
+  // Assertions
+  expect(app.state).toBe('STOPPED');
+});
+describe('app.middleware', () => {
+  it('should have default middlewares', () => {
+    const app = new Komapi();
+
+    // Assertions
+    expect(app.middleware.length).toBe(4);
+  });
+  it('should have transactionContext as the first middleware', () => {
+    const app = new Komapi();
+
+    // Assertions
+    expect(app.middleware[0].name).toBe('setTransactionContextMiddleware');
+  });
+  it('should have requestLogger as the second middleware', () => {
+    const app = new Komapi();
+
+    // Assertions
+    expect(app.middleware[1].name).toBe('requestLoggerMiddleware');
+  });
+  it('should have errorHandler as the third middleware', () => {
+    const app = new Komapi();
+
+    // Assertions
+    expect(app.middleware[2].name).toBe('errorHandlerMiddleware');
+  });
+  it('should have ensureStarted as the fourth middleware', () => {
+    const app = new Komapi();
+
+    // Assertions
+    expect(app.middleware[3].name).toBe('ensureStartedMiddleware');
+  });
 });

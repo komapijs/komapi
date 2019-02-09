@@ -1,4 +1,4 @@
-// Dependencies
+// Imports
 import Komapi from '../lib/Komapi';
 import cls from 'cls-hooked';
 

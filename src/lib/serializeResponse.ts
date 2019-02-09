@@ -1,4 +1,4 @@
-// Dependencies
+// Imports
 import Koa from 'koa';
 import defaultsDeep from 'lodash.defaultsdeep';
 
