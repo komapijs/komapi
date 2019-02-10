@@ -1,6 +1,7 @@
 // Imports
 import Komapi from '../../../../src/lib/Komapi';
 import Account from '../../../fixtures/services/Account';
+import WritableStreamSpy from '../../../fixtures/WritableStreamSpy';
 
 // Tests
 it('should use sane defaults', () => {
@@ -146,6 +147,34 @@ it('should start in STOPPED state', () => {
 
   // Assertions
   expect(app.state).toBe('STOPPED');
+});
+describe('app.log', () => {
+  it('should have sane defaults', () => {
+    const spy = jest.fn();
+    const app = new Komapi({ logStream: new WritableStreamSpy(spy) });
+
+    // Log something
+    app.log[app.log.level]('My custom log message');
+
+    // Assertions
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('"msg":"My custom log message"'));
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('"pid":'));
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('"hostname":"'));
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('"env":"development"'));
+  });
+  it('should log custom environment', () => {
+    const spy = jest.fn();
+    const app = new Komapi({ config: { env: 'production' }, logStream: new WritableStreamSpy(spy) });
+
+    // Log something
+    app.log[app.log.level]('My custom log message');
+
+    // Assertions
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('"msg":"My custom log message"'));
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('"env":"production"'));
+  });
 });
 describe('app.middleware', () => {
   it('should have default middlewares', () => {

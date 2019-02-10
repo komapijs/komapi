@@ -1,8 +1,8 @@
-# KomAPI
+# Komapi
 
 Komapi is an opinionated Node.js framework with official typescript support built on top of [Koa][koa-url] and requires Node.js v8.11.1 or higher.
  
-Disclaimer: There will be breaking changes and outdated documentation during the pre-v1.0.0 cycles.
+_Disclaimer: There will be breaking changes and outdated documentation during the pre-v1.0.0 cycles._
 
 [![npm][npm-image]][npm-url]
 [![CircleCI][circleci-image]][circleci-url]
@@ -14,7 +14,7 @@ Disclaimer: There will be breaking changes and outdated documentation during the
 [![license][license-image]][license-url]
 
 Komapi is essentially [Koa][koa-url]+[typescript][typescript-url] with some added sugar, which means that you can use any [Koa][koa-url] compatible middleware and use the [Koa][koa-url] documentation as reference.
-Even though it is recommended to follow the conventions defined in the framework, it is entirely possible to use Komapi exactly as you would use [Koa][koa-url] and still enjoy most of the built-in features.
+Even though it is recommended to follow the conventions defined in the framework, it is entirely possible to use Komapi exactly as you would use [Koa][koa-url] and still enjoy many of the built-in features.
 
 ## Documentation
 - [Installation](#installation)
@@ -32,42 +32,40 @@ $ npm install --save komapi
 
 ### Usage
 
-
 **Note:** Komapi extends [Koa][koa-url] with common use cases and patterns for rapid development and best practices.
 This documentation only serves as documentation for Komapi specific features and functionality on top of [Koa][koa-url].
-For features or functionality not covered in this documentation, please consult the official [Koa][koa-url] documentation.
-
+For guides, features or functionality not covered in this documentation, please consult the official [Koa][koa-url] documentation.
 
 #### Hello World!
 
-See [Komapi API](#api-komapi) for more information on configuration options.
+This will create a server listening on port 3000 and always respond with "Hello World!".
+Create a file `index.js` and add the following code.
 
 ```js
 import Komapi from 'komapi';
 
 // Create app
-const app = new Komapi({
-  config: {
-    env: process.env.NODE_ENV, // Default: 'development'
-  },
-});
+const app = new Komapi();
 
 // Add middleware that always respond 'Hello World!' - using the built in `ctx.send()` helper
 app.use(ctx => ctx.send('Hello World!'));
 
 // Start listening
-app.listen(process.env.PORT || 3000);
+app.listen(3000);
 ```
-
 
 #### Configuration
  
 Komapi comes with sensible defaults, but allows for customizations for a wide variety of use cases.
 
 ```js
+import CustomWriteableLogStream from './lib/MyLogStream';
+import AccountService from './services/Account';
+import ChatService from './services/Chat';
+
 const app = new Komapi({
   config: {
-    env: 'production',
+    env: 'production', // This is super important to set to production when deployed
     proxy: true,
     subdomainOffset: 3,
     silent: true,
@@ -92,6 +90,32 @@ const app = new Komapi({
 console.log(`Current instance id: ${app.config.instanceId}`);
 ```
 
+#### Error Handling
+ 
+Correct error handling is very important and difficult to get right.
+Errors should not crash the application and they should give users enough feedback on what went wrong without exposing sensitive information. 
+Komapi uses [boom][boom-url] under the hood and applications built on Komapi should also use [boom][boom-url] to take advantage of the built-in error handling.
+
+By default, [boom][boom-url] does not expose any additional data sent to the error object.
+This is a sensible default to prevent accidental data leaks, but is also limiting when you want to give specific details, such as which fields failed validation or additional context.
+
+_**Note: Komapi will expose all data on the error object when `app.env = 'development` - Make sure to set this to `production`**_
+
+```js
+import Komapi from 'komapi';
+import { badRequest } from 'boom';
+
+// Create app
+const app = new Komapi();
+
+// Add middleware that will throw an error
+app.use(ctx => {
+  throw badRequest('All requests are bad requests');
+});
+
+// Listen
+app.listen(3000);
+```
 
 #### Services
 
@@ -169,7 +193,8 @@ export default class AccountService extends Service {
 Komapi creates a transaction context upon instantiation that is very useful for tracking context throughout the application. 
 This context is most often used in the request-response cycle for keeping track of authentication, transaction-type and request-id in logs or even in code to make it context aware, without having to pass around a context object.
 
-By default, Komapi creates a separate context for each request-response cycle through a custom middleware that is available on the `app.transactionContext` property.
+By default, Komapi creates a separate context for each request-response cycle through a custom middleware.
+The context namesspace is available on the `app.transactionContext` property.
 
 Example middleware on how to access transaction context
 ```js
@@ -231,8 +256,9 @@ A typical web application do some initialization, such as establishing a databas
 
 
 The current state is available in `app.state`, and may be one of 4 different states
+
 | State | Description |
-| ----- | ----------- |
+|-------|-------------|
 | `STARTING` | Application is transitioning to `STARTED` state - triggered from `app.start()` |
 | `STARTED` | Application is fully initialized and accepting work |
 | `STOPPING` | Application is transitioning to `STOPPED` state - triggered from `app.stop()` |
@@ -268,9 +294,9 @@ app.start().then(() => app.run(async () => {
 }));
 ```
 
-#### Typescript
+### Typescript
 
-Komapi is built in typescript and provides full support for types out of the box.
+Komapi is built with typescript and provides full support for types out of the box.
 There are several options for augmenting Komapi with your own types depending on your use case.
 
 ##### Option 1: Augmenting Komapi with your own types
@@ -403,6 +429,7 @@ export default router;
 ```
 
 <a id="api"></a>
+
 ### API
 
 <a id="api-komapi"></a>
@@ -411,16 +438,17 @@ export default router;
 
 ##### Parameters:
 + `options` (object): Object with options
-  * `env` (string): Environment setting - it is **highly** recommended to set this to `NODE_ENV`. Default: `development`
-  * `name` (string): The name of the application. Default: `Komapi application`
-  * `subdomainOffset` (number): Offset of .subdomains to ignore. See [Koa documentation][koa-documentation-url] for more information. Default: `2`
-  * `proxy` (boolean): Trust proxy headers (includes `x-request-id` and `x-forwarded-for`). See [Koa documentation][koa-documentation-url] for more information. Default: `false`
+  + `config` (object): Core configuration
+    * `env` (string): Environment setting - it is **highly** recommended to set this to `NODE_ENV`. Default: `development`
+    * `name` (string): The name of the application. Default: `Komapi application`
+    * `instanceId` (string): The unique identifier of this instance - useful to identify the application instance in heavily distributed systems. Default: `process.env.HEROKU_DYNO_ID || 'komapi'`
+    * `subdomainOffset` (number): Offset of .subdomains to ignore. See [Koa documentation][koa-documentation-url] for more information. Default: `2`
+    * `proxy` (boolean): Trust proxy headers (includes `x-request-id` and `x-forwarded-for`). See [Koa documentation][koa-documentation-url] for more information. Default: `false`
   + `logOptions` (object): Options to pass down to the [Pino][pino-url] logger instance. See [Pino documentation][pino-url] for more information
     * `level` (`fatal` | `error` | `warn` | `info` | `debug` | `trace` | `silent`): Log level verbosity Default: process.env.LOG_LEVEL || 'info'
     * (...) - See [Pino options][pino-documentation-options-url] for more information
   * `logStream` (Writable): A writable stream to receive logs. Default: [Pino.destination()][pino-documentation-destination-url]
-+ `services` (object): Object with map of string to classes that extend the `Service` class
-
+  + `services` (object): Object with map of string to classes that extend the `Service` class
 
 ### License
 
@@ -451,3 +479,4 @@ export default router;
 [pino-documentation-destination-url]: https://github.com/pinojs/pino/blob/master/docs/api.md#pino-destination
 [typescript-url]: https://github.com/microsoft/typescript
 [cls-hooked-url]: https://github.com/jeff-lewis/cls-hooked
+[boom-url]: https://github.com/hapijs/boom

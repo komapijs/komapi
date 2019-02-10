@@ -3,6 +3,7 @@ import Koa from 'koa';
 import os from 'os';
 import stream from 'stream';
 import defaultsDeep from 'lodash.defaultsdeep';
+import get from 'lodash.get';
 import Pino from 'pino';
 import cls from 'cls-hooked';
 import delegate from 'delegates';
@@ -49,7 +50,7 @@ declare module 'koa' {
  *
  */
 interface Komapi<CustomStateT = {}, CustomContextT = {}, CustomServicesT extends Komapi.Services = Komapi.Services> {
-  use<NewCustomStateT = {}, NewCustomContextT = {}, NewCustomServicesT extends Komapi.Services = {}>(
+  use<NewCustomStateT = {}, NewCustomContextT = {}, NewCustomServicesT extends Komapi.Services = Komapi.Services>(
     middleware: Komapi.Middleware<
       CustomStateT & NewCustomStateT,
       CustomContextT & NewCustomContextT,
@@ -95,7 +96,7 @@ class Komapi<
   constructor(options?: DeepPartial<Komapi.Options>) {
     super();
 
-    // Create default options
+    // Set options
     const opts = defaultsDeep({}, options, {
       config: {
         env: this.env,
@@ -107,12 +108,12 @@ class Komapi<
       },
       services: {},
       logOptions: {
-        useLevelLabels: true,
+        // useLevelLabels: true,
         level: process.env.LOG_LEVEL || 'info',
         base: {
           pid: process.pid,
           hostname: os.hostname(),
-          env: this.env,
+          env: get(options, 'config.env', this.env),
         },
         serializers: {
           err: Pino.stdSerializers.err,
@@ -126,6 +127,34 @@ class Komapi<
       },
       logStream: Pino.destination(),
     });
+
+    /**
+     * Integrate with Koa
+     */
+    {
+      ['env', 'subdomainOffset', 'proxy', 'silent', 'keys'].forEach(prop => {
+        Object.defineProperty(this, prop, {
+          get: () => (this.config as { [key: string]: any })[prop],
+          set: v => {
+            (this.config as { [key: string]: any })[prop] = v;
+          },
+        });
+      });
+      Object.assign(this.request, {
+        requestId: 'UNKNOWN',
+      });
+      Object.assign(this.response, {
+        send: function send(body) {
+          this.body = body;
+          return this.body;
+        },
+      } as Koa.Response);
+      delegate<Koa.BaseContext, Koa.Request>(this.context, 'request')
+        .access('startAt')
+        .access('requestId');
+      delegate<Koa.BaseContext, Koa.Response>(this.context, 'response').access('send');
+      delegate<Koa.BaseContext, Koa.Application>(this.context, 'app').access('log');
+    }
 
     /**
      * Initialization
@@ -150,35 +179,6 @@ class Komapi<
       );
     }
 
-    /**
-     * Integrate with Koa
-     */
-    {
-      ['env', 'subdomainOffset', 'proxy', 'silent', 'keys'].forEach(prop => {
-        Object.defineProperty(this, prop, {
-          get: () => (this.config as { [key: string]: any })[prop],
-          set: v => {
-            (this.config as { [key: string]: any })[prop] = v;
-          },
-        });
-      });
-      Object.assign(this.context, {
-        log: this.log,
-      });
-      Object.assign(this.request, {
-        requestId: 'UNKNOWN',
-      });
-      Object.assign(this.response, {
-        send: function send(body) {
-          this.body = body;
-          return this.body;
-        },
-      } as Koa.Response);
-      delegate<Koa.BaseContext, Koa.Request>(this.context, 'request')
-        .access('startAt')
-        .access('requestId');
-      delegate<Koa.BaseContext, Koa.Response>(this.context, 'response').access('send');
-    }
     /**
      * Wire it all up
      */
