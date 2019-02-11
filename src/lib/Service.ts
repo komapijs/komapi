@@ -2,7 +2,7 @@
 import Komapi from './Komapi';
 
 // Exports
-class Service<Application extends Komapi = Komapi> {
+class Service<Application extends Komapi = Komapi<any, any, any>> {
   public app: Application;
 
   /**

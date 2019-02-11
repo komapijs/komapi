@@ -7,7 +7,7 @@ import get from 'lodash.get';
 import Pino from 'pino';
 import cls from 'cls-hooked';
 import delegate from 'delegates';
-import { IncomingMessage, ServerResponse } from 'http';
+import { IncomingMessage, Server, ServerResponse } from 'http';
 import uuidv4 from 'uuid';
 import createLogger from './createLogger';
 import Service from './Service';
@@ -17,6 +17,7 @@ import setTransactionContext from '../middlewares/setTransactionContext';
 import requestLogger from '../middlewares/requestLogger';
 import errorHandler from '../middlewares/errorHandler';
 import ensureStarted from '../middlewares/ensureStarted';
+import { ListenOptions } from "net";
 
 // tslint:disable-next-line no-var-requires
 const { name } = require('../../package.json');
@@ -76,17 +77,17 @@ class Komapi<
   public readonly transactionContext: cls.Namespace;
   public state: Komapi.LifecycleState = Komapi.LifecycleState.STOPPED;
   public log: Pino.Logger;
+  public readonly startHandlers: Array<
+    Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>>
+    > = [];
+  public readonly stopHandlers: Array<
+    Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>>
+    > = [];
 
   /**
    * Internal instance properties
    */
   protected waitForStartedState: Promise<void> = Promise.resolve();
-  protected readonly startHandlers: Array<
-    Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>>
-  > = [];
-  protected readonly stopHandlers: Array<
-    Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>>
-  > = [];
 
   /**
    * Create a new Komapi instance
@@ -183,6 +184,16 @@ class Komapi<
      * Wire it all up
      */
     {
+      // Add service handlers
+      Object.entries(this.services).forEach(([serviceName, service]) => {
+        const serviceStartHandler: Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>> = async (...args) => service.start(...args);
+        const serviceStopHandler: Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>> = async (...args) => service.stop(...args);
+        Object.defineProperty(serviceStartHandler, 'name', { value: `service:${serviceName}.start` });
+        Object.defineProperty(serviceStopHandler, 'name', { value: `service:${serviceName}.stop` });
+        this.onStart(serviceStartHandler);
+        this.onStop(serviceStopHandler);
+      });
+
       // Add default middlewares
       this.middleware.push(setTransactionContext(this.transactionContext));
       this.middleware.push(requestLogger());
@@ -338,6 +349,22 @@ class Komapi<
 
     return ctx;
   }
+
+  /**
+   * @override
+   */
+  public listen(...args: any[]) {
+    const server = super.listen(...args);
+
+    // TODO: Ensure that connections are cleared up within a reasonable time (track sockets and forcefully close them)
+    // tslint:disable-next-line ter-prefer-arrow-callback
+    this.onStop(function closeHttpServer() {
+      console.log('AAAAAAAAAA<<AAAAAAAAAA<<AAAAAAAAAA<<AAAAAAAAAA<<AAAAAAAAAA<<AAAAAAAAAA<<')
+      return new Promise(resolve => server.close(resolve));
+    });
+    return server;
+  }
+
 }
 
 /**
