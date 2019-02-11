@@ -359,9 +359,13 @@ class Komapi<
     // TODO: Ensure that connections are cleared up within a reasonable time (track sockets and forcefully close them)
     // tslint:disable-next-line ter-prefer-arrow-callback
     this.onStop(function closeHttpServer() {
-      console.log('AAAAAAAAAA<<AAAAAAAAAA<<AAAAAAAAAA<<AAAAAAAAAA<<AAAAAAAAAA<<AAAAAAAAAA<<')
       return new Promise(resolve => server.close(resolve));
     });
+
+    // Start the application in the background
+    this.start();
+
+    // Return the http server
     return server;
   }
 

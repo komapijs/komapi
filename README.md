@@ -270,8 +270,8 @@ Komapi automatically registers the `app.close()` handler on application terminat
 
 Even though you do not need to call the `app.start()` handler manually if you only run code in `app.run()` or through `app.listen()`, it is highly recommended to be explicit and call it manually.
 This ensures that any initialization is performed _before_ accepting work and not as part of accepting the first unit of work.
-If you do not call it manually and start your web application with `app.listen()`, then the first request will trigger `app.start()` and wait for it before handling the request (this also applies to all requests that come in while the initialization is performed).
-This can result in very high latency on the first few requests.
+If you do not call it manually and start your web application with `app.listen()`, then `app.start()` will be triggered automatically and the first request will wait for it to finish before handling the request.
+This may result in very high latency on the first few requests.
 
 Best practice examples on using lifecycle in Komapi
 

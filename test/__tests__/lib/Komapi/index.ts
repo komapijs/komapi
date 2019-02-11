@@ -260,7 +260,22 @@ describe('app.middleware', () => {
   });
 });
 describe('app.listen', () => {
-  it('should add lifecycle stop handler and close the http server', async (done) => {
+  it('should add trigger start lifecycle method', async (done) => {
+    expect.assertions(1);
+    const app = new Komapi();
+    app.start = jest.fn();
+
+    // Listen
+    const server = app.listen();
+
+    // Check handler was called
+    expect(app.start).toHaveBeenCalledTimes(1);
+
+    // Done
+    await new Promise(resolve => server.close(resolve));
+    done();
+  });
+  it('should add lifecycle stop handler to close the http server', async (done) => {
     expect.assertions(4);
     const app = new Komapi();
     const closeSpy = jest.fn();
@@ -278,7 +293,7 @@ describe('app.listen', () => {
 
     // Stop server
     await app.stop();
-    await new Promise(resolve => setTimeout(resolve, 2000));
+
     // Check handler was called
     expect(closeSpy).toHaveBeenCalledTimes(1);
 
