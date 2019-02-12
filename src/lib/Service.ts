@@ -1,6 +1,11 @@
 // Imports
 import Komapi from './Komapi';
 
+// Types
+interface Service<Application extends Komapi = Komapi<any, any, any>> {
+
+}
+
 // Exports
 class Service<Application extends Komapi = Komapi<any, any, any>> {
   public app: Application;
@@ -16,12 +21,12 @@ class Service<Application extends Komapi = Komapi<any, any, any>> {
   /**
    * Initialization
    */
-  public async start(app: Application) {}
+  public async start?(app: Application): Promise<any>
 
   /**
    * Graceful shutdown
    */
-  public async stop(app: Application) {}
+  public async stop?(app: Application): Promise<any>
 }
 
 // Exports
