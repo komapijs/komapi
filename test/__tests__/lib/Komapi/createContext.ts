@@ -1,5 +1,5 @@
 // Imports
-import Komapi from '../../../../src/lib/Komapi';
+import Komapi from '../../../fixtures/Komapi';
 import request from 'supertest';
 
 // Tests

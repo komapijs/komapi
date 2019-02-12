@@ -1,5 +1,5 @@
 // Imports
-import Komapi from '../../../src/lib/Komapi';
+import Komapi from '../../fixtures/Komapi';
 import Service from '../../../src/lib/Service';
 
 // Tests

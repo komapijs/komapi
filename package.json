@@ -63,7 +63,8 @@
     "lodash.defaultsdeep": "^4.6.0",
     "lodash.get": "^4.4.2",
     "pino": "^5.11.1",
-    "uuid": "^3.3.2"
+    "uuid": "^3.3.2",
+    "verror": "^1.10.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^7.5.1",
@@ -77,6 +78,7 @@
     "@types/node": "^10.12.24",
     "@types/supertest": "^2.0.7",
     "@types/uuid": "^3.4.4",
+    "@types/verror": "^1.10.3",
     "conventional-changelog-cli": "^2.0.11",
     "conventional-recommended-bump": "^4.0.4",
     "del-cli": "^1.1.0",
@@ -130,7 +132,7 @@
     "transform": {
       "^.+\\.tsx?$": "ts-jest"
     },
-    "silent": true,
+    "silent": false,
     "verbose": true
   }
 }

@@ -450,6 +450,11 @@ export default router;
   * `logStream` (Writable): A writable stream to receive logs. Default: [Pino.destination()][pino-documentation-destination-url]
   + `services` (object): Object with map of string to classes that extend the `Service` class
 
+### Roadmap
+
+1. Rework lifecycle into one handler with multiple hooks (e.g. `{ start: () => {}, stop: () => {}`) to allow for easy rollback if something fails. Or just use events and make it promise aware?
+2. Rework lifecycle to use observable to be able to cancel (and roll back) during start and stop. 
+
 ### License
 
   [MIT](LICENSE.md)

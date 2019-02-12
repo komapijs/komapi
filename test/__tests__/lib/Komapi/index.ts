@@ -1,8 +1,9 @@
 // Imports
-import Komapi from '../../../../src/lib/Komapi';
+import Komapi from '../../../fixtures/Komapi';
 import Account from '../../../fixtures/services/Account';
 import Chat from '../../../fixtures/services/Chat';
 import WritableStreamSpy from '../../../fixtures/WritableStreamSpy';
+import { MultiError } from 'verror';
 
 // Tests
 describe('instantiation', () => {
@@ -145,19 +146,19 @@ describe('instantiation', () => {
     process.env.NODE_ENV = originalEnv;
   });
   it('should start in STOPPED state', () => {
-  const app = new Komapi();
+    const app = new Komapi();
 
-  // Assertions
-  expect(app.state).toBe('STOPPED');
-});
-  it('should add service lifecycle handlers automatically', async (done) => {
+    // Assertions
+    expect(app.state).toBe('STOPPED');
+  });
+  it('should add service lifecycle handlers automatically', async done => {
     expect.assertions(6);
     const services = {
       Account,
       Chat,
     };
     let counter = 0;
-    const accountStartSpy = jest.fn( async () => {
+    const accountStartSpy = jest.fn(async () => {
       expect(counter).toBe(0);
       counter += 1;
     });
@@ -226,6 +227,42 @@ describe('app.log', () => {
     expect(spy).toHaveBeenCalledWith(expect.stringContaining('"msg":"My custom log message"'));
     expect(spy).toHaveBeenCalledWith(expect.stringContaining('"env":"production"'));
   });
+  it('should serialize errors', () => {
+    const spy = jest.fn();
+    const app = new Komapi({ logStream: new WritableStreamSpy(spy) });
+
+    // Create multi error
+    const err = new Error('My Error');
+
+    // Log the error
+    app.log[app.log.level]({ err }, 'My custom error log message');
+
+    // Assertions
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('"msg":"My custom error log message"'));
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('"err":{"type":"Error","message":"My Error","stack":"'));
+  });
+  it('should serialize multi errors', () => {
+    const spy = jest.fn();
+    const app = new Komapi({ logStream: new WritableStreamSpy(spy) });
+
+    // Create multi error
+    const err = new MultiError([new Error('My First Error'), new Error('My Second Error')]);
+
+    // Log the error
+    app.log[app.log.level]({ err }, 'My custom error log message');
+
+    // Assertions
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('"msg":"My custom error log message"'));
+    expect(spy).toHaveBeenCalledWith(
+      expect.stringContaining('"err":{"type":"MultiError","message":"first of 2 errors: My First Error","stack":"'),
+    );
+    expect(spy).toHaveBeenCalledWith(
+      expect.stringContaining('"errors":[{"type":"Error","message":"My First Error","stack":'),
+    );
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('{"type":"Error","message":"My Second Error","stack":'));
+  });
 });
 describe('app.middleware', () => {
   it('should have default middlewares', () => {
@@ -260,7 +297,7 @@ describe('app.middleware', () => {
   });
 });
 describe('app.listen', () => {
-  it('should add trigger start lifecycle method', async (done) => {
+  it('should add trigger start lifecycle method', async done => {
     expect.assertions(1);
     const app = new Komapi();
     app.start = jest.fn();
@@ -275,7 +312,7 @@ describe('app.listen', () => {
     await new Promise(resolve => server.close(resolve));
     done();
   });
-  it('should add lifecycle stop handler to close the http server', async (done) => {
+  it('should add lifecycle stop handler to close the http server', async done => {
     expect.assertions(4);
     const app = new Komapi();
     const closeSpy = jest.fn();
@@ -296,6 +333,35 @@ describe('app.listen', () => {
 
     // Check handler was called
     expect(closeSpy).toHaveBeenCalledTimes(1);
+
+    // Done
+    done();
+  });
+  it('should work if stopped multiple times', async done => {
+    expect.assertions(5);
+    const app = new Komapi();
+    const closeSpy = jest.fn();
+
+    // Ensure known initial state
+    expect(app.stopHandlers.length).toBe(0);
+
+    // Listen
+    const server = app.listen();
+    server.on('close', closeSpy);
+
+    // Check handler was added
+    expect(app.stopHandlers.length).toBe(1);
+    expect(closeSpy).not.toBeCalled();
+
+    // Stop and restart server
+    await app.stop();
+    await app.start();
+
+    // Check that stopping still works
+    await expect(app.stop()).resolves.toBe(undefined);
+
+    // Check handler was called
+    expect(closeSpy).toHaveBeenCalledTimes(2);
 
     // Done
     done();

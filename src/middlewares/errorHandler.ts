@@ -31,9 +31,9 @@ export default function errorHandlerMiddlewareFactory(): Komapi.Middleware {
         error = Boom.isBoom(err)
           ? err
           : Boom.boomify(err, {
-            statusCode: err.status || err.statusCode || undefined,
-            decorate: err.data,
-          });
+              statusCode: err.status || err.statusCode || undefined,
+              decorate: err.data,
+            });
       } catch (subError) {
         error = Boom.boomify(subError);
       }
@@ -49,7 +49,7 @@ export default function errorHandlerMiddlewareFactory(): Komapi.Middleware {
       if (format === 'application/vnd.api+json') {
         status = error.output.statusCode;
         headers = error.output.headers;
-        body = { errors: get(error, 'data.errors', [error]).map(serializeJsonApiError), };
+        body = { errors: get(error, 'data.errors', [error]).map(serializeJsonApiError) };
       } else if (format === 'text') {
         status = error.output.statusCode;
         headers = error.output.headers;

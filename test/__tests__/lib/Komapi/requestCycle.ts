@@ -1,5 +1,5 @@
 // Imports
-import Komapi from '../../../../src/lib/Komapi';
+import Komapi from '../../../fixtures/Komapi';
 import request from 'supertest';
 
 // Tests
@@ -24,4 +24,3 @@ it('should preserve current request transaction context in `app.transactionConte
 
   return request(app.callback()).get('/');
 });
-

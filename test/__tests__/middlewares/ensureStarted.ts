@@ -1,5 +1,5 @@
 // Dependencies
-import Komapi from '../../../src/lib/Komapi';
+import Komapi from '../../fixtures/Komapi';
 import ensureReady from '../../../src/middlewares/ensureStarted';
 import request from 'supertest';
 

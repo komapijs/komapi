@@ -7,7 +7,8 @@ import get from 'lodash.get';
 import Pino from 'pino';
 import cls from 'cls-hooked';
 import delegate from 'delegates';
-import { IncomingMessage, Server, ServerResponse } from 'http';
+import { MultiError } from 'verror';
+import { IncomingMessage, ServerResponse } from 'http';
 import uuidv4 from 'uuid';
 import createLogger from './createLogger';
 import Service from './Service';
@@ -17,7 +18,7 @@ import setTransactionContext from '../middlewares/setTransactionContext';
 import requestLogger from '../middlewares/requestLogger';
 import errorHandler from '../middlewares/errorHandler';
 import ensureStarted from '../middlewares/ensureStarted';
-import { ListenOptions } from "net";
+import Signals = NodeJS.Signals;
 
 // tslint:disable-next-line no-var-requires
 const { name } = require('../../package.json');
@@ -79,15 +80,15 @@ class Komapi<
   public log: Pino.Logger;
   public readonly startHandlers: Array<
     Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>>
-    > = [];
+  > = [];
   public readonly stopHandlers: Array<
     Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>>
-    > = [];
+  > = [];
 
   /**
    * Internal instance properties
    */
-  protected waitForStartedState: Promise<void> = Promise.resolve();
+  protected waitForState: Promise<void> = Promise.resolve();
 
   /**
    * Create a new Komapi instance
@@ -117,7 +118,11 @@ class Komapi<
           env: get(options, 'config.env', this.env),
         },
         serializers: {
-          err: Pino.stdSerializers.err,
+          err: (err: Error | MultiError) => {
+            const serializedError = Pino.stdSerializers.err(err);
+            serializedError.errors = isMultiError(err) ? err.errors().map(Pino.stdSerializers.err) : undefined;
+            return serializedError;
+          },
           request: serializeRequest(),
           response: serializeResponse(),
         },
@@ -181,13 +186,87 @@ class Komapi<
     }
 
     /**
+     * Set up event handlers
+     */
+    {
+      // Log emitted errors
+      this.on('error', (err, ctx) => {
+        this.log.error({ ctx, err, app: this }, 'Application Error Event');
+      });
+
+      // Graceful shutdown
+      (['SIGTERM', 'SIGINT', 'SIGHUP'] as Signals[]).forEach((signal: Signals) =>
+        process.once(signal, async () => {
+          try {
+            this.log = Pino.final(this.log);
+            await this.stop();
+            process.exit(0);
+          } catch (err) {
+            this.log.fatal(
+              { err, app: this, metadata: { signal } },
+              `Failed to handle \`${signal}\` gracefully. Exiting with status code 1`,
+            );
+            process.exit(1);
+          }
+        }),
+      );
+
+      // Handle application state inconsistencies
+      process.once('uncaughtException', async err => {
+        this.log = Pino.final(this.log);
+        this.log.fatal({ err, app: this }, 'Uncaught Exception Error - Stopping application to prevent instability');
+        await this.stop();
+        process.exit(1);
+      });
+      process.once('unhandledRejection', async (err, promise) => {
+        this.log = Pino.final(this.log);
+        this.log.fatal(
+          { err, app: this, metadata: { promise } },
+          'Unhandled Rejected Promise - Stopping application to prevent instability',
+        );
+        await this.stop();
+        process.exit(1);
+      });
+      process.once('multipleResolves', async (type, promise, value) => {
+        this.log = Pino.final(this.log);
+        this.log.fatal(
+          { app: this, metadata: { type, promise, value } },
+          'Promise resolved or rejected more than once - Stopping application to prevent instability',
+        );
+        await this.stop();
+        process.exit(1);
+      });
+
+      // Listen for warnings
+      process.on('warning', warning => {
+        this.log.warn(
+          { app: this, stack: warning.stack, metadata: { message: warning.message } },
+          'NodeJS warning detected - see metadata and stack property for more information',
+        );
+      });
+
+      // Add close handler for graceful exits
+      process.once('beforeExit', async () => {
+        this.log = Pino.final(this.log);
+        this.log.debug({ app: this }, 'Before exit event triggered - ensuring graceful shutdown');
+
+        // Stop application
+        await this.stop();
+      });
+    }
+
+    /**
      * Wire it all up
      */
     {
       // Add service handlers
       Object.entries(this.services).forEach(([serviceName, service]) => {
-        const serviceStartHandler: Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>> = async (...args) => service.start(...args);
-        const serviceStopHandler: Komapi.LifecycleHandler<Komapi<CustomStateT, CustomContextT, CustomServicesT>> = async (...args) => service.stop(...args);
+        const serviceStartHandler: Komapi.LifecycleHandler<
+          Komapi<CustomStateT, CustomContextT, CustomServicesT>
+        > = async (...args) => service.start(...args);
+        const serviceStopHandler: Komapi.LifecycleHandler<
+          Komapi<CustomStateT, CustomContextT, CustomServicesT>
+        > = async (...args) => service.stop(...args);
         Object.defineProperty(serviceStartHandler, 'name', { value: `service:${serviceName}.start` });
         Object.defineProperty(serviceStopHandler, 'name', { value: `service:${serviceName}.stop` });
         this.onStart(serviceStartHandler);
@@ -264,25 +343,38 @@ class Komapi<
   public async start(): Promise<void> {
     // Check if we should short circuit early
     if (this.state === Komapi.LifecycleState.STARTED) return;
-    if (this.state === Komapi.LifecycleState.STOPPING)
+    if (this.state === Komapi.LifecycleState.STOPPING) {
       throw new Error('Cannot start application while in `STOPPING` state');
-    else if (this.state === Komapi.LifecycleState.STARTING) return this.waitForStartedState;
+    } else if (this.state === Komapi.LifecycleState.STARTING) return this.waitForState;
 
     // Set STARTING state
     this.state = Komapi.LifecycleState.STARTING;
-    this.waitForStartedState = new Promise(async resolve => {
-      // Call lifecycle handlers
-      for (const handler of this.startHandlers) {
-        await handler(this);
-      }
+    this.waitForState = new Promise(async (resolve, reject) => {
+      try {
+        // Call lifecycle handlers
+        for (const handler of this.startHandlers) {
+          const startDate = Date.now();
+          await handler(this);
 
-      // Set new STARTED state
-      this.state = Komapi.LifecycleState.STARTED;
-      resolve();
+          // Log it
+          this.log.trace(
+            { metadata: { name: handler.name || 'UNKNOWN', duration: Date.now() - startDate } },
+            'Start lifecycle handler called',
+          );
+        }
+
+        // Set new STARTED state
+        this.state = Komapi.LifecycleState.STARTED;
+        resolve();
+      } catch (err) {
+        // Set new STOPPED state
+        this.state = Komapi.LifecycleState.STOPPED;
+        reject(err);
+      }
     });
 
-    // Run startup initialization
-    return this.waitForStartedState;
+    // Return starting promise
+    return this.waitForState;
   }
 
   /**
@@ -293,22 +385,43 @@ class Komapi<
   public async stop(): Promise<void> {
     // Check if we should short circuit early
     if (this.state === Komapi.LifecycleState.STOPPED) return;
-    if (this.state === Komapi.LifecycleState.STARTING)
+    if (this.state === Komapi.LifecycleState.STARTING) {
       throw new Error('Cannot stop application while in `STARTING` state');
-    else if (this.state === Komapi.LifecycleState.STOPPING) return this.waitForStartedState;
+    } else if (this.state === Komapi.LifecycleState.STOPPING) return this.waitForState;
 
     // Set STOPPING state
     this.state = Komapi.LifecycleState.STOPPING;
-    return new Promise(async resolve => {
+    this.waitForState = new Promise(async (resolve, reject) => {
+      // Capture errors - but do not fail to ensure that cleanup is done where possible
+      const errors = [];
       // Call lifecycle handlers
       for (const handler of this.stopHandlers) {
-        await handler(this);
+        const startDate = Date.now();
+        let err;
+        try {
+          await handler(this);
+        } catch (error) {
+          err = error
+          errors.push(error);
+        }
+
+        // Log it
+        this.log.trace(
+          { metadata: { err, name: handler.name || 'UNKNOWN', duration: Date.now() - startDate } },
+          'Stop lifecycle handler called',
+        );
       }
 
       // Set new STOPPED state
       this.state = Komapi.LifecycleState.STOPPED;
-      resolve();
+
+      // Did we encounter any errors?
+      if (errors.length === 0) return resolve();
+      reject(new MultiError(errors));
     });
+
+    // Return stopping promise
+    return this.waitForState;
   }
 
   /**
@@ -368,7 +481,6 @@ class Komapi<
     // Return the http server
     return server;
   }
-
 }
 
 /**
@@ -437,6 +549,11 @@ declare namespace Komapi {
   export interface Request {}
   export interface Response {}
   export interface Context {}
+}
+
+// Typeguards
+function isMultiError(error: Error): error is MultiError {
+  return 'errors' in error;
 }
 
 // Exports

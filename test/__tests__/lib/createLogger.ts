@@ -3,7 +3,6 @@ import cls from 'cls-hooked';
 import createLogger from '../../../src/lib/createLogger';
 import WritableStreamSpy from '../../fixtures/WritableStreamSpy';
 
-
 // Tests
 it('should create a Pino compatible logger', () => {
   const ns = cls.createNamespace('my-logging-namespace');

@@ -1,6 +1,6 @@
 // Imports
 import { getNamespace } from 'cls-hooked';
-import Komapi from '../../../../src/lib/Komapi';
+import Komapi from '../../../fixtures/Komapi';
 
 // Tests
 it('should trigger `app.start()` before running the code', async done => {
