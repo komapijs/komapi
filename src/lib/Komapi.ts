@@ -19,6 +19,7 @@ import requestLogger from '../middlewares/requestLogger';
 import errorHandler from '../middlewares/errorHandler';
 import ensureStarted from '../middlewares/ensureStarted';
 import Signals = NodeJS.Signals;
+import { error } from 'util';
 
 // tslint:disable-next-line no-var-requires
 const { name } = require('../../package.json');
@@ -335,84 +336,78 @@ class Komapi<
   /**
    * Start the application - safe to be called multiple times to ensure STARTED state
    *
+   * @params {Array<Komapi.LifecycleHandlerSubscription<Komapi<CustomStateT, CustomContextT, CustomServicesT>>>=} lifecycleHandlers - Lifecycle handlers to call
+   * @params {{ force: boolean }} options
    * @returns {Promise<void>}
    */
-  public async start(): Promise<void> {
-    // Check if we should short circuit early
-    if (this.state === Komapi.LifecycleState.STARTED) return;
-    if (this.state === Komapi.LifecycleState.STOPPING) {
-      throw new Error('Cannot start application while in `STOPPING` state');
-    } else if (this.state === Komapi.LifecycleState.STARTING) return this.waitForState;
+  public async start(lifecycleHandlers: Array<
+    Komapi.LifecycleHandlerSubscription<Komapi<CustomStateT, CustomContextT, CustomServicesT>>
+    > = this.lifecycleHandlers, options?: { force: boolean }) {
+    // Check if we should short circuit early or wait for application to stop
+    if (!options || !options.force) {
+      if (this.state === Komapi.LifecycleState.STOPPING) await this.stop();
+      else if (this.state !== Komapi.LifecycleState.STOPPED) return this.waitForState;
+    }
+    // Fetch start time
+    const preStartTime = Date.now();
+
+    // Fetch lifecycle handlers
+    const handlers = lifecycleHandlers.filter(h => !!h.start);
 
     // Log it
-    this.log.debug({ metadata: { startHandlers: this.lifecycleHandlers.filter(h => !!h.start).length }}, 'Starting application');
+    this.log.debug({ metadata: { startHandlers: handlers.length }}, 'Starting application');
 
     // Set STARTING state
     this.state = Komapi.LifecycleState.STARTING;
+
+    // Run handlers
     this.waitForState = new Promise(async (resolve, reject) => {
-        let i = 0;
 
-        // Call lifecycle handlers
-        for (const handler of this.lifecycleHandlers) {
-          if (handler.start) {
-            const startDate = Date.now();
-            try {
-              const output = await handler.start(this);
+      // Call handlers
+      for (const [index, handler] of handlers.entries()) {
+        const startTime = Date.now();
+        const startHandler = handler.start!;
+        const handlerName = handler.name || startHandler.name || 'UNKNOWN';
 
-              // Log it
-              this.log.trace(
-                { metadata: { output, name: handler.name || handler.start.name || 'UNKNOWN', duration: Date.now() - startDate } },
-                'Start lifecycle handler called',
-              );
-            } catch (err) {
-              // Log the error
-              this.log.error(
-                { err, metadata: { name: handler.name || handler.start.name || 'UNKNOWN', duration: Date.now() - startDate } },
-                'Start lifecycle handler failed - rolling back',
-              );
+        try {
+          const output = await startHandler(this);
 
-              // Roll back
-              const rollbackHandlers = this.lifecycleHandlers.slice(0, i + 1).reverse();
+          // Log it
+          this.log.trace(
+            { metadata: { output, name: handlerName, hasRollbackHandler: !!handler.stop, duration: Date.now() - startTime } },
+            'Lifecycle start handler called',
+          );
+        } catch (err) {
+          // Log the error
+          this.log.error(
+            {
+              err,
+              metadata: { name: handlerName, duration: Date.now() - startTime }
+            },
+            'Lifecycle start handler failed - rolling back entire start sequence by stopping application with stop relevant stop handlers',
+          );
 
-              // Rolling back
-              for (const rollbackHandler of rollbackHandlers) {
-                const startRollbackDate = Date.now();
-                if (rollbackHandler.stop) {
-                  try {
-                    const output = await rollbackHandler.stop(this);
-                    // Log it
-                    this.log.trace(
-                      { metadata: { output, name: handler.name || 'UNKNOWN', duration: Date.now() - startDate } },
-                      'Stop lifecycle handler called while rolling back',
-                    );
-                  } catch (err) {
-                    // Log the error
-                    this.log.warn(
-                      { err, metadata: { name: rollbackHandler.name || rollbackHandler.stop.name || 'UNKNOWN', duration: Date.now() - startDate } },
-                      'Stop lifecycle handler failed while rolling back',
-                    );
-                  }
-                  // Log it
-                  this.log.trace(
-                    { metadata: { name: rollbackHandler.name || rollbackHandler.stop.name || 'UNKNOWN', duration: Date.now() - startRollbackDate } },
-                    'Stop lifecycle handler called while rolling back',
-                  );
-                }
-              }
+          // Fetch rollback handlers
+          const rollbackHandlers = handlers.slice(0, index + 1).reverse();
 
-              // Set new STOPPED state
-              this.state = Komapi.LifecycleState.STOPPED;
-              return reject(err);
-            }
-          }
+          // Stop application
+          await this.stop(rollbackHandlers, { force: true });
 
-          // Capture index for rollback
-          i += 1;
+          // Reject
+          return reject(err);
         }
+      }
 
-        // Set new STARTED state
-        this.state = Komapi.LifecycleState.STARTED;
-        resolve();
+      // Done
+      return resolve();
+    }).then(() => {
+      // Log it
+      this.log.debug({ metadata: { startHandlers: handlers.length, duration: Date.now() - preStartTime }}, 'Application started');
+      this.state = Komapi.LifecycleState.STARTED;
+    }).catch((err) => {
+      // Log it
+      this.log.error({ err, metadata: { startHandlers: handlers.length, duration: Date.now() - preStartTime }}, 'Application failed to start');
+      throw err;
     });
 
     // Return starting promise
@@ -420,51 +415,66 @@ class Komapi<
   }
 
   /**
-   * Stop the application - safe to be called multiple times to ensure STOPPED state
+   * Stop the application - safe to be called multiple times to ensure STOPPED state.
+   * Note that lifecycle handlers must be sent in the order to call.
+   * This is usually reverse of what you send to the start method.
    *
+   * @params {Array<Komapi.LifecycleHandlerSubscription<Komapi<CustomStateT, CustomContextT, CustomServicesT>>>=} lifecycleHandlers - Lifecycle handlers to call
+   * @params {{ force: boolean }} options
    * @returns {Promise<void>}
    */
-  public async stop(): Promise<void> {
-    // Check if we should short circuit early
-    if (this.state === Komapi.LifecycleState.STOPPED) return;
-    if (this.state === Komapi.LifecycleState.STARTING) {
-      throw new Error('Cannot stop application while in `STARTING` state');
-    } else if (this.state === Komapi.LifecycleState.STOPPING) return this.waitForState;
+  public async stop(lifecycleHandlers: Array<
+    Komapi.LifecycleHandlerSubscription<Komapi<CustomStateT, CustomContextT, CustomServicesT>>
+    > = this.lifecycleHandlers.reverse(), options?: { force: boolean }) {
+    // Check if we should short circuit early or wait for application to stop
+    if (!options || !options.force) {
+      if (this.state === Komapi.LifecycleState.STARTING) await this.start();
+      else if (this.state !== Komapi.LifecycleState.STARTED) return this.waitForState;
+    }
+    // Fetch start time
+    const preStopTime = Date.now();
+
+    // Fetch lifecycle handlers
+    const handlers = lifecycleHandlers.filter(h => !!h.stop);
 
     // Log it
-    this.log.debug({ metadata: { stopHandlers: this.lifecycleHandlers.filter(h => !!h.stop).length }}, 'Stopping application');
+    this.log.debug({ metadata: { stopHandlers: handlers.length }}, 'Stopping application');
 
-    // Set STOPPING state
+    // Set STARTING state
     this.state = Komapi.LifecycleState.STOPPING;
-    this.waitForState = new Promise(async (resolve, reject) => {
+
+    // Run handlers
+    this.waitForState = new Promise<void>(async (resolve, reject) => {
       // Capture errors - but do not fail to ensure that cleanup is done where possible
       const errors = [];
 
-      // Call lifecycle handlers
-      const stopHandlers = this.lifecycleHandlers.reverse();
-      for (const handler of stopHandlers) {
-        if (handler.stop) {
-          const startDate = Date.now();
-          try {
-            const output = await handler.stop(this);
-            // Log it
-            this.log.trace(
-              { metadata: { output, name: handler.name || 'UNKNOWN', duration: Date.now() - startDate } },
-              'Stop lifecycle handler called',
-            );
-          } catch (err) {
-            errors.push(err);
-            // Log the error
-            this.log.warn(
-              { err, metadata: { name: handler.name || handler.stop.name || 'UNKNOWN', duration: Date.now() - startDate } },
-              'Stop lifecycle handler failed',
-            );
-          }
+      // Call handlers
+      for (const handler of handlers) {
+        const startTime = Date.now();
+        const stopHandler = handler.stop!;
+        const handlerName = handler.name || stopHandler.name || 'UNKNOWN';
+
+        try {
+          const output = await stopHandler(this);
+
+          // Log it
+          this.log.trace(
+            { metadata: { output, name: handlerName, duration: Date.now() - startTime } },
+            'Lifecycle stop handler called',
+          );
+        } catch (err) {
+          errors.push(err);
+
+          // Log the error
+          this.log.warn(
+            {
+              err,
+              metadata: { name: handlerName, duration: Date.now() - startTime }
+            },
+            'Lifecycle stop handler failed - ignoring error to ensure cleanup of remaining resources',
+          );
         }
       }
-
-      // Set new STOPPED state
-      this.state = Komapi.LifecycleState.STOPPED;
 
       // Did we encounter any errors?
       if (errors.length === 0) return resolve();
@@ -472,13 +482,24 @@ class Komapi<
 
       // Log the error
       this.log.error(
-        { err  },
+        { err, numErrors: errors.length },
         'Encountered errors while stopping application',
       );
+
+      // Reject
       reject(err);
+    }).then(() => {
+      // Log it
+      this.log.debug({ metadata: { stopHandlers: handlers.length, duration: Date.now() - preStopTime }}, 'Application stopped');
+    }).catch((err) => {
+      // Log it
+      this.log.error({ err, metadata: { stopHandlers: handlers.length, duration: Date.now() - preStopTime }}, 'Application failed to stop gracefully');
+      throw err;
+    }).finally(() => {
+      this.state = Komapi.LifecycleState.STOPPED;
     });
 
-    // Return stopping promise
+    // Return starting promise
     return this.waitForState;
   }
 
