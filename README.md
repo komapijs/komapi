@@ -452,8 +452,7 @@ export default router;
 
 ### Roadmap
 
-1. Rework lifecycle into one handler with multiple hooks (e.g. `{ start: () => {}, stop: () => {}`) to allow for easy rollback if something fails. Or just use events and make it promise aware?
-2. Rework lifecycle to use observable to be able to cancel (and roll back) during start and stop. 
+1. Stable version 
 
 ### License
 

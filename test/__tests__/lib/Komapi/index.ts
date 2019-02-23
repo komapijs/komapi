@@ -152,7 +152,7 @@ describe('instantiation', () => {
     expect(app.state).toBe('STOPPED');
   });
   it('should add service lifecycle handlers automatically', async done => {
-    expect.assertions(6);
+    expect.assertions(5);
     const services = {
       Account,
       Chat,
@@ -184,8 +184,7 @@ describe('instantiation', () => {
     const app = new Komapi<{}, {}, typeof services>({ services });
 
     // Assertions
-    expect(app.startHandlers.length).toBe(2);
-    expect(app.stopHandlers.length).toBe(2);
+    expect(app.lifecycleHandlers.length).toBe(2);
 
     // Run application
     await app.start();
@@ -318,14 +317,14 @@ describe('app.listen', () => {
     const closeSpy = jest.fn();
 
     // Ensure known initial state
-    expect(app.stopHandlers.length).toBe(0);
+    expect(app.lifecycleHandlers.length).toBe(0);
 
     // Listen
     const server = app.listen();
     server.on('close', closeSpy);
 
     // Check handler was added
-    expect(app.stopHandlers.length).toBe(1);
+    expect(app.lifecycleHandlers.length).toBe(1);
     expect(closeSpy).not.toBeCalled();
 
     // Stop server
@@ -338,19 +337,19 @@ describe('app.listen', () => {
     done();
   });
   it('should work if stopped multiple times', async done => {
-    expect.assertions(5);
+    expect.assertions(4);
     const app = new Komapi();
     const closeSpy = jest.fn();
 
     // Ensure known initial state
-    expect(app.stopHandlers.length).toBe(0);
+    expect(app.lifecycleHandlers.length).toBe(0);
 
     // Listen
     const server = app.listen();
     server.on('close', closeSpy);
 
     // Check handler was added
-    expect(app.stopHandlers.length).toBe(1);
+    expect(app.lifecycleHandlers.length).toBe(1);
     expect(closeSpy).not.toBeCalled();
 
     // Stop and restart server
@@ -358,7 +357,7 @@ describe('app.listen', () => {
     await app.start();
 
     // Check that stopping still works
-    await expect(app.stop()).resolves.toBe(undefined);
+    await app.stop();
 
     // Check handler was called
     expect(closeSpy).toHaveBeenCalledTimes(2);

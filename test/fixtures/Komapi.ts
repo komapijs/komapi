@@ -8,6 +8,8 @@ afterEach(() => {
     'SIGTERM',
     'SIGINT',
     'SIGHUP',
+    'SIGBREAK',
+    'message',
     'uncaughtException',
     'unhandledRejection',
     'multipleResolves',

@@ -54,7 +54,7 @@ it('should automatically invoke `app.start()` on the first request when applicat
         setTimeout(resolve, 100);
       }),
   );
-  app.onStart(startSpy);
+  app.addLifecycleHandler({ start: startSpy });
   const logSpy = jest.fn();
 
   // Add middlewares

@@ -11,7 +11,7 @@ it('should trigger `app.start()` before running the code', async done => {
   app.start = jest.fn(() => orgStart());
 
   // Add slow start handler to ensure start lifecycle handler is actually invoked and done
-  app.onStart(startSpy);
+  app.addLifecycleHandler({ start: startSpy });
 
   // Assert initial state
   expect(app.state).toBe('STOPPED');
