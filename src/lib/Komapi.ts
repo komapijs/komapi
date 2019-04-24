@@ -11,6 +11,7 @@ import delegate from 'delegates';
 import { MultiError } from 'verror';
 import { IncomingMessage, ServerResponse } from 'http';
 import uuidv4 from 'uuid';
+import Ajv from 'ajv';
 import createLogger from './createLogger';
 import Service from './Service';
 import serializeRequest from './serializeRequest';
@@ -32,6 +33,7 @@ type DeepPartial<T> = {
     ? ReadonlyArray<DeepPartial<SU>>
     : DeepPartial<T[P]>
 };
+type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
 
 /**
  * Overload Koa by extending Komapi for simple module augmentation
@@ -89,9 +91,9 @@ class Komapi<
   /**
    * Create a new Komapi instance
    *
-   * @param {DeepPartial<Komapi.Options>=} options
+   * @param {Partial<Omit<Komapi.Options, 'config'> & DeepPartial<Pick<Komapi.Options, 'config'>>>=} options
    */
-  constructor(options?: DeepPartial<Komapi.Options>) {
+  constructor(options?: Partial<Omit<Komapi.Options, 'config'> & DeepPartial<Pick<Komapi.Options, 'config'>>>) {
     super();
 
     // Set options
@@ -123,11 +125,15 @@ class Komapi<
           response: serializeResponse(),
         },
         redact: {
-          paths: ['request.header.authorization', 'request.header.cookie'],
+          paths: ['request.header.authorization', 'request.header["x-api-key"]', 'request.header.cookie'],
           censor: '[REDACTED]',
         },
       },
       logStream: Pino.destination(),
+      schemaValidator: new Ajv({
+        allErrors: true,
+        verbose: true,
+      }),
     });
 
     /**
@@ -150,11 +156,17 @@ class Komapi<
           this.body = body;
           return this.body;
         },
+        sendAPI: function sendAPI(body) {
+          this.body = body ? { data: body } : null;
+          return this.body;
+        },
       } as Koa.Response);
       delegate<Koa.BaseContext, Koa.Request>(this.context, 'request')
         .access('startAt')
         .access('requestId');
-      delegate<Koa.BaseContext, Koa.Response>(this.context, 'response').access('send');
+      delegate<Koa.BaseContext, Koa.Response>(this.context, 'response')
+        .access('send')
+        .access('sendAPI');
       delegate<Koa.BaseContext, Koa.Application>(this.context, 'app').access('log');
     }
 
@@ -550,6 +562,7 @@ class Komapi<
     // Update response
     Object.assign(ctx.response, {
       send: ctx.response.send.bind(ctx.response),
+      sendAPI: ctx.response.sendAPI.bind(ctx.response),
     });
 
     return ctx;
@@ -641,11 +654,13 @@ declare namespace Komapi {
     requestId: string;
     startAt: number;
     send: <T extends Koa.Response['body'] = Koa.Response['body']>(body: T) => T;
+    sendAPI: <T extends object>(body: T) => T;
   }
   export interface BaseContext {
     log: Komapi['log'];
     requestId: BaseRequest['requestId'];
     send: BaseResponse['send'];
+    sendAPI: BaseResponse['sendAPI'];
     startAt: BaseRequest['startAt'];
   }
   export interface Request {}

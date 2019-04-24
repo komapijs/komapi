@@ -46,10 +46,16 @@ export default function errorHandlerMiddlewareFactory(): Komapi.Middleware {
       let headers = {};
       let body: string | object = Boom.notAcceptable().output.payload.message;
 
-      if (format === 'application/vnd.api+json') {
+      if (format === 'application/vnd.api+json' || format === 'json') {
         status = error.output.statusCode;
         headers = error.output.headers;
         body = { errors: get(error, 'data.errors', [error]).map(serializeJsonApiError) };
+      } else if (format === 'html') {
+        status = error.output.statusCode;
+        headers = error.output.headers;
+        body = `<!doctype html><html lang=en><head><meta charset=utf-8><title>${
+          error.output.payload.message
+        }</title></head><body><h1>${error.output.payload.message}</h1></body></html>`;
       } else if (format === 'text') {
         status = error.output.statusCode;
         headers = error.output.headers;

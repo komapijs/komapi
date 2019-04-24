@@ -22,7 +22,7 @@ function wrapLogger(baseLogger: Pino.Logger, transactionContext?: cls.Namespace)
             Object.assign(logContext, loggerContext);
             args = argumentsList.slice(1);
           }
-          return target.apply(thisArg, [logContext, args]);
+          return target.apply(thisArg, [logContext, ...args]);
         },
       });
       return acc;
