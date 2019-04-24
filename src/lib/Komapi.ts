@@ -11,7 +11,6 @@ import delegate from 'delegates';
 import { MultiError } from 'verror';
 import { IncomingMessage, ServerResponse } from 'http';
 import uuidv4 from 'uuid';
-import Ajv from 'ajv';
 import createLogger from './createLogger';
 import Service from './Service';
 import serializeRequest from './serializeRequest';
@@ -130,10 +129,6 @@ class Komapi<
         },
       },
       logStream: Pino.destination(),
-      schemaValidator: new Ajv({
-        allErrors: true,
-        verbose: true,
-      }),
     });
 
     /**
