@@ -12,6 +12,7 @@ import { MultiError } from 'verror';
 import { IncomingMessage, ServerResponse } from 'http';
 import uuidv4 from 'uuid';
 import createLogger from './createLogger';
+import isMultiError from './isMultiError';
 import Service from './Service';
 import serializeRequest from './serializeRequest';
 import serializeResponse from './serializeResponse';
@@ -19,6 +20,8 @@ import setTransactionContext from '../middlewares/setTransactionContext';
 import requestLogger from '../middlewares/requestLogger';
 import errorHandler from '../middlewares/errorHandler';
 import ensureStarted from '../middlewares/ensureStarted';
+import { KomapiVError } from './VError';
+import { KomapiWError } from './WError';
 import Signals = NodeJS.Signals;
 
 // tslint:disable-next-line no-var-requires
@@ -71,6 +74,9 @@ class Komapi<
    * Export helper functions by attaching to Komapi (hack to make it work with named import and module augmentation)
    */
   public static Service = Service;
+  public static VError = KomapiVError;
+  public static WError = KomapiWError;
+  public static MultiError = MultiError;
 
   /**
    * Public instance properties
@@ -661,11 +667,6 @@ declare namespace Komapi {
   export interface Request {}
   export interface Response {}
   export interface Context {}
-}
-
-// Typeguards
-function isMultiError(error: Error): error is MultiError {
-  return 'errors' in error;
 }
 
 // Exports
