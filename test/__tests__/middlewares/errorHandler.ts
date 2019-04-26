@@ -6,6 +6,11 @@ import errorHandler from '../../../src/middlewares/errorHandler';
 import VError = require('verror');
 import { MultiError, WError } from 'verror';
 
+// Types
+interface ErrorWithOptionalData extends Error {
+  data?: any;
+}
+
 // Tests
 describe('generic errors', () => {
   it('should send 500 and a default error message', async done => {
@@ -28,6 +33,48 @@ describe('generic errors', () => {
           status: '500',
           title: 'Internal Server Error',
           detail: 'An internal server error occurred',
+        },
+      ],
+    });
+    expect(response.status).toEqual(500);
+
+    // Done
+    done();
+  });
+  it('should support additional metadata', async done => {
+    expect.assertions(3);
+    const app = new Koa();
+
+    // Add middlewares
+    app.use(errorHandler());
+    app.use(() => {
+      const err: ErrorWithOptionalData = new Error('My Custom Error Message');
+      err.data = {
+        id: 'custom-id',
+        code: 'custom-code',
+        meta: {
+          something: true,
+        },
+        additionalData: false,
+      };
+      throw err;
+    });
+
+    const response = await request(app.callback()).get('/');
+
+    // Assertions
+    expect(response.header['content-type']).toEqual('application/json; charset=utf-8');
+    expect(response.body).toEqual({
+      errors: [
+        {
+          id: 'custom-id',
+          code: 'custom-code',
+          status: '500',
+          title: 'Internal Server Error',
+          detail: 'An internal server error occurred',
+          meta: {
+            something: true,
+          },
         },
       ],
     });

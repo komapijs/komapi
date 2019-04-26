@@ -19,9 +19,15 @@ Even though it is recommended to follow the conventions defined in the framework
 ## Documentation
 - [Installation](#installation)
 - [Usage](#usage)
+  - [Hello World](#usage-hello-world)
+  - [Configuration](#usage-configuration)
+  - [Error Handling](#usage-error-handling)
+  - [Services](#usage-services)
 - [API](#api)
 - [License](#license)
   
+<a id="installation"></a>
+
 ### Installation
 
 Install through npm and make it a production dependency in your application.
@@ -30,11 +36,15 @@ Install through npm and make it a production dependency in your application.
 $ npm install --save komapi
 ```
 
+<a id="usage"></a>
+
 ### Usage
 
 **Note:** Komapi extends [Koa][koa-url] with common use cases and patterns for rapid development and best practices.
 This documentation only serves as documentation for Komapi specific features and functionality on top of [Koa][koa-url].
 For guides, features or functionality not covered in this documentation, please consult the official [Koa][koa-url] documentation.
+
+<a id="usage-hello-world"></a>
 
 #### Hello World!
 
@@ -54,6 +64,7 @@ app.use(ctx => ctx.send('Hello World!'));
 app.listen(3000);
 ```
 
+<a id="usage-configuration"></a>
 #### Configuration
  
 Komapi comes with sensible defaults, but allows for customizations for a wide variety of use cases.
@@ -90,33 +101,160 @@ const app = new Komapi({
 console.log(`Current instance id: ${app.config.instanceId}`);
 ```
 
+<a id="usage-error-handling"></a>
 #### Error Handling
  
-Correct error handling is very important and difficult to get right.
-Errors should not crash the application and they should give users enough feedback on what went wrong without exposing sensitive information. 
-Komapi uses [boom][boom-url] under the hood and applications built on Komapi should also use [boom][boom-url] to take advantage of the built-in error handling.
+Error handling is important, but it is difficult to get it right and is often neglected.
+Komapi attempts to make error handling as flexible and simple as possible, but it is no magic bullet and it requires some effort to from you, the developer.
+The main goals with the error handling functionality in Komapi is to:
 
-By default, [boom][boom-url] does not expose any additional data sent to the error object.
-This is a sensible default to prevent accidental data leaks, but is also limiting when you want to give specific details, such as which fields failed validation or additional context.
+1. prevent application crash if the error is handled
+2. provide useful and consistent API responses - without leaking sensitive details - in case something went wrong
+3. simplify reporting and debugging in production through detailed error logging
+4. make it simple to do error handling right for the developer
 
-_**Note: Komapi will expose all data on the error object when `app.env = 'development` - Make sure to set this to `production`**_
+Komapi uses [boom][boom-url] under the hood for all error responses and adheres to the [JSON:API][jsonapi-url] spec for error responses.
+It is highly recommended to use [boom][boom-url] and [verror][verror-url] for error handling.
+Komapi has its own custom versions of the different [verror][verror-url] classes, `VError`, `WError` and `MultiError` that is included for convenience and for better typing support.
+
+
+<a id="usage-error-handling-metadata"></a>
+##### Error metadata
+
+Komapi has a set of metadata on `Error` objects that may be used to provide additional **non-sensitive** information that is **useful** for a 3rd party consumer e.g. the client connecting to your API.
+This additional metadata information is added to the response automatically.
+**Note** that this means that it is very important that you do **not** include sensitive or internal information in this metadata.
+Here are some examples on how you can add additional metadata to different error objects, and how you can handle sensitive or internal information that is useful for debugging, but should not be sent in the response.
 
 ```js
-import Komapi from 'komapi';
-import { badRequest } from 'boom';
+// Default error object
+const vanillaError = new Error('My Error Message');
+err.data = {
+  id: 'df8820bb-ccb8-478a-8a84-f4b33426b097',
+  code: 'MY_ERR_CODE_1',
+  meta: {
+    someKey: 'some value',
+    anotherKey: 'another value',
+  },
+  secrets: {
+    password: 'my password',
+  },
+};
+
+// VError
+const verror = new VError({
+  id: 'df8820bb-ccb8-478a-8a84-f4b33426b097',
+  code: 'MY_ERR_CODE_1',
+  meta: {
+    someKey: 'some value',
+    anotherKey: 'another value',
+  },
+  secrets: {
+    password: 'my password',
+  },
+},'My Error Message');
+
+// Boom
+const internalError = internal('My Error Message', {
+  id: 'df8820bb-ccb8-478a-8a84-f4b33426b097',
+  code: 'MY_ERR_CODE_1',
+  meta: {
+    someKey: 'some value',
+    anotherKey: 'another value',
+  },
+  secrets: {
+    password: 'my password',
+  },
+});
+
+// All of the examples above will result in the following API response
+const responseBody = {
+  errors: [
+    {
+      id: 'df8820bb-ccb8-478a-8a84-f4b33426b097',
+      code: 'MY_ERR_CODE_1',
+      status: '500',
+      title: 'Internal Server Error',
+      detail: 'An internal server error occurred',
+      meta: {
+        someKey: 'some value',
+        anotherKey: 'another value',
+      },
+    },
+  ],
+}
+```
+
+<a id="usage-error-handling-encapsulation"></a>
+##### Encapsulation of errors
+
+Sometimes you need to provide a more human friendly error of a downstream error.
+This includes situations where you should hide low level errors that might leak information and be a security risk.
+This can be accomplished by using the built in `VError` or `WError` (if you need to hide sensitive details).
+Here is an example of how to do it where your API fetches data from a database and somehow your database password no longer works.
+
+```js
+import Komapi, { WError } from 'komapi';
+import fetchData from './fetchData';
 
 // Create app
 const app = new Komapi();
 
-// Add middleware that will throw an error
-app.use(ctx => {
-  throw badRequest('All requests are bad requests');
+// Add middleware that always respond with the data from the database
+app.use(async ctx => {
+  try {
+    ctx.body = await fetchData();
+  } catch(err) { // The error `err` might have an error message similar to "failed to login with username=xxx and password=yyy to database server=1.2.3.4"
+    
+    // Encapsulate the error in a more human friendly error with the proper error code, while preserving the root cause for logging, reporting and debugging
+    throw new WError({ cause: err, info: { statusCode: 503 }}, 'Service temporarily unavailable');
+  }
 });
 
 // Listen
 app.listen(3000);
 ```
 
+<a id="usage-error-handling-multi"></a>
+##### Multiple errors
+
+You might encounter situations where you have multiple errors, this is typical for validation and parallel tasks.
+In those situations, you should send all errors through the `MultiError`.
+Here is a verbose example on how you could do it when validating requests.
+
+```js
+import Komapi, { MultiError } from 'komapi';
+import { badRequest, boomify } from 'boom';
+import bodyParser from 'koa-bodyparser';
+
+// Create app
+const app = new Komapi();
+app.use(bodyParser());
+
+// Add middleware to validate request body
+app.use(({ request: { body }}, next) => {
+  if (!body) throw badRequest('Request body is required');
+  
+  // Validate and respond with all validation errors
+  const errors = [];
+  
+  // Validate that firstName property is set
+  if (!body.firstName) errors.push(badRequest('Missing required property `firstName`'));
+  
+  // Validate that lastName property is set
+  if (!body.lastName) errors.push(badRequest('Missing required property `lastName`'));
+  
+  // Did we encounter any errors?
+  if (errors.length > 0) throw boomify(new MultiError(errors), { statusCode: 400 });
+  
+  return next();
+});
+
+// Listen
+app.listen(3000);
+```
+
+<a id="usage-services"></a>
 #### Services
 
 Komapi has a concept of `services` which encapsulates re-usable stateful functionality and makes it available throughout the application.
@@ -188,7 +326,8 @@ export default class AccountService extends Service {
 }
 ``` 
 
-#### Transaction Context
+<a id="usage-context"></a>
+#### Context
 
 Komapi creates a transaction context upon instantiation that is very useful for tracking context throughout the application. 
 This context is most often used in the request-response cycle for keeping track of authentication, transaction-type and request-id in logs or even in code to make it context aware, without having to pass around a context object.
@@ -248,6 +387,7 @@ app.run(async () => {
 });
 ```
 
+<a id="usage-lifecycle"></a>
 #### Lifecycle
 
 All applications have some life cycle events and it is important to be aware of what these means for your application.
@@ -294,11 +434,13 @@ app.start().then(() => app.run(async () => {
 }));
 ```
 
+<a id="typescript"></a>
 ### Typescript
 
 Komapi is built with typescript and provides full support for types out of the box.
 There are several options for augmenting Komapi with your own types depending on your use case.
 
+<a id="typescript-augmentation"></a>
 ##### Option 1: Augmenting Komapi with your own types
 
 This is the recommended approach, but requires that you only use a single Komapi configuration in your application.
@@ -346,6 +488,7 @@ appWithCustomContext.use(async (ctx, next) => {
 });
 ```
 
+<a id="typescript-generics"></a>
 ##### Option 2: Using Koa generics
 
 Another option is to utilize the generics option in [Koa][koa-url] to add state and augment the context.
@@ -450,9 +593,13 @@ export default router;
   * `logStream` (Writable): A writable stream to receive logs. Default: [Pino.destination()][pino-documentation-destination-url]
   + `services` (object): Object with map of string to classes that extend the `Service` class
 
+<a id="roadmap"></a>
+
 ### Roadmap
 
 1. Stable version 
+
+<a id="license"></a>
 
 ### License
 
@@ -484,3 +631,5 @@ export default router;
 [typescript-url]: https://github.com/microsoft/typescript
 [cls-hooked-url]: https://github.com/jeff-lewis/cls-hooked
 [boom-url]: https://github.com/hapijs/boom
+[verror-url]: https://github.com/joyent/node-verror
+[jsonapi-url]: https://jsonapi.org/

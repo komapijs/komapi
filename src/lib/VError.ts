@@ -5,6 +5,7 @@ import BaseVError, { VError } from 'verror';
 export interface KomapiVErrorInfo extends BaseVError.Info {
   id?: string;
   code?: string;
+  statusCode?: number;
   meta?: object;
 }
 export interface KomapiVErrorOptions extends BaseVError.Options {
