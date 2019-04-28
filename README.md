@@ -113,18 +113,19 @@ The main goals with the error handling functionality in Komapi is to:
 3. simplify reporting and debugging in production through detailed error logging
 4. make it simple to do error handling right for the developer
 
-Komapi uses [boom][boom-url] under the hood for all error responses and adheres to the [JSON:API][jsonapi-url] spec for error responses.
-It is highly recommended to use [boom][boom-url] and [verror][verror-url] for error handling.
-Komapi has its own custom versions of the different [verror][verror-url] classes, `VError`, `WError` and `MultiError` that is included for convenience and for better typing support.
+Komapi uses [Boom][boom-url] under the hood for all error responses and adheres to the [JSON:API][jsonapi-url] spec.
+It is highly recommended to use [Boom][boom-url] and [verror][verror-url] for error handling.
+Komapi comes with its own custom versions of the different [verror][verror-url] classes, `VError`, `WError` and `MultiError` that is included for convenience and for better typing support.
 
 
 <a id="usage-error-handling-metadata"></a>
 ##### Error metadata
 
-Komapi has a set of metadata on `Error` objects that may be used to provide additional **non-sensitive** information that is **useful** for a 3rd party consumer e.g. the client connecting to your API.
-This additional metadata information is added to the response automatically.
-**Note** that this means that it is very important that you do **not** include sensitive or internal information in this metadata.
-Here are some examples on how you can add additional metadata to different error objects, and how you can handle sensitive or internal information that is useful for debugging, but should not be sent in the response.
+Komapi supports a set of metadata on `Error` objects that may be used to provide additional **non-sensitive** information that you can include to give more context to your API error responses.
+
+**Note:** This means that it is very important that you do **not** include sensitive information in this metadata!
+
+Here are some examples on how you can add additional metadata to different error objects, and how you can handle sensitive information that might be useful for debugging, but should not be sent in the response.
 
 ```js
 // Default error object
@@ -137,21 +138,23 @@ err.data = {
     anotherKey: 'another value',
   },
   secrets: {
-    password: 'my password',
+    APIKeyId: 'my api key id',
   },
 };
 
 // VError
 const verror = new VError({
-  id: 'df8820bb-ccb8-478a-8a84-f4b33426b097',
-  code: 'MY_ERR_CODE_1',
-  meta: {
-    someKey: 'some value',
-    anotherKey: 'another value',
-  },
-  secrets: {
-    password: 'my password',
-  },
+  info: {
+    id: 'df8820bb-ccb8-478a-8a84-f4b33426b097',
+    code: 'MY_ERR_CODE_1',
+    meta: {
+      someKey: 'some value',
+      anotherKey: 'another value',
+    },
+    secrets: {
+      APIKeyId: 'my api key id',
+    },
+  }
 },'My Error Message');
 
 // Boom
@@ -163,11 +166,11 @@ const internalError = internal('My Error Message', {
     anotherKey: 'another value',
   },
   secrets: {
-    password: 'my password',
+    APIKeyId: 'my api key id',
   },
 });
 
-// All of the examples above will result in the following API response
+// All of the examples above will result in the following API response (if thrown in a middleware)
 const responseBody = {
   errors: [
     {
@@ -183,6 +186,8 @@ const responseBody = {
     },
   ],
 }
+
+// And the following will be visible in the logs (if thrown in a middleware)
 ```
 
 <a id="usage-error-handling-encapsulation"></a>

@@ -199,8 +199,8 @@ class Komapi<
      */
     {
       // Log emitted errors
-      this.on('error', (err, ctx) => {
-        this.log.error({ ctx, err, app: this }, 'Application Error Event');
+      this.on('error', (err, { request, response }) => {
+        this.log.error({ request, response, err, app: this }, 'Application Error Event');
       });
 
       // Graceful shutdown

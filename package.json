@@ -134,7 +134,7 @@
     "transform": {
       "^.+\\.tsx?$": "ts-jest"
     },
-    "silent": false,
+    "silent": true,
     "verbose": true
   }
 }

@@ -5,6 +5,9 @@ import Komapi from '../lib/Komapi';
 import isMultiError from '../lib/isMultiError';
 
 // Types
+declare module 'boom' {
+  function boomify(error: Error, options?: Boom.Options<object>): Boom<Error>;
+}
 interface JSONAPIError {
   id?: string;
   code?: string;
@@ -18,6 +21,8 @@ interface JSONAPIErrorResponse {
 }
 interface ErrorWithOptionalData extends Error {
   data?: any;
+  status?: number;
+  statusCode?: number;
 }
 
 // Helpers
@@ -28,8 +33,8 @@ function normalizeError(error: Error): Error[] {
   return isMultiError(error) ? error.errors() : [error];
 }
 function serializeJsonApiError(unserializedError: ErrorWithOptionalData): JSONAPIError {
-  const error = Boom.boomify(unserializedError);
-  const data = error.data || VError.info(error);
+  const error = serializeToBoom(unserializedError);
+  const data = error.data;
   return {
     id: data.id,
     code: data.code,
@@ -39,6 +44,13 @@ function serializeJsonApiError(unserializedError: ErrorWithOptionalData): JSONAP
     meta: data.meta,
   };
 }
+function serializeToBoom(err: ErrorWithOptionalData): Boom {
+  const data = err.data || VError.info(err);
+  return Boom.boomify(err, {
+    data,
+    statusCode: err.statusCode || err.status || data.statusCode || data.status || undefined,
+  });
+}
 
 // Exports
 export default function errorHandlerMiddlewareFactory(): Komapi.Middleware {
@@ -47,17 +59,13 @@ export default function errorHandlerMiddlewareFactory(): Komapi.Middleware {
       await next();
       if (ctx.status === 404) throw Boom.notFound();
     } catch (err) {
-      // HTTP Friendly error
-      const errInfo = VError.info(err);
-      const error = Boom.boomify(err, {
-        statusCode: err.statusCode || err.status || errInfo.statusCode || errInfo.status || undefined,
-      });
-      const errors = createJsonApiErrors(error);
+      const error = serializeToBoom(err);
+      const jsonApiErrors = createJsonApiErrors(error);
       const status = error.output.statusCode;
       const headers = error.output.headers;
 
       // Set default response (we assume JSON:API by default)
-      let body: JSONAPIErrorResponse | string = { errors };
+      let body: JSONAPIErrorResponse | string = { errors: jsonApiErrors };
 
       // Let's try to figure out what content type we should respond with, but don't spend to much energy on
       // supporting multiple content types and always default to JSON
@@ -82,6 +90,9 @@ export default function errorHandlerMiddlewareFactory(): Komapi.Middleware {
       ctx.set(headers);
       ctx.status = status;
       ctx.body = body;
+
+      // Emit errors for server errors
+      if (error.isServer) ctx.app.emit('error', error, ctx);
     }
   };
 }
