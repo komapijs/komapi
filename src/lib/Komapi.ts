@@ -8,20 +8,17 @@ import get from 'lodash.get';
 import Pino from 'pino';
 import cls from 'cls-hooked';
 import delegate from 'delegates';
-import { MultiError } from 'verror';
+import { createHttpError, createSerializer, HttpErrorOptions, VError } from 'botched';
 import { IncomingMessage, ServerResponse } from 'http';
 import uuidv4 from 'uuid';
 import createLogger from './createLogger';
-import isMultiError from './isMultiError';
 import Service from './Service';
 import serializeRequest from './serializeRequest';
 import serializeResponse from './serializeResponse';
 import setTransactionContext from '../middlewares/setTransactionContext';
-import requestLogger from '../middlewares/requestLogger';
 import errorHandler from '../middlewares/errorHandler';
 import ensureStarted from '../middlewares/ensureStarted';
-import { KomapiVError } from './VError';
-import { KomapiWError } from './WError';
+import requestLogger from '../middlewares/requestLogger';
 import Signals = NodeJS.Signals;
 
 // tslint:disable-next-line no-var-requires
@@ -74,9 +71,7 @@ class Komapi<
    * Export helper functions by attaching to Komapi (hack to make it work with named import and module augmentation)
    */
   public static Service = Service;
-  public static VError = KomapiVError;
-  public static WError = KomapiWError;
-  public static MultiError = MultiError;
+  public static requestLogger = requestLogger;
 
   /**
    * Public instance properties
@@ -121,11 +116,7 @@ class Komapi<
           env: get(options, 'config.env', this.env),
         },
         serializers: {
-          err: (err: Error | MultiError) => {
-            const serializedError = Pino.stdSerializers.err(err);
-            serializedError.errors = isMultiError(err) ? err.errors().map(Pino.stdSerializers.err) : undefined;
-            return serializedError;
-          },
+          err: createSerializer(),
           request: serializeRequest(),
           response: serializeResponse(),
         },
@@ -157,9 +148,12 @@ class Komapi<
           this.body = body;
           return this.body;
         },
-        sendAPI: function sendAPI(body) {
+        sendApi: function sendApi(body) {
           this.body = body ? { data: body } : null;
           return this.body;
+        },
+        sendError: function sendError(...args: any[]) {
+          throw createHttpError(...args);
         },
       } as Koa.Response);
       delegate<Koa.BaseContext, Koa.Request>(this.context, 'request')
@@ -167,7 +161,8 @@ class Komapi<
         .access('requestId');
       delegate<Koa.BaseContext, Koa.Response>(this.context, 'response')
         .access('send')
-        .access('sendAPI');
+        .access('sendApi')
+        .access('sendError');
       delegate<Koa.BaseContext, Koa.Application>(this.context, 'app').access('log');
     }
 
@@ -498,7 +493,7 @@ class Komapi<
 
       // Did we encounter any errors?
       if (errors.length === 0) return resolve();
-      const err = new MultiError(errors);
+      const err = new VError.MultiError(errors);
 
       // Log the error
       this.log.error({ err, numErrors: errors.length }, 'Encountered errors while stopping application');
@@ -563,7 +558,8 @@ class Komapi<
     // Update response
     Object.assign(ctx.response, {
       send: ctx.response.send.bind(ctx.response),
-      sendAPI: ctx.response.sendAPI.bind(ctx.response),
+      sendApi: ctx.response.sendApi.bind(ctx.response),
+      sendError: ctx.response.sendError.bind(ctx.response),
     });
 
     return ctx;
@@ -655,18 +651,28 @@ declare namespace Komapi {
     requestId: string;
     startAt: number;
     send: <T extends Koa.Response['body'] = Koa.Response['body']>(body: T) => T;
-    sendAPI: <T extends object>(body: T) => T;
+    sendApi: <T extends object>(body: T) => T;
+    sendError: SendErrorFn;
   }
   export interface BaseContext {
     log: Komapi['log'];
     requestId: BaseRequest['requestId'];
     send: BaseResponse['send'];
-    sendAPI: BaseResponse['sendAPI'];
+    sendApi: BaseResponse['sendApi'];
+    sendError: BaseResponse['sendError'];
     startAt: BaseRequest['startAt'];
   }
   export interface Request {}
   export interface Response {}
   export interface Context {}
+
+  /**
+   * Sub interfaces
+   */
+  interface SendErrorFn {
+    (statusCode: number, message?: string,  ...params: any[]): never;
+    (statusCode: number, options?: HttpErrorOptions | Error, message?: string,  ...params: any[]): never;
+  }
 }
 
 // Exports

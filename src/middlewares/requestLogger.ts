@@ -14,7 +14,7 @@ const defaultOptions: RequestLoggerOptions = {
 };
 
 // Exports
-export default function requestLoggerMiddlewareFactory(options: Partial<RequestLoggerOptions> = {}): Komapi.Middleware {
+export default function createRequestLogger(options: Partial<RequestLoggerOptions> = {}): Komapi.Middleware {
   const opts = defaultsDeep({}, options, defaultOptions);
   return async function requestLoggerMiddleware(ctx, next) {
     try {

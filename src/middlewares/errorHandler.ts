@@ -1,81 +1,50 @@
 // Imports
-import Boom from 'boom';
-import { VError } from 'verror';
 import Komapi from '../lib/Komapi';
-import isMultiError from '../lib/isMultiError';
+import { createHttpError, HttpError, NotFound, VError } from 'botched';
 
 // Types
-declare module 'boom' {
-  function boomify(error: Error, options?: Boom.Options<object>): Boom<Error>;
-}
-interface JSONAPIError {
+export interface JSONAPIError {
   id?: string;
   code?: string;
   status?: string;
   title?: string;
   detail?: string;
+  source?: {
+    pointer?: string;
+    parameter?: string;
+  };
+  links?: { about: string | { href: string; meta?: object; } };
   meta?: object;
 }
 interface JSONAPIErrorResponse {
   errors: JSONAPIError[];
 }
-interface ErrorWithOptionalData extends Error {
-  data?: any;
-  status?: number;
-  statusCode?: number;
-}
-
-// Helpers
-function createJsonApiErrors(error: Error): JSONAPIError[] {
-  return normalizeError(error).map(serializeJsonApiError);
-}
-function normalizeError(error: Error): Error[] {
-  return isMultiError(error) ? error.errors() : [error];
-}
-function serializeJsonApiError(unserializedError: ErrorWithOptionalData): JSONAPIError {
-  const error = serializeToBoom(unserializedError);
-  const data = error.data;
-  return {
-    id: data.id,
-    code: data.code,
-    status: error.output.statusCode.toString(),
-    title: error.output.payload.error,
-    detail: error.output.payload.message,
-    meta: data.meta,
-  };
-}
-function serializeToBoom(err: ErrorWithOptionalData): Boom {
-  const data = err.data || VError.info(err);
-  return Boom.boomify(err, {
-    data,
-    statusCode: err.statusCode || err.status || data.statusCode || data.status || undefined,
-  });
-}
 
 // Exports
-export default function errorHandlerMiddlewareFactory(): Komapi.Middleware {
+export default function createErrorHandler(): Komapi.Middleware {
   return async function errorHandlerMiddleware(ctx, next) {
     try {
       await next();
-      if (ctx.status === 404) throw Boom.notFound();
+      if (ctx.status === 404) throw new NotFound();
     } catch (err) {
-      const error = serializeToBoom(err);
-      const jsonApiErrors = createJsonApiErrors(error);
-      const status = error.output.statusCode;
-      const headers = error.output.headers;
+      const data = err.data || VError.info(err);
+      const error = err instanceof HttpError ? err : createHttpError(err.statusCode || err.status || data.statusCode || data.status || 500, { cause: err }, 'An internal server error occurred');
+      const jsonApiErrors: JSONAPIError[] = err.errors ? err.errors().map((e: Error) => new HttpError(e, e.message).toJSON()) : [error.toJSON()];
+      const status = error.statusCode;
+      const headers = error.headers;
 
       // Set default response (we assume JSON:API by default)
       let body: JSONAPIErrorResponse | string = { errors: jsonApiErrors };
 
-      // Let's try to figure out what content type we should respond with, but don't spend to much energy on
+      // Let figure out what content type we should respond with, but don't spend to much energy on
       // supporting multiple content types and always default to JSON
       const contentType = ctx.accepts(['application/vnd.api+json', 'json', 'html', 'text']);
 
       // HTML?
       if (contentType === 'html') {
         body = `<!doctype html><html lang=en><head><meta charset=utf-8><title>${
-          error.output.payload.error
-        }</title></head><body><h1>${error.output.payload.message}</h1><pre>${JSON.stringify(
+          error.title
+        }</title></head><body><h1>${error.detail || error.title}</h1><pre>${JSON.stringify(
           body,
           undefined,
           2,

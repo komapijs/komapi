@@ -55,7 +55,6 @@
     "@types/cls-hooked": "^4.3.0",
     "@types/koa": "^2.0.48",
     "@types/pino": "^5.8.6",
-    "boom": "^7.3.0",
     "cls-hooked": "^4.2.2",
     "delegates": "^1.0.0",
     "koa": "^2.7.0",
@@ -64,13 +63,11 @@
     "lodash.defaultsdeep": "^4.6.0",
     "lodash.get": "^4.4.2",
     "pino": "^5.12.2",
-    "uuid": "^3.3.2",
-    "verror": "^1.10.0"
+    "uuid": "^3.3.2"
   },
   "devDependencies": {
     "@commitlint/cli": "^7.5.2",
     "@commitlint/config-conventional": "^7.5.0",
-    "@types/boom": "^7.2.1",
     "@types/jest": "^24.0.11",
     "@types/koa-passport": "^4.0.2",
     "@types/koa-router": "^7.0.40",
@@ -80,7 +77,6 @@
     "@types/node": "^10.12.24",
     "@types/supertest": "^2.0.7",
     "@types/uuid": "^3.4.4",
-    "@types/verror": "^1.10.3",
     "conventional-changelog-cli": "^2.0.11",
     "conventional-recommended-bump": "^4.1.1",
     "del-cli": "^1.1.0",

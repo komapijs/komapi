@@ -2,7 +2,7 @@
 import Komapi from '../lib/Komapi';
 
 // Exports
-export default function ensureStartedMiddlewareFactory(): Komapi.Middleware {
+export default function createEnsureStarted(): Komapi.Middleware {
   return async function ensureStartedMiddleware(ctx, next) {
     if (ctx.app.state !== Komapi.LifecycleState.STARTED) {
       // Force start
