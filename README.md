@@ -1,7 +1,7 @@
 # Komapi
 
 Komapi is an opinionated Node.js framework with official typescript support built on top of [Koa][koa-url] and requires Node.js v8.11.1 or higher.
- 
+
 _Disclaimer: There will be breaking changes and outdated documentation during the pre-v1.0.0 cycles._
 
 [![npm][npm-image]][npm-url]
@@ -17,6 +17,7 @@ Komapi is essentially [Koa][koa-url]+[typescript][typescript-url] with some adde
 Even though it is recommended to follow the conventions defined in the framework, it is entirely possible to use Komapi exactly as you would use [Koa][koa-url] and still enjoy many of the built-in features.
 
 ## Documentation
+
 - [Installation](#installation)
 - [Usage](#usage)
   - [Hello World](#usage-hello-world)
@@ -25,7 +26,7 @@ Even though it is recommended to follow the conventions defined in the framework
   - [Services](#usage-services)
 - [API](#api)
 - [License](#license)
-  
+
 <a id="installation"></a>
 
 ### Installation
@@ -65,8 +66,9 @@ app.listen(3000);
 ```
 
 <a id="usage-configuration"></a>
+
 #### Configuration
- 
+
 Komapi comes with sensible defaults, but allows for customizations for a wide variety of use cases.
 
 ```js
@@ -87,7 +89,8 @@ const app = new Komapi({
     Account: AccountService,
     Chat: ChatService,
   },
-  logOptions: { // This is passed throug directly to Pino. See Pino documentation for more information
+  logOptions: {
+    // This is passed throug directly to Pino. See Pino documentation for more information
     level: 'trace',
     redact: {
       paths: ['request.header.authorization', 'request.header.cookie'],
@@ -102,8 +105,9 @@ console.log(`Current instance id: ${app.config.instanceId}`);
 ```
 
 <a id="usage-error-handling"></a>
+
 #### Error Handling
- 
+
 Error handling is important, but it is difficult to get it right and is often neglected.
 Komapi attempts to make error handling as flexible and simple as possible, but it is no magic bullet and it requires some effort to from you, the developer.
 The main goals with the error handling functionality in Komapi is to:
@@ -117,8 +121,8 @@ Komapi uses [Boom][boom-url] under the hood for all error responses and adheres 
 It is highly recommended to use [Boom][boom-url] and [verror][verror-url] for error handling.
 Komapi comes with its own custom versions of the different [verror][verror-url] classes, `VError`, `WError` and `MultiError` that is included for convenience and for better typing support.
 
-
 <a id="usage-error-handling-metadata"></a>
+
 ##### Error metadata
 
 Komapi supports a set of metadata on `Error` objects that may be used to provide additional **non-sensitive** information that you can include to give more context to your API error responses.
@@ -143,19 +147,22 @@ err.data = {
 };
 
 // VError
-const verror = new VError({
-  info: {
-    id: 'df8820bb-ccb8-478a-8a84-f4b33426b097',
-    code: 'MY_ERR_CODE_1',
-    meta: {
-      someKey: 'some value',
-      anotherKey: 'another value',
+const verror = new VError(
+  {
+    info: {
+      id: 'df8820bb-ccb8-478a-8a84-f4b33426b097',
+      code: 'MY_ERR_CODE_1',
+      meta: {
+        someKey: 'some value',
+        anotherKey: 'another value',
+      },
+      secrets: {
+        APIKeyId: 'my api key id',
+      },
     },
-    secrets: {
-      APIKeyId: 'my api key id',
-    },
-  }
-},'My Error Message');
+  },
+  'My Error Message',
+);
 
 // Boom
 const internalError = internal('My Error Message', {
@@ -185,12 +192,13 @@ const responseBody = {
       },
     },
   ],
-}
+};
 
 // And the following will be visible in the logs (if thrown in a middleware)
 ```
 
 <a id="usage-error-handling-encapsulation"></a>
+
 ##### Encapsulation of errors
 
 Sometimes you need to provide a more human friendly error of a downstream error.
@@ -209,10 +217,11 @@ const app = new Komapi();
 app.use(async ctx => {
   try {
     ctx.body = await fetchData();
-  } catch(err) { // The error `err` might have an error message similar to "failed to login with username=xxx and password=yyy to database server=1.2.3.4"
-    
+  } catch (err) {
+    // The error `err` might have an error message similar to "failed to login with username=xxx and password=yyy to database server=1.2.3.4"
+
     // Encapsulate the error in a more human friendly error with the proper error code, while preserving the root cause for logging, reporting and debugging
-    throw new WError({ cause: err, info: { statusCode: 503 }}, 'Service temporarily unavailable');
+    throw new WError({ cause: err, info: { statusCode: 503 } }, 'Service temporarily unavailable');
   }
 });
 
@@ -221,6 +230,7 @@ app.listen(3000);
 ```
 
 <a id="usage-error-handling-multi"></a>
+
 ##### Multiple errors
 
 You might encounter situations where you have multiple errors, this is typical for validation and parallel tasks.
@@ -237,21 +247,21 @@ const app = new Komapi();
 app.use(bodyParser());
 
 // Add middleware to validate request body
-app.use(({ request: { body }}, next) => {
+app.use(({ request: { body } }, next) => {
   if (!body) throw badRequest('Request body is required');
-  
+
   // Validate and respond with all validation errors
   const errors = [];
-  
+
   // Validate that firstName property is set
   if (!body.firstName) errors.push(badRequest('Missing required property `firstName`'));
-  
+
   // Validate that lastName property is set
   if (!body.lastName) errors.push(badRequest('Missing required property `lastName`'));
-  
+
   // Did we encounter any errors?
   if (errors.length > 0) throw boomify(new MultiError(errors), { statusCode: 400 });
-  
+
   return next();
 });
 
@@ -260,6 +270,7 @@ app.listen(3000);
 ```
 
 <a id="usage-services"></a>
+
 #### Services
 
 Komapi has a concept of `services` which encapsulates re-usable stateful functionality and makes it available throughout the application.
@@ -267,13 +278,14 @@ Services can be as simple or as complex as needed for the application, and can b
 Typically services should encapsulate models, complex logic (e.g. events, authorization and data visibility) and usage of other services so that your routes and controllers can be decoupled and as small as possible.
 
 Common examples of services:
-  * `AccountService`: provides a simple interface for `create`, `update`, `disable`, `delete`, `notify`, `getActiveAccount`, `getAccountsWithOutstandingInvoices` etc.
-    Most of these methods involve complex logic such as sending out events to an eventbus, querying multiple services, ensure that data visibility is restricted based on the current authenticated context 
-  * `ChatService`: provides a simple interface for `sendMessage` and `createGroup` etc.
-    The complexity of authorization, event handling and connecting to the data store is hidden from the consumer of the service
-  * `EventService`: Enables other services to public (and subscribe to) events in a message bus, websockets, push notifications, redis cache or just locally in the application depending on needs.
-  * `WebSocketService`: Manage websocket connections so that a single websocket connection can handle many different channels and events. 
-  * `DatabaseService`: Handle migrations, database connections and clean up when application shuts down.
+
+- `AccountService`: provides a simple interface for `create`, `update`, `disable`, `delete`, `notify`, `getActiveAccount`, `getAccountsWithOutstandingInvoices` etc.
+  Most of these methods involve complex logic such as sending out events to an eventbus, querying multiple services, ensure that data visibility is restricted based on the current authenticated context
+- `ChatService`: provides a simple interface for `sendMessage` and `createGroup` etc.
+  The complexity of authorization, event handling and connecting to the data store is hidden from the consumer of the service
+- `EventService`: Enables other services to public (and subscribe to) events in a message bus, websockets, push notifications, redis cache or just locally in the application depending on needs.
+- `WebSocketService`: Manage websocket connections so that a single websocket connection can handle many different channels and events.
+- `DatabaseService`: Handle migrations, database connections and clean up when application shuts down.
 
 All services must inherit from the base Komapi service (named export `Service`), either directly or indirectly.
 The services must also implement the `service.start()` and `service.stop()` methods if initialization or resource cleanup must be done on application `app.start()` and `app.stop()` respectively.
@@ -298,7 +310,7 @@ const app = new Komapi({
 
 /**
  * Note that we wrap the code in `app.run()` to ensure that the context is preserved and lifecycle handlers are called correctly
- * 
+ *
  * This is the only supported way of running arbitrary code outside of `app.listen()`
  */
 app.run(async () => {
@@ -306,7 +318,7 @@ app.run(async () => {
   const newAccount = await app.services.Account.create({ firstName: 'Joe', lastName: 'Smith' });
 });
 ```
- 
+
 Example service `AccountService`
 
 ```js
@@ -315,41 +327,46 @@ import { unauthorized } from 'boom';
 import AccountModel from '../models/Account';
 
 export default class AccountService extends Service {
-  
   create(account) {
     // Get current authentication context - See documentation on Transaction Context for more information
     const auth = this.app.transactionContext.get('auth');
-    
+
     // Check transaction context whether we are allowed to create users
-    if (!auth || !auth.scope.includes('create_user')) throw unauthorized('Valid authentication with scope "create_user" required to create new accounts!');
-    
+    if (!auth || !auth.scope.includes('create_user'))
+      throw unauthorized('Valid authentication with scope "create_user" required to create new accounts!');
+
     // Check if first and last name is set
     if (!account.firstName || !account.lastName) throw new Error('Both firstName and lastName is required!');
-    
-    return AccountModel.query().insert({ firstName: account.firstName, lastName: account.lastName, createdBy: auth.id });    
+
+    return AccountModel.query().insert({
+      firstName: account.firstName,
+      lastName: account.lastName,
+      createdBy: auth.id,
+    });
   }
 }
-``` 
+```
 
 <a id="usage-context"></a>
+
 #### Context
 
-Komapi creates a transaction context upon instantiation that is very useful for tracking context throughout the application. 
+Komapi creates a transaction context upon instantiation that is very useful for tracking context throughout the application.
 This context is most often used in the request-response cycle for keeping track of authentication, transaction-type and request-id in logs or even in code to make it context aware, without having to pass around a context object.
 
 By default, Komapi creates a separate context for each request-response cycle through a custom middleware.
 The context namesspace is available on the `app.transactionContext` property.
 
 Example middleware on how to access transaction context
+
 ```js
 export default function logTransactionContextMiddleware(ctx, next) {
   // You use transactionContext.set('myVar', 'myValue') to set transaction values that should be available in other parts of your application
   console.log(`Current requestId from transactionContext: ${ctx.app.transactionContext.get('requestId')}`);
 
-
   // The request id is also available from the middleware request object
   console.log(`Current requestId from ctx.request.requestId: ${ctx.request.requestId}`);
-  
+
   // Continue
   return next();
 }
@@ -359,6 +376,7 @@ If you need to use transaction context outside of a request-response cycle (e.g.
 Alternatively you can create the transaction context yourself and handle it manually. See [cls-hooked][cls-hooked-url] for more information. The existing namespace is available in `app.transactionContext`.
 
 Example on how to utilize the transaction context outside of the request-response cycle
+
 ```js
 import Komapi from 'komapi';
 import { getNamespace } from 'cls-hooked';
@@ -384,31 +402,30 @@ async function logTransactionContext() {
 app.run(async () => {
   // Set transaction context
   app.transactionContext.set('Foo', 'My Value');
-  
+
   // Run my function
   await logTransactionContext();
-  
-  console.log('Done')
+
+  console.log('Done');
 });
 ```
 
 <a id="usage-lifecycle"></a>
+
 #### Lifecycle
 
 All applications have some life cycle events and it is important to be aware of what these means for your application.
 Most applications do some initialization before actually doing the work (e.g. serving http requests) followed by some clean up before shutting down.
-A typical web application do some initialization, such as establishing a database connection before accepting work (e.g. handling http requests), followed by a period of time in a running state while accepting work then stops accepting work before the connection is closed (to prevent connection leaks) and finally stop executing. 
-
+A typical web application do some initialization, such as establishing a database connection before accepting work (e.g. handling http requests), followed by a period of time in a running state while accepting work then stops accepting work before the connection is closed (to prevent connection leaks) and finally stop executing.
 
 The current state is available in `app.state`, and may be one of 4 different states
 
-| State | Description |
-|-------|-------------|
+| State      | Description                                                                    |
+| ---------- | ------------------------------------------------------------------------------ |
 | `STARTING` | Application is transitioning to `STARTED` state - triggered from `app.start()` |
-| `STARTED` | Application is fully initialized and accepting work |
-| `STOPPING` | Application is transitioning to `STOPPED` state - triggered from `app.stop()` |
-| `STOPPED` | Application is in stopped state (or not started yet) |
-
+| `STARTED`  | Application is fully initialized and accepting work                            |
+| `STOPPING` | Application is transitioning to `STOPPED` state - triggered from `app.stop()`  |
+| `STOPPED`  | Application is in stopped state (or not started yet)                           |
 
 There are 2 lifecycle handlers in Komapi - `app.start()` and `app.stop()` that must be called before accepting work and before termination of the application.
 Komapi automatically registers the `app.close()` handler on application termination events so you should normally not need to call it manually.
@@ -434,18 +451,22 @@ app.start().then(() => app.listen(3000));
 /**
  * Alternative 2: Run arbitrary code
  */
-app.start().then(() => app.run(async () => {
-  console.log('Running custom code');
-}));
+app.start().then(() =>
+  app.run(async () => {
+    console.log('Running custom code');
+  }),
+);
 ```
 
 <a id="typescript"></a>
+
 ### Typescript
 
 Komapi is built with typescript and provides full support for types out of the box.
 There are several options for augmenting Komapi with your own types depending on your use case.
 
 <a id="typescript-augmentation"></a>
+
 ##### Option 1: Augmenting Komapi with your own types
 
 This is the recommended approach, but requires that you only use a single Komapi configuration in your application.
@@ -481,19 +502,20 @@ appWithCustomContext.use(async (ctx, next) => {
   // Is this user an admin?
   if (ctx.state.isAdmin) console.log('Current user is an admin');
   else console.log('Current user is NOT an admin');
-  
+
   // Get current user
   const user = await ctx.getCurrentUser();
   console.log('Current user:', user);
-  
+
   // Use the account service to notify the user about something
   await ctx.app.services.Account.notify(user);
-  
+
   return next();
 });
 ```
 
 <a id="typescript-generics"></a>
+
 ##### Option 2: Using Koa generics
 
 Another option is to utilize the generics option in [Koa][koa-url] to add state and augment the context.
@@ -526,14 +548,14 @@ appWithCustomContext.use(async (ctx, next) => {
   // Is this user an admin?
   if (ctx.state.isAdmin) console.log('Current user is an admin');
   else console.log('Current user is NOT an admin');
-  
+
   // Get current user
   const user = await ctx.getCurrentUser();
   console.log('Current user:', user);
-  
+
   // Create user
   await ctx.app.services.Account.create(user);
-  
+
   return next();
 });
 ```
@@ -581,35 +603,37 @@ export default router;
 ### API
 
 <a id="api-komapi"></a>
+
 #### Komapi
+
 `new Komapi([options])`
 
 ##### Parameters:
-+ `options` (object): Object with options
-  + `config` (object): Core configuration
-    * `env` (string): Environment setting - it is **highly** recommended to set this to `NODE_ENV`. Default: `development`
-    * `name` (string): The name of the application. Default: `Komapi application`
-    * `instanceId` (string): The unique identifier of this instance - useful to identify the application instance in heavily distributed systems. Default: `process.env.HEROKU_DYNO_ID || 'komapi'`
-    * `subdomainOffset` (number): Offset of .subdomains to ignore. See [Koa documentation][koa-documentation-url] for more information. Default: `2`
-    * `proxy` (boolean): Trust proxy headers (includes `x-request-id` and `x-forwarded-for`). See [Koa documentation][koa-documentation-url] for more information. Default: `false`
-  + `logOptions` (object): Options to pass down to the [Pino][pino-url] logger instance. See [Pino documentation][pino-url] for more information
-    * `level` (`fatal` | `error` | `warn` | `info` | `debug` | `trace` | `silent`): Log level verbosity Default: process.env.LOG_LEVEL || 'info'
-    * (...) - See [Pino options][pino-documentation-options-url] for more information
+
+- `options` (object): Object with options
+  - `config` (object): Core configuration
+    - `env` (string): Environment setting - it is **highly** recommended to set this to `NODE_ENV`. Default: `development`
+    - `name` (string): The name of the application. Default: `Komapi application`
+    - `instanceId` (string): The unique identifier of this instance - useful to identify the application instance in heavily distributed systems. Default: `process.env.HEROKU_DYNO_ID || 'komapi'`
+    - `subdomainOffset` (number): Offset of .subdomains to ignore. See [Koa documentation][koa-documentation-url] for more information. Default: `2`
+    - `proxy` (boolean): Trust proxy headers (includes `x-request-id` and `x-forwarded-for`). See [Koa documentation][koa-documentation-url] for more information. Default: `false`
+  - `logOptions` (object): Options to pass down to the [Pino][pino-url] logger instance. See [Pino documentation][pino-url] for more information
+    - `level` (`fatal` | `error` | `warn` | `info` | `debug` | `trace` | `silent`): Log level verbosity Default: process.env.LOG_LEVEL || 'info'
+    - (...) - See [Pino options][pino-documentation-options-url] for more information
   * `logStream` (Writable): A writable stream to receive logs. Default: [Pino.destination()][pino-documentation-destination-url]
-  + `services` (object): Object with map of string to classes that extend the `Service` class
+  - `services` (object): Object with map of string to classes that extend the `Service` class
 
 <a id="roadmap"></a>
 
 ### Roadmap
 
-1. Stable version 
+1. Stable version
 
 <a id="license"></a>
 
 ### License
 
-  [MIT](LICENSE.md)
-
+[MIT](LICENSE.md)
 
 [npm-url]: https://npmjs.org/package/komapi
 [npm-image]: https://img.shields.io/npm/v/komapi.svg
@@ -627,7 +651,6 @@ export default router;
 [conventional-commits-url]: https://conventionalcommits.org/
 [license-url]: https://github.com/komapijs/komapi/blob/master/LICENSE.md
 [license-image]: https://img.shields.io/github/license/komapijs/komapi.svg
-
 [koa-url]: https://github.com/koajs/koa
 [koa-documentation-url]: https://koajs.com/#settings
 [pino-url]: https://github.com/pinojs/pino

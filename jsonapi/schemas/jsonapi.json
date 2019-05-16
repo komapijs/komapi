@@ -17,9 +17,7 @@
   "definitions": {
     "success": {
       "type": "object",
-      "required": [
-        "data"
-      ],
+      "required": ["data"],
       "properties": {
         "data": {
           "$ref": "#/definitions/data"
@@ -54,9 +52,7 @@
     },
     "failure": {
       "type": "object",
-      "required": [
-        "errors"
-      ],
+      "required": ["errors"],
       "properties": {
         "errors": {
           "type": "array",
@@ -79,9 +75,7 @@
     },
     "info": {
       "type": "object",
-      "required": [
-        "meta"
-      ],
+      "required": ["meta"],
       "properties": {
         "meta": {
           "$ref": "#/definitions/meta"
@@ -124,10 +118,7 @@
     "resource": {
       "description": "\"Resource objects\" appear in a JSON:API document to represent resources.",
       "type": "object",
-      "required": [
-        "type",
-        "id"
-      ],
+      "required": ["type", "id"],
       "properties": {
         "type": {
           "type": "string"
@@ -180,9 +171,7 @@
         },
         {
           "type": "object",
-          "required": [
-            "href"
-          ],
+          "required": ["href"],
           "properties": {
             "href": {
               "description": "A string containing the link's URL.",
@@ -232,11 +221,7 @@
               "$ref": "#/definitions/meta"
             }
           },
-          "anyOf": [
-            {"required": ["data"]},
-            {"required": ["meta"]},
-            {"required": ["links"]}
-          ],
+          "anyOf": [{ "required": ["data"] }, { "required": ["meta"] }, { "required": ["links"] }],
           "additionalProperties": false
         }
       },
@@ -268,10 +253,7 @@
     "linkage": {
       "description": "The \"type\" and \"id\" to non-empty members.",
       "type": "object",
-      "required": [
-        "type",
-        "id"
-      ],
+      "required": ["type", "id"],
       "properties": {
         "type": {
           "type": "string"
@@ -290,31 +272,19 @@
       "properties": {
         "first": {
           "description": "The first page of data",
-          "oneOf": [
-            { "type": "string", "format": "uri-reference" },
-            { "type": "null" }
-          ]
+          "oneOf": [{ "type": "string", "format": "uri-reference" }, { "type": "null" }]
         },
         "last": {
           "description": "The last page of data",
-          "oneOf": [
-            { "type": "string", "format": "uri-reference" },
-            { "type": "null" }
-          ]
+          "oneOf": [{ "type": "string", "format": "uri-reference" }, { "type": "null" }]
         },
         "prev": {
           "description": "The previous page of data",
-          "oneOf": [
-            { "type": "string", "format": "uri-reference" },
-            { "type": "null" }
-          ]
+          "oneOf": [{ "type": "string", "format": "uri-reference" }, { "type": "null" }]
         },
         "next": {
           "description": "The next page of data",
-          "oneOf": [
-            { "type": "string", "format": "uri-reference" },
-            { "type": "null" }
-          ]
+          "oneOf": [{ "type": "string", "format": "uri-reference" }, { "type": "null" }]
         }
       }
     },

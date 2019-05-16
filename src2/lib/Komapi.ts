@@ -51,7 +51,9 @@ class Komapi<StateT = any, CustomT = {}> extends Koa<StateT, CustomT> {
  * Namespace
  */
 declare namespace Komapi {
-  export type InstantiatedServices<Service extends BaseService = BaseService> = { [P in keyof Services<Service>]: InstanceType<Services<Service>[P]> };
+  export type InstantiatedServices<Service extends BaseService = BaseService> = {
+    [P in keyof Services<Service>]: InstanceType<Services<Service>[P]>
+  };
   export type ConstructableService<T extends BaseService = BaseService> = new (...args: any[]) => T;
 
   // User customizable types

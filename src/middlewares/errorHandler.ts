@@ -1,6 +1,6 @@
 // Imports
 import Komapi from '../lib/Komapi';
-import { createHttpError, HttpError, NotFound, VError } from 'botched';
+import { botch, NotFound, VError } from 'botched';
 
 // Types
 export interface JSONAPIError {
@@ -13,7 +13,7 @@ export interface JSONAPIError {
     pointer?: string;
     parameter?: string;
   };
-  links?: { about: string | { href: string; meta?: object; } };
+  links?: { about: string | { href: string; meta?: object } };
   meta?: object;
 }
 interface JSONAPIErrorResponse {
@@ -27,14 +27,14 @@ export default function createErrorHandler(): Komapi.Middleware {
       await next();
       if (ctx.status === 404) throw new NotFound();
     } catch (err) {
-      const data = err.data || VError.info(err);
-      const error = err instanceof HttpError ? err : createHttpError(err.statusCode || err.status || data.statusCode || data.status || 500, { cause: err }, 'An internal server error occurred');
-      const jsonApiErrors: JSONAPIError[] = err.errors ? err.errors().map((e: Error) => new HttpError(e, e.message).toJSON()) : [error.toJSON()];
-      const status = error.statusCode;
-      const headers = error.headers;
+      const error = botch(err);
+      const jsonApiErrors = typeof err.errors === 'function' ? (err as VError.MultiError).errors().map(botch) : [error];
+
+      // Get headers and status code from error
+      const { detail, headers, isServer, statusCode, title } = error;
 
       // Set default response (we assume JSON:API by default)
-      let body: JSONAPIErrorResponse | string = { errors: jsonApiErrors };
+      let body: JSONAPIErrorResponse | string = { errors: jsonApiErrors.map(e => e.toJSON()) };
 
       // Let figure out what content type we should respond with, but don't spend to much energy on
       // supporting multiple content types and always default to JSON
@@ -42,13 +42,8 @@ export default function createErrorHandler(): Komapi.Middleware {
 
       // HTML?
       if (contentType === 'html') {
-        body = `<!doctype html><html lang=en><head><meta charset=utf-8><title>${
-          error.title
-        }</title></head><body><h1>${error.detail || error.title}</h1><pre>${JSON.stringify(
-          body,
-          undefined,
-          2,
-        )}</pre></body></html>`;
+        body = `<!doctype html><html lang=en><head><meta charset=utf-8><title>${title}</title></head><body><h1>${detail ||
+          title}</h1><pre>${JSON.stringify(body, undefined, 2)}</pre></body></html>`;
       }
       // Text?
       else if (contentType === 'text') {
@@ -57,11 +52,11 @@ export default function createErrorHandler(): Komapi.Middleware {
 
       // Respond
       ctx.set(headers);
-      ctx.status = status;
+      ctx.status = statusCode;
       ctx.body = body;
 
       // Emit errors for server errors
-      if (error.isServer) ctx.app.emit('error', error, ctx);
+      if (isServer) ctx.app.emit('error', error, ctx);
     }
   };
 }

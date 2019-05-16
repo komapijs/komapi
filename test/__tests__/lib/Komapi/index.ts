@@ -3,7 +3,7 @@ import Komapi from '../../../fixtures/Komapi';
 import Account from '../../../fixtures/services/Account';
 import Chat from '../../../fixtures/services/Chat';
 import WritableStreamSpy from '../../../fixtures/WritableStreamSpy';
-import { MultiError } from 'verror';
+import { VError } from 'botched';
 
 // Tests
 describe('instantiation', () => {
@@ -246,7 +246,7 @@ describe('app.log', () => {
     const app = new Komapi({ logStream: new WritableStreamSpy(spy) });
 
     // Create multi error
-    const err = new MultiError([new Error('My First Error'), new Error('My Second Error')]);
+    const err = new VError.MultiError([new Error('My First Error'), new Error('My Second Error')]);
 
     // Log the error
     app.log[app.log.level]({ err }, 'My custom error log message');

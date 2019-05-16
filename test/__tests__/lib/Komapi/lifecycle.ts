@@ -1,6 +1,6 @@
 // Imports
 import Komapi from '../../../fixtures/Komapi';
-import { MultiError } from 'verror';
+import { VError } from 'botched';
 
 // State values
 const STARTED = 'STARTED' as Komapi.LifecycleState.STARTED;
@@ -1011,7 +1011,7 @@ describe('app.stop()', () => {
     try {
       await p;
     } catch (err) {
-      expect(err instanceof MultiError).toBe(true);
+      expect(err instanceof VError.MultiError).toBe(true);
       expect(err.message).toBe('first of 2 errors: Should stop 1');
       expect(err.errors().some((e: Error) => !(e instanceof Error))).toBe(false);
       expect(err.errors()).toEqual(

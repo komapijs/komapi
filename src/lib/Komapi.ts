@@ -15,6 +15,7 @@ import createLogger from './createLogger';
 import Service from './Service';
 import serializeRequest from './serializeRequest';
 import serializeResponse from './serializeResponse';
+import ensureSchema from './ensureSchema';
 import setTransactionContext from '../middlewares/setTransactionContext';
 import errorHandler from '../middlewares/errorHandler';
 import ensureStarted from '../middlewares/ensureStarted';
@@ -71,6 +72,7 @@ class Komapi<
    * Export helper functions by attaching to Komapi (hack to make it work with named import and module augmentation)
    */
   public static Service = Service;
+  public static ensureSchema = ensureSchema;
   public static requestLogger = requestLogger;
 
   /**
@@ -148,10 +150,10 @@ class Komapi<
           this.body = body;
           return this.body;
         },
-        sendApi: function sendApi(body) {
-          this.body = body ? { data: body } : null;
-          return this.body;
-        },
+        // sendApi: function sendApi(body) {
+        //   this.body = body ? { data: body } : null;
+        //   return this.body;
+        // },
         sendError: function sendError(...args: any[]) {
           throw createHttpError(...args);
         },
@@ -161,7 +163,7 @@ class Komapi<
         .access('requestId');
       delegate<Koa.BaseContext, Koa.Response>(this.context, 'response')
         .access('send')
-        .access('sendApi')
+        // .access('sendApi')
         .access('sendError');
       delegate<Koa.BaseContext, Koa.Application>(this.context, 'app').access('log');
     }
@@ -558,7 +560,7 @@ class Komapi<
     // Update response
     Object.assign(ctx.response, {
       send: ctx.response.send.bind(ctx.response),
-      sendApi: ctx.response.sendApi.bind(ctx.response),
+      // sendApi: ctx.response.sendApi.bind(ctx.response),
       sendError: ctx.response.sendError.bind(ctx.response),
     });
 
@@ -572,7 +574,6 @@ class Komapi<
     const server = super.listen(...args);
 
     // TODO: Ensure that connections are cleared up within a reasonable time (track sockets and forcefully close them)
-    // tslint:disable-next-line ter-prefer-arrow-callback
     this.addLifecycleHandler({
       name: 'closeHttpServer',
       stop: () => new Promise(resolve => server.close(resolve)),
@@ -651,14 +652,14 @@ declare namespace Komapi {
     requestId: string;
     startAt: number;
     send: <T extends Koa.Response['body'] = Koa.Response['body']>(body: T) => T;
-    sendApi: <T extends object>(body: T) => T;
+    // sendApi: <T extends object>(body: T) => T;
     sendError: SendErrorFn;
   }
   export interface BaseContext {
     log: Komapi['log'];
     requestId: BaseRequest['requestId'];
     send: BaseResponse['send'];
-    sendApi: BaseResponse['sendApi'];
+    // sendApi: BaseResponse['sendApi'];
     sendError: BaseResponse['sendError'];
     startAt: BaseRequest['startAt'];
   }
@@ -670,8 +671,8 @@ declare namespace Komapi {
    * Sub interfaces
    */
   interface SendErrorFn {
-    (statusCode: number, message?: string,  ...params: any[]): never;
-    (statusCode: number, options?: HttpErrorOptions | Error, message?: string,  ...params: any[]): never;
+    (statusCode: number, message?: string, ...params: any[]): never;
+    (statusCode: number, options?: HttpErrorOptions | Error, message?: string, ...params: any[]): never;
   }
 }
 

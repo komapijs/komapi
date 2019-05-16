@@ -27,7 +27,12 @@ export class SchemaValidationError extends Error {
    *
    * @param {{ message: string, errors: Ajv.ErrorObject[] | null | undefined, jsonSchema: object, data: object }} opts
    */
-  constructor(opts: { message: string, errors: Ajv.ErrorObject[] | null | undefined, jsonSchema: object, data: object }) {
+  constructor(opts: {
+    message: string;
+    errors: Ajv.ErrorObject[] | null | undefined;
+    jsonSchema: object;
+    data: object;
+  }) {
     super(opts.message);
     this.name = this.constructor.name;
     this.data = opts.data;
@@ -54,7 +59,7 @@ export default class Schema extends Ajv {
           data,
           message: 'Schema validation failed',
           errors: validator.errors,
-        })
+        });
       }
       return data;
     };

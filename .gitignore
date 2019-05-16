@@ -16,7 +16,6 @@
 !.prettierrc
 !.travis.yml
 !.gitlab-ci.yml
-!.nojekyll
 
 # Generated directories
 build
@@ -31,3 +30,4 @@ node_modules
 *.tmp
 *.log
 npm-debug.log*
+yarn.lock
