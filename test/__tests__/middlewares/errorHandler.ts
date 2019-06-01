@@ -1,10 +1,8 @@
 // Dependencies
-import Koa from 'koa';
 import request from 'supertest';
-import { badRequest, boomify, internal, unauthorized } from 'boom';
+import Koa from 'koa';
+import { BadRequest, createHttpError, InternalServerError, VError, Unauthorized } from 'botched';
 import errorHandler from '../../../src/middlewares/errorHandler';
-import VError = require('verror');
-import { MultiError, WError } from 'verror';
 
 // Types
 interface ErrorWithOptionalData extends Error {
@@ -92,7 +90,7 @@ describe('Boom errors', () => {
     // Add middlewares
     app.use(errorHandler());
     app.use(() => {
-      throw internal('My Custom Error Message');
+      throw new InternalServerError('My Custom Error Message');
     });
 
     const response = await request(app.callback()).get('/');
@@ -120,7 +118,7 @@ describe('Boom errors', () => {
     // Add middlewares
     app.use(errorHandler());
     app.use(() => {
-      throw badRequest('My Custom Error Message');
+      throw new BadRequest('My Custom Error Message');
     });
 
     const response = await request(app.callback()).get('/');
@@ -148,7 +146,7 @@ describe('Boom errors', () => {
     // Add middlewares
     app.use(errorHandler());
     app.use(() => {
-      throw unauthorized('My Custom Unauthorized Message', 'my-scheme');
+      throw new Unauthorized('My Custom Unauthorized Message', 'my-scheme');
     });
 
     const response = await request(app.callback()).get('/');
@@ -177,7 +175,10 @@ describe('Boom errors', () => {
     // Add middlewares
     app.use(errorHandler());
     app.use(() => {
-      throw badRequest('My Custom Error Message', { id: 'my-error-id', code: 'my-error-code', meta: { isMeta: true } });
+      throw new BadRequest(
+        { id: 'my-error-id', code: 'my-error-code', meta: { isMeta: true } },
+        'My Custom Error Message',
+      );
     });
 
     const response = await request(app.callback()).get('/');
@@ -210,7 +211,7 @@ describe('Boom errors', () => {
     app.use(() => {
       const err: { data?: object } & Error = new Error('My boomified error');
       err.data = { id: 'my-boomified-error-id', code: 'my-boomified-error-code', meta: { isMeta: false } };
-      throw boomify(err, { statusCode: 400 });
+      throw createHttpError(400, { cause: err });
     });
 
     const response = await request(app.callback()).get('/');
@@ -249,7 +250,7 @@ describe('Boom errors', () => {
         },
         'My boomified verror',
       );
-      throw boomify(err, { statusCode: 400 });
+      throw createHttpError(400, { cause: err });
     });
 
     const response = await request(app.callback()).get('/');
@@ -281,14 +282,14 @@ describe('Boom errors', () => {
     app.use(errorHandler());
     app.use(() => {
       const sourceError = new VError({ info: { code: 'my-root-error', meta: { something: 123 } } }, 'Root Error');
-      const err = new WError(
+      const err = new VError.WError(
         {
           cause: sourceError,
           info: { id: 'my-boomified-werror-id', code: 'my-boomified-werror-code', meta: { isMeta: false } },
         },
         'My boomified werror',
       );
-      throw boomify(err, { statusCode: 400 });
+      throw createHttpError(400, { cause: err });
     });
 
     const response = await request(app.callback()).get('/');
@@ -320,7 +321,7 @@ describe('Boom errors', () => {
     app.use(errorHandler());
     app.use(() => {
       const sourceError1 = new VError({ info: { code: 'my-root-error-1', meta: { something: 456 } } }, 'Root Error');
-      const error1 = new WError(
+      const error1 = new VError.WError(
         {
           cause: sourceError1,
           info: { id: 'my-boomified-werror-id', code: 'my-boomified-werror-code', meta: { isMeta: false } },
@@ -335,8 +336,11 @@ describe('Boom errors', () => {
         },
         'My boomified verror',
       );
-      const err = new MultiError([boomify(error1, { statusCode: 400 }), boomify(error2, { statusCode: 400 })]);
-      throw boomify(err, { statusCode: 400 });
+      const err = new VError.MultiError([
+        createHttpError(400, { cause: error1 }),
+        createHttpError(400, { cause: error2 }),
+      ]);
+      throw createHttpError(400, { cause: err });
     });
 
     const response = await request(app.callback()).get('/');
@@ -535,7 +539,7 @@ describe('WError', () => {
         { info: { id: 'root-id', code: 'root-code', meta: { something: true } } },
         'Root Error',
       );
-      throw new WError({ cause: sourceError, info: { statusCode: 400, id: 'my-id' } }, 'My Nested WError');
+      throw new VError.WError({ cause: sourceError, info: { statusCode: 400, id: 'my-id' } }, 'My Nested WError');
     });
 
     const response = await request(app.callback()).get('/');
@@ -571,7 +575,7 @@ describe('MultiError', () => {
     app.use(errorHandler());
     app.use(() => {
       const sourceError1 = new VError({ info: { id: 'my-id-1' } }, 'Root Error');
-      const error1 = new WError(
+      const error1 = new VError.WError(
         { cause: sourceError1, info: { code: 'my-code', meta: { isMeta: false } } },
         'My WError',
       );
@@ -583,7 +587,7 @@ describe('MultiError', () => {
         { cause: sourceError2, info: { id: 'my-id', code: 'my-code', meta: { isMeta: true } } },
         'My VError',
       );
-      throw new MultiError([error1, error2]);
+      throw new VError.MultiError([error1, error2]);
     });
 
     const response = await request(app.callback()).get('/');

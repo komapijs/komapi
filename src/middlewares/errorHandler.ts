@@ -1,6 +1,6 @@
 // Imports
-import Komapi from '../lib/Komapi';
 import { botch, NotFound, VError } from 'botched';
+import Komapi from '../lib/Komapi';
 
 // Types
 export interface JSONAPIError {

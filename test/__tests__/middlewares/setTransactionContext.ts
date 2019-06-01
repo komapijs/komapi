@@ -1,8 +1,8 @@
 // Dependencies
+import request from 'supertest';
 import Koa from 'koa';
 import cls from 'cls-hooked';
 import setTransactionContext from '../../../src/middlewares/setTransactionContext';
-import request from 'supertest';
 
 // Tests
 it('should set requestId automatically and capture custom properties', async done => {

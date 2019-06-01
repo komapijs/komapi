@@ -20,9 +20,11 @@ import setTransactionContext from '../middlewares/setTransactionContext';
 import errorHandler from '../middlewares/errorHandler';
 import ensureStarted from '../middlewares/ensureStarted';
 import requestLogger from '../middlewares/requestLogger';
+
+// eslint-disable-next-line no-undef
 import Signals = NodeJS.Signals;
 
-// tslint:disable-next-line no-var-requires
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { name } = require('../../package.json');
 
 // Types
@@ -33,11 +35,11 @@ type DeepPartial<T> = {
     ? ReadonlyArray<DeepPartial<SU>>
     : DeepPartial<T[P]>
 };
-type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
 
 /**
  * Overload Koa by extending Komapi for simple module augmentation
  */
+/* eslint-disable @typescript-eslint/no-empty-interface */
 declare module 'koa' {
   interface Application<CustomStateT = any, CustomContextT = {}> extends Komapi<CustomStateT, CustomContextT> {}
   interface BaseRequest extends Komapi.BaseRequest {}
@@ -49,6 +51,7 @@ declare module 'koa' {
   interface Response extends Komapi.Response {}
   interface Context extends Komapi.Context {}
 }
+/* eslint-enable @typescript-eslint/no-empty-interface */
 
 /**
  * Komapi base class
@@ -95,7 +98,7 @@ class Komapi<
    *
    * @param {Partial<Omit<Komapi.Options, 'config'> & DeepPartial<Pick<Komapi.Options, 'config'>>>=} options
    */
-  constructor(options?: Partial<Omit<Komapi.Options, 'config'> & DeepPartial<Pick<Komapi.Options, 'config'>>>) {
+  public constructor(options?: Partial<Omit<Komapi.Options, 'config'> & DeepPartial<Pick<Komapi.Options, 'config'>>>) {
     super();
 
     // Set options
@@ -133,166 +136,158 @@ class Komapi<
     /**
      * Integrate with Koa
      */
-    {
-      ['env', 'subdomainOffset', 'proxy', 'silent', 'keys'].forEach(prop => {
-        Object.defineProperty(this, prop, {
-          get: () => (this.config as { [key: string]: any })[prop],
-          set: v => {
-            (this.config as { [key: string]: any })[prop] = v;
-          },
-        });
-      });
-      Object.assign(this.request, {
-        requestId: 'UNKNOWN',
-      });
-      Object.assign(this.response, {
-        send: function send(body) {
-          this.body = body;
-          return this.body;
+    ['env', 'subdomainOffset', 'proxy', 'silent', 'keys'].forEach(prop => {
+      Object.defineProperty(this, prop, {
+        get: () => (this.config as { [key: string]: any })[prop],
+        set: v => {
+          (this.config as { [key: string]: any })[prop] = v;
         },
-        // sendApi: function sendApi(body) {
-        //   this.body = body ? { data: body } : null;
-        //   return this.body;
-        // },
-        sendError: function sendError(...args: any[]) {
-          throw createHttpError(...args);
-        },
-      } as Koa.Response);
-      delegate<Koa.BaseContext, Koa.Request>(this.context, 'request')
-        .access('startAt')
-        .access('requestId');
-      delegate<Koa.BaseContext, Koa.Response>(this.context, 'response')
-        .access('send')
-        // .access('sendApi')
-        .access('sendError');
-      delegate<Koa.BaseContext, Koa.Application>(this.context, 'app').access('log');
-    }
+      });
+    });
+    Object.assign(this.request, {
+      requestId: 'UNKNOWN',
+    });
+    Object.assign(this.response, {
+      send: function send(body) {
+        this.body = body;
+        return this.body;
+      },
+      // sendApi: function sendApi(body) {
+      //   this.body = body ? { data: body } : null;
+      //   return this.body;
+      // },
+      sendError: function sendError(...args: any[]) {
+        throw createHttpError(...args);
+      },
+    } as Koa.Response);
+    delegate<Koa.BaseContext, Koa.Request>(this.context, 'request')
+      .access('startAt')
+      .access('requestId');
+    delegate<Koa.BaseContext, Koa.Response>(this.context, 'response')
+      .access('send')
+      // .access('sendApi')
+      .access('sendError');
+    delegate<Koa.BaseContext, Koa.Application>(this.context, 'app').access('log');
 
     /**
      * Initialization
      */
-    {
-      // Set config
-      this.config = opts.config;
+    // Set config
+    this.config = opts.config;
 
-      // Create namespace
-      this.transactionContext = cls.createNamespace(this.config.instanceId);
+    // Create namespace
+    this.transactionContext = cls.createNamespace(this.config.instanceId);
 
-      // Create logger
-      this.log = createLogger(this.transactionContext, opts.logOptions, opts.logStream);
+    // Create logger
+    this.log = createLogger(this.transactionContext, opts.logOptions, opts.logStream);
 
-      // Instantiate services
-      this.services = Object.entries(opts.services).reduce(
-        (acc, [k, v]: [string, any]) => {
-          acc[k] = new v(this);
-          return acc;
-        },
-        {} as any,
-      );
-    }
+    // Instantiate services
+    this.services = Object.entries(opts.services).reduce(
+      (acc, [k, V]: [string, any]) => {
+        acc[k] = new V(this);
+        return acc;
+      },
+      {} as any,
+    );
 
     /**
      * Set up event handlers
      */
-    {
-      // Log emitted errors
-      this.on('error', (err, { request, response }) => {
-        this.log.error({ request, response, err, app: this }, 'Application Error Event');
-      });
+    // Log emitted errors
+    this.on('error', (err, { request, response }) => {
+      this.log.error({ request, response, err, app: this }, 'Application Error Event');
+    });
 
-      // Graceful shutdown
-      Object.entries({
-        SIGHUP: 128 + 1,
-        SIGINT: 128 + 2,
-        SIGTERM: 128 + 15,
-        SIGBREAK: 128 + 21,
-      } as { [key in Signals]: number }).forEach(([signal, code]) =>
-        process.once(signal as Signals, async () => {
-          try {
-            this.log = Pino.final(this.log);
-            await this.stop();
-            process.exit(code);
-          } catch (err) {
-            this.log.fatal(
-              { err, app: this, metadata: { signal } },
-              `Failed to handle \`${signal}\` gracefully. Exiting with status code 1`,
-            );
-            process.exit(1);
-          }
-        }),
-      );
-
-      // PM2 Graceful shutdown
-      process.on('message', async msg => {
-        if (msg === 'shutdown') {
-          try {
-            this.log = Pino.final(this.log);
-            await this.stop();
-            process.exit(0);
-          } catch (err) {
-            this.log.fatal(
-              { err, app: this, metadata: { msg } },
-              `Failed to handle message \`${msg}\` gracefully. Exiting with status code 1`,
-            );
-            process.exit(1);
-          }
+    // Graceful shutdown
+    Object.entries({
+      SIGHUP: 128 + 1,
+      SIGINT: 128 + 2,
+      SIGTERM: 128 + 15,
+      SIGBREAK: 128 + 21,
+    }).forEach(([signal, code]) =>
+      process.once(signal as Signals, async () => {
+        try {
+          this.log = Pino.final(this.log);
+          await this.stop();
+          process.exit(code);
+        } catch (err) {
+          this.log.fatal(
+            { err, app: this, metadata: { signal } },
+            `Failed to handle \`${signal}\` gracefully. Exiting with status code 1`,
+          );
+          process.exit(1);
         }
-      });
+      }),
+    );
 
-      // Handle application state inconsistencies
-      process.once('uncaughtException', async err => {
-        this.log = Pino.final(this.log);
-        this.log.fatal({ err, app: this }, 'Uncaught Exception Error - Stopping application to prevent instability');
-        await this.stop();
-        process.exit(1);
-      });
-      process.once('unhandledRejection', async (err, promise) => {
-        this.log = Pino.final(this.log);
-        this.log.fatal(
-          { err, app: this, metadata: { promise } },
-          'Unhandled Rejected Promise - Stopping application to prevent instability',
-        );
-        await this.stop();
-        process.exit(1);
-      });
-      process.once('multipleResolves', async (type, promise, value) => {
-        this.log = Pino.final(this.log);
-        this.log.fatal(
-          { app: this, metadata: { type, promise, value } },
-          'Promise resolved or rejected more than once - Stopping application to prevent instability',
-        );
-        await this.stop();
-        process.exit(1);
-      });
+    // PM2 Graceful shutdown
+    process.on('message', async msg => {
+      if (msg === 'shutdown') {
+        try {
+          this.log = Pino.final(this.log);
+          await this.stop();
+          process.exit(0);
+        } catch (err) {
+          this.log.fatal(
+            { err, app: this, metadata: { msg } },
+            `Failed to handle message \`${msg}\` gracefully. Exiting with status code 1`,
+          );
+          process.exit(1);
+        }
+      }
+    });
 
-      // Listen for warnings
-      process.on('warning', warning => {
-        this.log.warn(
-          { app: this, stack: warning.stack, metadata: { message: warning.message } },
-          'NodeJS warning detected - see metadata and stack property for more information',
-        );
-      });
+    // Handle application state inconsistencies
+    process.once('uncaughtException', async err => {
+      this.log = Pino.final(this.log);
+      this.log.fatal({ err, app: this }, 'Uncaught Exception Error - Stopping application to prevent instability');
+      await this.stop();
+      process.exit(1);
+    });
+    process.once('unhandledRejection', async (err, promise) => {
+      this.log = Pino.final(this.log);
+      this.log.fatal(
+        { err, app: this, metadata: { promise } },
+        'Unhandled Rejected Promise - Stopping application to prevent instability',
+      );
+      await this.stop();
+      process.exit(1);
+    });
+    process.once('multipleResolves', async (type, promise, value) => {
+      this.log = Pino.final(this.log);
+      this.log.fatal(
+        { app: this, metadata: { type, promise, value } },
+        'Promise resolved or rejected more than once - Stopping application to prevent instability',
+      );
+      await this.stop();
+      process.exit(1);
+    });
 
-      // Add close handler for graceful exits
-      process.once('beforeExit', async () => {
-        this.log = Pino.final(this.log);
-        this.log.debug({ app: this }, 'Before exit event triggered - ensuring graceful shutdown');
+    // Listen for warnings
+    process.on('warning', warning => {
+      this.log.warn(
+        { app: this, stack: warning.stack, metadata: { message: warning.message } },
+        'NodeJS warning detected - see metadata and stack property for more information',
+      );
+    });
 
-        // Stop application
-        await this.stop();
-      });
-    }
+    // Add close handler for graceful exits
+    process.once('beforeExit', async () => {
+      this.log = Pino.final(this.log);
+      this.log.debug({ app: this }, 'Before exit event triggered - ensuring graceful shutdown');
+
+      // Stop application
+      await this.stop();
+    });
 
     /**
      * Wire it all up
      */
-    {
-      // Add default middlewares
-      this.middleware.push(setTransactionContext(this.transactionContext));
-      this.middleware.push(requestLogger());
-      this.middleware.push(errorHandler());
-      this.middleware.push(ensureStarted());
-    }
+    // Add default middlewares
+    this.middleware.push(setTransactionContext(this.transactionContext));
+    this.middleware.push(requestLogger());
+    this.middleware.push(errorHandler());
+    this.middleware.push(ensureStarted());
   }
 
   /**
@@ -346,7 +341,7 @@ class Komapi<
     const preStartTime = Date.now();
 
     // Fetch lifecycle handlers
-    const handlers = opts.handlers;
+    const { handlers } = opts;
 
     // Log it
     this.log.debug({ metadata: { startHandlers: handlers.length } }, 'Starting application');
@@ -357,6 +352,7 @@ class Komapi<
     // Run handlers
     this.waitForState = new Promise(async (resolve, reject) => {
       // Call handlers
+      // eslint-disable-next-line no-restricted-syntax
       for (const [index, handler] of handlers.entries()) {
         // Ensure start handler exists
         if (handler.start) {
@@ -365,6 +361,7 @@ class Komapi<
           const handlerName = handler.name || startHandler.name;
 
           try {
+            // eslint-disable-next-line no-await-in-loop
             const output = await startHandler(this);
 
             // Log it
@@ -393,6 +390,7 @@ class Komapi<
             const rollbackHandlers = handlers.slice(0, index).reverse();
 
             // Stop application
+            // eslint-disable-next-line no-await-in-loop
             await this.stop({ handlers: rollbackHandlers, force: true });
 
             // Reject
@@ -449,7 +447,7 @@ class Komapi<
     const preStopTime = Date.now();
 
     // Fetch lifecycle handlers
-    const handlers = opts.handlers;
+    const { handlers } = opts;
 
     // Log it
     this.log.debug({ metadata: { stopHandlers: handlers.length } }, 'Stopping application');
@@ -463,6 +461,7 @@ class Komapi<
       const errors = [];
 
       // Call handlers
+      // eslint-disable-next-line no-restricted-syntax
       for (const handler of handlers) {
         // Ensure stop handler exists
         if (handler.stop) {
@@ -471,6 +470,7 @@ class Komapi<
           const handlerName = handler.name || stopHandler.name;
 
           try {
+            // eslint-disable-next-line no-await-in-loop
             const output = await stopHandler(this);
 
             // Log it
@@ -501,7 +501,7 @@ class Komapi<
       this.log.error({ err, numErrors: errors.length }, 'Encountered errors while stopping application');
 
       // Reject
-      reject(err);
+      return reject(err);
     })
       .then(() => {
         // Log it
@@ -590,6 +590,9 @@ class Komapi<
 /**
  * Namespace
  */
+/* eslint-disable @typescript-eslint/no-empty-interface */
+/* eslint-disable @typescript-eslint/no-namespace */
+/* eslint-disable no-redeclare */
 declare namespace Komapi {
   /**
    * User customizable types
@@ -675,6 +678,9 @@ declare namespace Komapi {
     (statusCode: number, options?: HttpErrorOptions | Error, message?: string, ...params: any[]): never;
   }
 }
+/* eslint-enable @typescript-eslint/no-empty-interface */
+/* eslint-enable @typescript-eslint/no-namespace */
+/* eslint-enable no-redeclare */
 
 // Exports
 export = Komapi;

@@ -2,6 +2,7 @@
 import Komapi from './Komapi';
 
 // Types
+/* eslint-disable @typescript-eslint/no-empty-interface */
 interface Service<Application extends Komapi = Komapi<any, any, Komapi.Services>> {}
 
 // Exports
@@ -12,7 +13,7 @@ class Service<Application extends Komapi = Komapi<any, any, Komapi.Services>> {
    * Create service and automatically register start and stop lifecycle handlers
    * @param {Application} app
    */
-  constructor(app: Application) {
+  public constructor(app: Application) {
     this.app = app;
 
     // Automatically add service lifecycle handlers

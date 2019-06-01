@@ -1,7 +1,7 @@
 // Imports
-import Komapi from '../lib/Komapi';
 import Pino from 'pino';
 import defaultsDeep from 'lodash.defaultsdeep';
+import Komapi from '../lib/Komapi';
 
 // Types
 export interface RequestLoggerOptions {

@@ -1,7 +1,7 @@
 // Dependencies
+import request from 'supertest';
 import Koa from 'koa';
 import requestLogger from '../../../src/middlewares/requestLogger';
-import request from 'supertest';
 
 // Tests
 it('should log requests', async done => {
@@ -58,7 +58,7 @@ it('should log latency in milliseconds', async done => {
   app.use(requestLogger());
   app.use((ctx, next) => new Promise(resolve => setTimeout(resolve, 125)).then(next));
 
-  const response = await request(app.callback()).get('/');
+  await request(app.callback()).get('/');
 
   // Assertions
   expect(spy).toHaveBeenCalledTimes(1);

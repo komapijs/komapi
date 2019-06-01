@@ -1,6 +1,6 @@
 // Imports
-import Komapi from '../lib/Komapi';
 import cls from 'cls-hooked';
+import Komapi from '../lib/Komapi';
 
 // Exports
 export default function setTransactionContextMiddlewareFactory(transactionContext: cls.Namespace): Komapi.Middleware {

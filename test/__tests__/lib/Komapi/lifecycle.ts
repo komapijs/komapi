@@ -1,6 +1,6 @@
 // Imports
-import Komapi from '../../../fixtures/Komapi';
 import { VError } from 'botched';
+import Komapi from '../../../fixtures/Komapi';
 
 // State values
 const STARTED = 'STARTED' as Komapi.LifecycleState.STARTED;
@@ -1013,7 +1013,7 @@ describe('app.stop()', () => {
     } catch (err) {
       expect(err instanceof VError.MultiError).toBe(true);
       expect(err.message).toBe('first of 2 errors: Should stop 1');
-      expect(err.errors().some((e: Error) => !(e instanceof Error))).toBe(false);
+      expect(err.errors().some((e: any) => !(e instanceof Error))).toBe(false);
       expect(err.errors()).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
@@ -1136,6 +1136,7 @@ describe('external signals', () => {
     const originalExit = process.exit;
 
     // Try all signals
+    // eslint-disable-next-line no-restricted-syntax
     for (const exitSignal of [
       { signal: 'SIGTERM', code: 143 },
       { signal: 'SIGINT', code: 130 },
@@ -1167,6 +1168,7 @@ describe('external signals', () => {
       expect(listener).not.toBe(undefined);
 
       // Assertions - all successful
+      // eslint-disable-next-line no-await-in-loop
       await (listener as any)(exitSignal.signal);
       expect(stopSpy).toHaveBeenCalledTimes(1);
       expect(stopSpy).toHaveBeenCalledWith();
@@ -1233,6 +1235,7 @@ describe('external signals', () => {
     const originalExit = process.exit;
 
     // Try all signals
+    // eslint-disable-next-line no-restricted-syntax
     for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP', 'SIGBREAK']) {
       let listener;
       const stopSpy = jest.fn();
@@ -1265,6 +1268,7 @@ describe('external signals', () => {
       });
 
       // Assertions - failed to close
+      // eslint-disable-next-line no-await-in-loop
       await (listener as any)(signal);
       expect(stopSpy).toHaveBeenCalledTimes(1);
       expect(stopSpy).toHaveBeenCalledWith();

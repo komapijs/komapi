@@ -1,9 +1,9 @@
 // Imports
+import { VError } from 'botched';
 import Komapi from '../../../fixtures/Komapi';
 import Account from '../../../fixtures/services/Account';
 import Chat from '../../../fixtures/services/Chat';
 import WritableStreamSpy from '../../../fixtures/WritableStreamSpy';
-import { VError } from 'botched';
 
 // Tests
 describe('instantiation', () => {
@@ -184,7 +184,7 @@ describe('instantiation', () => {
     const app = new Komapi<{}, {}, typeof services>({ services });
 
     // Assertions
-    expect(app.lifecycleHandlers.length).toBe(2);
+    expect(app.lifecycleHandlers).toHaveLength(2);
 
     // Run application
     await app.start();
@@ -268,7 +268,7 @@ describe('app.middleware', () => {
     const app = new Komapi();
 
     // Assertions
-    expect(app.middleware.length).toBe(4);
+    expect(app.middleware).toHaveLength(4);
   });
   it('should have transactionContext as the first middleware', () => {
     const app = new Komapi();
@@ -317,14 +317,14 @@ describe('app.listen', () => {
     const closeSpy = jest.fn();
 
     // Ensure known initial state
-    expect(app.lifecycleHandlers.length).toBe(0);
+    expect(app.lifecycleHandlers).toHaveLength(0);
 
     // Listen
     const server = app.listen();
     server.on('close', closeSpy);
 
     // Check handler was added
-    expect(app.lifecycleHandlers.length).toBe(1);
+    expect(app.lifecycleHandlers).toHaveLength(1);
     expect(closeSpy).not.toBeCalled();
 
     // Stop server
@@ -342,14 +342,14 @@ describe('app.listen', () => {
     const closeSpy = jest.fn();
 
     // Ensure known initial state
-    expect(app.lifecycleHandlers.length).toBe(0);
+    expect(app.lifecycleHandlers).toHaveLength(0);
 
     // Listen
     const server = app.listen();
     server.on('close', closeSpy);
 
     // Check handler was added
-    expect(app.lifecycleHandlers.length).toBe(1);
+    expect(app.lifecycleHandlers).toHaveLength(1);
     expect(closeSpy).not.toBeCalled();
 
     // Stop and restart server

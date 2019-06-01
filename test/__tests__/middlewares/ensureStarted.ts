@@ -1,7 +1,7 @@
 // Dependencies
+import request from 'supertest';
 import Komapi from '../../fixtures/Komapi';
 import ensureReady from '../../../src/middlewares/ensureStarted';
-import request from 'supertest';
 
 // Tests
 it('should not interfere with requests if application is started', async done => {

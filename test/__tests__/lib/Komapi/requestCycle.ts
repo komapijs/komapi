@@ -1,6 +1,6 @@
 // Imports
-import Komapi from '../../../fixtures/Komapi';
 import request from 'supertest';
+import Komapi from '../../../fixtures/Komapi';
 
 // Tests
 it('should preserve current request transaction context in `app.transactionContext`', () => {
