@@ -34,8 +34,8 @@ module.exports = {
     },
   ],
   extends: [
-    'plugin:@typescript-eslint/recommended',
     'airbnb-base',
+    'plugin:@typescript-eslint/recommended',
     'plugin:import/typescript',
     'prettier',
     'prettier/@typescript-eslint',
@@ -54,8 +54,10 @@ module.exports = {
 
     'lines-between-class-members': 0,
     'no-dupe-class-members': 0,
+    'no-restricted-syntax': [2, 'LabeledStatement', 'WithStatement'],
     '@typescript-eslint/array-type': 0,
     '@typescript-eslint/no-explicit-any': 0,
     '@typescript-eslint/explicit-function-return-type': 0,
+    '@typescript-eslint/no-empty-interface': 0,
   },
 };

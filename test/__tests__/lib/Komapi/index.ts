@@ -239,7 +239,7 @@ describe('app.log', () => {
     // Assertions
     expect(spy).toHaveBeenCalledTimes(1);
     expect(spy).toHaveBeenCalledWith(expect.stringContaining('"msg":"My custom error log message"'));
-    expect(spy).toHaveBeenCalledWith(expect.stringContaining('"err":{"type":"Error","message":"My Error","stack":"'));
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('"err":{"name":"Error","message":"My Error","stack":"'));
   });
   it('should serialize multi errors', () => {
     const spy = jest.fn();
@@ -255,12 +255,14 @@ describe('app.log', () => {
     expect(spy).toHaveBeenCalledTimes(1);
     expect(spy).toHaveBeenCalledWith(expect.stringContaining('"msg":"My custom error log message"'));
     expect(spy).toHaveBeenCalledWith(
-      expect.stringContaining('"err":{"type":"MultiError","message":"first of 2 errors: My First Error","stack":"'),
+      expect.stringContaining('"message":"first of 2 errors: My First Error","name":"MultiError",'),
     );
     expect(spy).toHaveBeenCalledWith(
-      expect.stringContaining('"errors":[{"type":"Error","message":"My First Error","stack":'),
+      expect.stringContaining('"ase_errors":{"0":{"name":"Error","message":"My First Error","stack":'),
     );
-    expect(spy).toHaveBeenCalledWith(expect.stringContaining('{"type":"Error","message":"My Second Error","stack":'));
+    expect(spy).toHaveBeenCalledWith(
+      expect.stringContaining(',"1":{"name":"Error","message":"My Second Error","stack":'),
+    );
   });
 });
 describe('app.middleware', () => {

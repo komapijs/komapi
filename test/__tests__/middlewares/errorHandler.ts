@@ -4,14 +4,9 @@ import Koa from 'koa';
 import { BadRequest, createHttpError, InternalServerError, VError, Unauthorized } from 'botched';
 import errorHandler from '../../../src/middlewares/errorHandler';
 
-// Types
-interface ErrorWithOptionalData extends Error {
-  data?: any;
-}
-
 // Tests
 describe('generic errors', () => {
-  it('should send 500 and a default error message', async done => {
+  it('should send 500 and a default error message for implicit internal server errors', async done => {
     expect.assertions(3);
     const app = new Koa();
 
@@ -28,51 +23,10 @@ describe('generic errors', () => {
     expect(response.body).toEqual({
       errors: [
         {
+          id: expect.stringMatching(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i),
           status: '500',
+          code: 'InternalServerError',
           title: 'Internal Server Error',
-          detail: 'An internal server error occurred',
-        },
-      ],
-    });
-    expect(response.status).toEqual(500);
-
-    // Done
-    done();
-  });
-  it('should support additional metadata', async done => {
-    expect.assertions(3);
-    const app = new Koa();
-
-    // Add middlewares
-    app.use(errorHandler());
-    app.use(() => {
-      const err: ErrorWithOptionalData = new Error('My Custom Error Message');
-      err.data = {
-        id: 'custom-id',
-        code: 'custom-code',
-        meta: {
-          something: true,
-        },
-        additionalData: false,
-      };
-      throw err;
-    });
-
-    const response = await request(app.callback()).get('/');
-
-    // Assertions
-    expect(response.header['content-type']).toEqual('application/json; charset=utf-8');
-    expect(response.body).toEqual({
-      errors: [
-        {
-          id: 'custom-id',
-          code: 'custom-code',
-          status: '500',
-          title: 'Internal Server Error',
-          detail: 'An internal server error occurred',
-          meta: {
-            something: true,
-          },
         },
       ],
     });
@@ -82,8 +36,8 @@ describe('generic errors', () => {
     done();
   });
 });
-describe('Boom errors', () => {
-  it('should send 500 and a default error message for internal server errors', async done => {
+describe('Botched errors', () => {
+  it('should send 500 and the specific error message for explicit internal server errors', async done => {
     expect.assertions(3);
     const app = new Koa();
 
@@ -100,9 +54,11 @@ describe('Boom errors', () => {
     expect(response.body).toEqual({
       errors: [
         {
+          id: expect.stringMatching(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i),
           status: '500',
+          code: 'InternalServerError',
           title: 'Internal Server Error',
-          detail: 'An internal server error occurred',
+          detail: 'My Custom Error Message',
         },
       ],
     });
@@ -128,6 +84,8 @@ describe('Boom errors', () => {
     expect(response.body).toEqual({
       errors: [
         {
+          id: expect.stringMatching(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i),
+          code: 'BadRequest',
           status: '400',
           title: 'Bad Request',
           detail: 'My Custom Error Message',
@@ -139,14 +97,17 @@ describe('Boom errors', () => {
     // Done
     done();
   });
-  it('should send 401 and the provided error message and scheme for unauthorized', async done => {
+  it('should send 401 and the provided error message and the headers', async done => {
     expect.assertions(4);
     const app = new Koa();
 
     // Add middlewares
     app.use(errorHandler());
     app.use(() => {
-      throw new Unauthorized('My Custom Unauthorized Message', 'my-scheme');
+      throw new Unauthorized(
+        { headers: { 'www-authenticate': 'my-scheme error="My Custom Unauthorized Message"' } },
+        'My Custom Unauthorized Message',
+      );
     });
 
     const response = await request(app.callback()).get('/');
@@ -157,6 +118,8 @@ describe('Boom errors', () => {
     expect(response.body).toEqual({
       errors: [
         {
+          id: expect.stringMatching(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i),
+          code: 'Unauthorized',
           status: '401',
           title: 'Unauthorized',
           detail: 'My Custom Unauthorized Message',
@@ -202,15 +165,15 @@ describe('Boom errors', () => {
     // Done
     done();
   });
-  it('should support boomified generic errors', async done => {
+  it('should support botched generic http errors', async done => {
     expect.assertions(3);
     const app = new Koa();
 
     // Add middlewares
     app.use(errorHandler());
     app.use(() => {
-      const err: { data?: object } & Error = new Error('My boomified error');
-      err.data = { id: 'my-boomified-error-id', code: 'my-boomified-error-code', meta: { isMeta: false } };
+      const err: { data?: object } & Error = new Error('My botched error');
+      err.data = { id: 'my-botched-error-id', code: 'my-botched-error-code', meta: { isMeta: false } };
       throw createHttpError(400, { cause: err });
     });
 
@@ -221,12 +184,10 @@ describe('Boom errors', () => {
     expect(response.body).toEqual({
       errors: [
         {
-          id: 'my-boomified-error-id',
-          code: 'my-boomified-error-code',
+          id: expect.stringMatching(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i),
+          code: 'BadRequest',
           status: '400',
           title: 'Bad Request',
-          detail: 'My boomified error',
-          meta: { isMeta: false },
         },
       ],
     });
@@ -235,7 +196,7 @@ describe('Boom errors', () => {
     // Done
     done();
   });
-  it('should support boomified VErrors', async done => {
+  it('should support botched VErrors', async done => {
     expect.assertions(3);
     const app = new Koa();
 
@@ -246,9 +207,9 @@ describe('Boom errors', () => {
       const err = new VError(
         {
           cause: sourceError,
-          info: { id: 'my-boomified-verror-id', code: 'my-boomified-verror-code', meta: { isMeta: false } },
+          info: { id: 'my-botched-verror-id', code: 'my-botched-verror-code', meta: { isMeta: false } },
         },
-        'My boomified verror',
+        'My botched verror',
       );
       throw createHttpError(400, { cause: err });
     });
@@ -260,12 +221,10 @@ describe('Boom errors', () => {
     expect(response.body).toEqual({
       errors: [
         {
-          id: 'my-boomified-verror-id',
-          code: 'my-boomified-verror-code',
+          id: expect.stringMatching(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i),
+          code: 'BadRequest',
           status: '400',
           title: 'Bad Request',
-          detail: 'My boomified verror: Root Error',
-          meta: { isMeta: false },
         },
       ],
     });
@@ -274,7 +233,7 @@ describe('Boom errors', () => {
     // Done
     done();
   });
-  it('should support boomified WErrors', async done => {
+  it('should support botched WErrors', async done => {
     expect.assertions(3);
     const app = new Koa();
 
@@ -285,9 +244,9 @@ describe('Boom errors', () => {
       const err = new VError.WError(
         {
           cause: sourceError,
-          info: { id: 'my-boomified-werror-id', code: 'my-boomified-werror-code', meta: { isMeta: false } },
+          info: { id: 'my-botched-werror-id', code: 'my-botched-werror-code', meta: { isMeta: false } },
         },
-        'My boomified werror',
+        'My botched werror',
       );
       throw createHttpError(400, { cause: err });
     });
@@ -299,12 +258,10 @@ describe('Boom errors', () => {
     expect(response.body).toEqual({
       errors: [
         {
-          id: 'my-boomified-werror-id',
-          code: 'my-boomified-werror-code',
+          id: expect.stringMatching(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i),
+          code: 'BadRequest',
           status: '400',
           title: 'Bad Request',
-          detail: 'My boomified werror',
-          meta: { isMeta: false },
         },
       ],
     });
@@ -313,7 +270,7 @@ describe('Boom errors', () => {
     // Done
     done();
   });
-  it('should support boomified MultiErrors', async done => {
+  it('should support botched MultiErrors', async done => {
     expect.assertions(3);
     const app = new Koa();
 
@@ -350,20 +307,10 @@ describe('Boom errors', () => {
     expect(response.body).toEqual({
       errors: [
         {
-          id: 'my-boomified-werror-id',
-          code: 'my-boomified-werror-code',
+          id: expect.stringMatching(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i),
+          code: 'BadRequest',
           status: '400',
           title: 'Bad Request',
-          detail: 'My boomified werror',
-          meta: { isMeta: false },
-        },
-        {
-          id: 'my-boomified-verror-id',
-          code: 'my-boomified-verror-code',
-          status: '400',
-          title: 'Bad Request',
-          detail: 'My boomified verror: Root Error',
-          meta: { isMeta: true },
         },
       ],
     });
@@ -391,9 +338,10 @@ describe('VError', () => {
     expect(response.body).toEqual({
       errors: [
         {
+          id: expect.stringMatching(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i),
+          code: 'InternalServerError',
           status: '500',
           title: 'Internal Server Error',
-          detail: 'An internal server error occurred',
         },
       ],
     });
@@ -419,6 +367,8 @@ describe('VError', () => {
     expect(response.body).toEqual({
       errors: [
         {
+          id: expect.stringMatching(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i),
+          code: 'BadRequest',
           status: '400',
           title: 'Bad Request',
           detail: 'My Custom Error Message',
@@ -447,6 +397,8 @@ describe('VError', () => {
     expect(response.body).toEqual({
       errors: [
         {
+          id: expect.stringMatching(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i),
+          code: 'BadRequest',
           status: '400',
           title: 'Bad Request',
           detail: 'My Custom Error Message',
@@ -477,6 +429,8 @@ describe('VError', () => {
       expect(response.body).toEqual({
         errors: [
           {
+            id: expect.stringMatching(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i),
+            code: 'BadRequest',
             status: '400',
             title: 'Bad Request',
             detail: 'My Nested VError: Root Error',
@@ -509,14 +463,11 @@ describe('VError', () => {
       expect(response.body).toEqual({
         errors: [
           {
-            id: 'my-id',
-            code: 'root-code',
+            id: expect.stringMatching(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i),
+            code: 'BadRequest',
             status: '400',
             title: 'Bad Request',
             detail: 'My Nested VError: Root Error',
-            meta: {
-              something: true,
-            },
           },
         ],
       });
@@ -525,45 +476,6 @@ describe('VError', () => {
       // Done
       done();
     });
-  });
-});
-describe('WError', () => {
-  it('should hide nested error message', async done => {
-    expect.assertions(3);
-    const app = new Koa();
-
-    // Add middlewares
-    app.use(errorHandler());
-    app.use(() => {
-      const sourceError = new VError(
-        { info: { id: 'root-id', code: 'root-code', meta: { something: true } } },
-        'Root Error',
-      );
-      throw new VError.WError({ cause: sourceError, info: { statusCode: 400, id: 'my-id' } }, 'My Nested WError');
-    });
-
-    const response = await request(app.callback()).get('/');
-
-    // Assertions
-    expect(response.header['content-type']).toEqual('application/json; charset=utf-8');
-    expect(response.body).toEqual({
-      errors: [
-        {
-          id: 'my-id',
-          code: 'root-code',
-          status: '400',
-          title: 'Bad Request',
-          detail: 'My Nested WError',
-          meta: {
-            something: true,
-          },
-        },
-      ],
-    });
-    expect(response.status).toEqual(400);
-
-    // Done
-    done();
   });
 });
 describe('MultiError', () => {
@@ -583,9 +495,9 @@ describe('MultiError', () => {
         { info: { id: 'my-id-2', code: 'my-nested-code', meta: { else: 789 } } },
         'Root Error',
       );
-      const error2 = new VError(
-        { cause: sourceError2, info: { id: 'my-id', code: 'my-code', meta: { isMeta: true } } },
-        'My VError',
+      const error2 = new InternalServerError(
+        { cause: sourceError2, id: 'my-id', code: 'my-code', meta: { isMeta: true } },
+        'My Internal Server Error',
       );
       throw new VError.MultiError([error1, error2]);
     });
@@ -597,19 +509,17 @@ describe('MultiError', () => {
     expect(response.body).toEqual({
       errors: [
         {
-          id: 'my-id-1',
-          code: 'my-code',
+          id: expect.stringMatching(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i),
+          code: 'InternalServerError',
           status: '500',
           title: 'Internal Server Error',
-          detail: 'An internal server error occurred',
-          meta: { isMeta: false },
         },
         {
           id: 'my-id',
           code: 'my-code',
           status: '500',
           title: 'Internal Server Error',
-          detail: 'An internal server error occurred',
+          detail: 'My Internal Server Error',
           meta: { isMeta: true },
         },
       ],
@@ -638,9 +548,10 @@ describe('content types', () => {
     expect(response.body).toEqual({
       errors: [
         {
+          id: expect.stringMatching(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i),
           status: '500',
+          code: 'InternalServerError',
           title: 'Internal Server Error',
-          detail: 'An internal server error occurred',
         },
       ],
     });
@@ -665,21 +576,16 @@ describe('content types', () => {
 
     // Assertions
     expect(response.header['content-type']).toEqual('text/plain; charset=utf-8');
-    expect(response.text).toEqual(
-      JSON.stringify(
+    expect(JSON.parse(response.text)).toEqual({
+      errors: [
         {
-          errors: [
-            {
-              status: '500',
-              title: 'Internal Server Error',
-              detail: 'An internal server error occurred',
-            },
-          ],
+          id: expect.stringMatching(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i),
+          status: '500',
+          title: 'Internal Server Error',
+          code: 'InternalServerError',
         },
-        null,
-        2,
-      ),
-    );
+      ],
+    });
     expect(response.status).toEqual(500);
 
     // Done
@@ -692,7 +598,7 @@ describe('content types', () => {
     // Add middlewares
     app.use(errorHandler());
     app.use(() => {
-      throw new Error('My Custom Error Message');
+      throw new InternalServerError({ id: 'custom-id' }, 'My Custom Error Message');
     });
 
     const response = await request(app.callback())
@@ -702,13 +608,15 @@ describe('content types', () => {
     // Assertions
     expect(response.header['content-type']).toEqual('text/html; charset=utf-8');
     expect(response.text).toEqual(
-      `<!doctype html><html lang=en><head><meta charset=utf-8><title>Internal Server Error</title></head><body><h1>An internal server error occurred</h1><pre>${JSON.stringify(
+      `<!doctype html><html lang=en><head><meta charset=utf-8><title>Internal Server Error</title></head><body><h1>My Custom Error Message</h1><pre>${JSON.stringify(
         {
           errors: [
             {
+              id: 'custom-id',
+              code: 'InternalServerError',
               status: '500',
               title: 'Internal Server Error',
-              detail: 'An internal server error occurred',
+              detail: 'My Custom Error Message',
             },
           ],
         },

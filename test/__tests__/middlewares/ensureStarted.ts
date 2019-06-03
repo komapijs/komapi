@@ -61,7 +61,7 @@ it('should automatically invoke `app.start()` on the first request when applicat
   app.use(ensureReady());
   app.use((ctx, next) => {
     if (ctx.app.state !== Komapi.LifecycleState.STARTED) {
-      fail('should not serve requests before app is ready');
+      done.fail('should not serve requests before app is ready');
     }
     return next();
   });
@@ -109,7 +109,7 @@ it('should reject new requests if app is in STOPPING state', async done => {
   // Add middlewares
   app.use(ensureReady());
   app.use((ctx, next) => {
-    fail('should not serve requests');
+    done.fail('should not serve requests');
     return next();
   });
 

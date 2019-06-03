@@ -39,7 +39,6 @@ type DeepPartial<T> = {
 /**
  * Overload Koa by extending Komapi for simple module augmentation
  */
-/* eslint-disable @typescript-eslint/no-empty-interface */
 declare module 'koa' {
   interface Application<CustomStateT = any, CustomContextT = {}> extends Komapi<CustomStateT, CustomContextT> {}
   interface BaseRequest extends Komapi.BaseRequest {}
@@ -51,25 +50,24 @@ declare module 'koa' {
   interface Response extends Komapi.Response {}
   interface Context extends Komapi.Context {}
 }
-/* eslint-enable @typescript-eslint/no-empty-interface */
 
 /**
  * Komapi base class
  *
  */
-interface Komapi<CustomStateT = {}, CustomContextT = {}, CustomServicesT extends Komapi.Services = Komapi.Services> {
-  use<NewCustomStateT = {}, NewCustomContextT = {}, NewCustomServicesT extends Komapi.Services = Komapi.Services>(
+interface Komapi<CustomStateT = {}, CustomContextT = {}, CustomOptionsT extends Komapi.CustomOptions = Komapi.CustomOptions> {
+  use<NewCustomStateT = {}, NewCustomContextT = {}, NewCustomOptionsT extends Komapi.CustomOptions = Komapi.CustomOptions>(
     middleware: Komapi.Middleware<
       CustomStateT & NewCustomStateT,
       CustomContextT & NewCustomContextT,
-      CustomServicesT & NewCustomServicesT
+      CustomOptionsT & NewCustomOptionsT
     >,
-  ): Komapi<CustomStateT & NewCustomStateT, CustomContextT & NewCustomContextT, CustomServicesT & NewCustomServicesT>;
+  ): Komapi<CustomStateT & NewCustomStateT, CustomContextT & NewCustomContextT, CustomOptionsT & NewCustomOptionsT>;
 }
 class Komapi<
   CustomStateT = {},
   CustomContextT = {},
-  CustomServicesT extends Komapi.Services = Komapi.Services
+  CustomOptionsT extends Komapi.CustomOptions = Komapi.CustomOptions
 > extends Koa<CustomStateT, CustomContextT> {
   /**
    * Export helper functions by attaching to Komapi (hack to make it work with named import and module augmentation)
@@ -82,8 +80,9 @@ class Komapi<
    * Public instance properties
    */
   public readonly config: Komapi.Options['config'];
-  public readonly services: Komapi.InstantiatedServices<CustomServicesT>;
+  public readonly services: Komapi.InstantiatedServices<Komapi.Options<CustomOptionsT>['services']>;
   public readonly transactionContext: cls.Namespace;
+  public locals: Komapi.Options<CustomOptionsT>['locals'] = {};
   public state: Komapi.LifecycleState = Komapi.LifecycleState.STOPPED;
   public log: Pino.Logger;
   public lifecycleHandlers: Array<Komapi.LifecycleHandlerSubscription<this>> = [];
@@ -98,7 +97,7 @@ class Komapi<
    *
    * @param {Partial<Omit<Komapi.Options, 'config'> & DeepPartial<Pick<Komapi.Options, 'config'>>>=} options
    */
-  public constructor(options?: Partial<Omit<Komapi.Options, 'config'> & DeepPartial<Pick<Komapi.Options, 'config'>>>) {
+  public constructor(options?: Partial<Omit<Komapi.Options<CustomOptionsT>, 'config'> & DeepPartial<Pick<Komapi.Options<CustomOptionsT>, 'config'>>>) {
     super();
 
     // Set options
@@ -111,6 +110,7 @@ class Komapi<
         subdomainOffset: this.subdomainOffset,
         instanceId: process.env.HEROKU_DYNO_ID || name,
       },
+      locals: {},
       services: {},
       logOptions: {
         // useLevelLabels: true,
@@ -174,6 +174,7 @@ class Komapi<
      */
     // Set config
     this.config = opts.config;
+    this.locals = opts.locals;
 
     // Create namespace
     this.transactionContext = cls.createNamespace(this.config.instanceId);
@@ -337,6 +338,7 @@ class Komapi<
       if (this.state === Komapi.LifecycleState.STOPPING) await this.stop();
       else if (this.state !== Komapi.LifecycleState.STOPPED) return this.waitForState;
     }
+
     // Fetch start time
     const preStartTime = Date.now();
 
@@ -352,7 +354,6 @@ class Komapi<
     // Run handlers
     this.waitForState = new Promise(async (resolve, reject) => {
       // Call handlers
-      // eslint-disable-next-line no-restricted-syntax
       for (const [index, handler] of handlers.entries()) {
         // Ensure start handler exists
         if (handler.start) {
@@ -461,7 +462,6 @@ class Komapi<
       const errors = [];
 
       // Call handlers
-      // eslint-disable-next-line no-restricted-syntax
       for (const handler of handlers) {
         // Ensure stop handler exists
         if (handler.stop) {
@@ -590,13 +590,13 @@ class Komapi<
 /**
  * Namespace
  */
-/* eslint-disable @typescript-eslint/no-empty-interface */
 /* eslint-disable @typescript-eslint/no-namespace */
 /* eslint-disable no-redeclare */
 declare namespace Komapi {
   /**
    * User customizable types
    */
+  export interface Locals {}
   export interface Services {
     [name: string]: ConstructableService<Service>;
   }
@@ -604,6 +604,28 @@ declare namespace Komapi {
   /**
    * Komapi native types
    */
+  export interface CustomOptions {
+    services: Services;
+    locals: Locals;
+  }
+  export interface Options<CustomOptionsT extends CustomOptions = CustomOptions> {
+    config: {
+      env: Koa['env'];
+      proxy: Koa['proxy'];
+      subdomainOffset: Koa['subdomainOffset'];
+      silent: Koa['silent'];
+      keys: Koa['keys'];
+      instanceId: string;
+
+      // errorHandler: Komapi.Middleware<CustomStateT, CustomContextT> | false | null;
+      // requestLogger: Komapi.Middleware<CustomStateT, CustomContextT> | false | null;
+      // healthReporter: Komapi.Middleware<CustomStateT, CustomContextT> | false | null;
+    };
+    locals: CustomOptionsT['locals'];
+    services: CustomOptionsT['services'];
+    logOptions: Pino.LoggerOptions;
+    logStream: stream.Writable | stream.Duplex | stream.Transform;
+  }
   export const enum LifecycleState {
     STARTING = 'STARTING',
     STARTED = 'STARTED',
@@ -619,34 +641,21 @@ declare namespace Komapi {
   export type Middleware<
     CustomStateT = {},
     CustomContextT = {},
-    CustomServicesT extends Services = Services
-  > = Koa.Middleware<CustomStateT, ContextBridge<CustomContextT, CustomServicesT>>;
+    CustomOptionsT extends CustomOptions = CustomOptions
+  > = Koa.Middleware<CustomStateT, ContextBridge<CustomContextT, CustomOptionsT>>;
   export type InstantiatedServices<T extends Services = Services> = { [P in keyof T]: InstanceType<T[P]> };
   export type ConstructableService<T extends Service> = new (...args: any[]) => T;
-  export type ContextBridge<CustomContextT = {}, CustomServicesT extends Services = Services> = CustomContextT & {
-    app: Komapi<{}, {}, CustomServicesT>;
+  export type ContextBridge<CustomContextT = {}, CustomOptionsT extends CustomOptions = CustomOptions> = CustomContextT & {
+    app: Komapi<{}, {}, CustomOptionsT>;
   };
-  export interface Options {
-    config: {
-      env: Koa['env'];
-      proxy: Koa['proxy'];
-      subdomainOffset: Koa['subdomainOffset'];
-      silent: Koa['silent'];
-      keys: Koa['keys'];
-      instanceId: string;
-
-      // errorHandler: Komapi.Middleware<CustomStateT, CustomContextT> | false | null;
-      // requestLogger: Komapi.Middleware<CustomStateT, CustomContextT> | false | null;
-      // healthReporter: Komapi.Middleware<CustomStateT, CustomContextT> | false | null;
-    };
-    services: Services;
-    logOptions: Pino.LoggerOptions;
-    logStream: stream.Writable | stream.Duplex | stream.Transform;
-  }
   export interface LifecycleActionOptions<Application = Komapi> {
     force: boolean;
     handlers: Array<LifecycleHandlerSubscription<Application>>;
   }
+
+  /**
+   * Komapi Koa extensions
+   */
   export interface BaseRequest {
     requestId: string;
     startAt: number;
@@ -678,7 +687,6 @@ declare namespace Komapi {
     (statusCode: number, options?: HttpErrorOptions | Error, message?: string, ...params: any[]): never;
   }
 }
-/* eslint-enable @typescript-eslint/no-empty-interface */
 /* eslint-enable @typescript-eslint/no-namespace */
 /* eslint-enable no-redeclare */
 

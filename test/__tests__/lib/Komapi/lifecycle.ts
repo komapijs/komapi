@@ -554,18 +554,18 @@ describe('app.start()', () => {
         throw new Error('Should stop start');
       }),
       stop: jest.fn(() => {
-        fail('should not be called');
+        done.fail('should not be called');
         stopCounter += 1;
       }),
     };
     const shouldBe4thHandler = {
       name: 'fourth',
       start: jest.fn(() => {
-        fail('should not be called');
+        done.fail('should not be called');
         startCounter += 1;
       }),
       stop: jest.fn(() => {
-        fail('should not be called');
+        done.fail('should not be called');
         stopCounter += 1;
       }),
     };
@@ -1136,7 +1136,6 @@ describe('external signals', () => {
     const originalExit = process.exit;
 
     // Try all signals
-    // eslint-disable-next-line no-restricted-syntax
     for (const exitSignal of [
       { signal: 'SIGTERM', code: 143 },
       { signal: 'SIGINT', code: 130 },
@@ -1235,7 +1234,6 @@ describe('external signals', () => {
     const originalExit = process.exit;
 
     // Try all signals
-    // eslint-disable-next-line no-restricted-syntax
     for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP', 'SIGBREAK']) {
       let listener;
       const stopSpy = jest.fn();

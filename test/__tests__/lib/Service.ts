@@ -19,15 +19,16 @@ describe('instantiation', () => {
 
     // Create service class with lifecycle handlers
     class MyService extends Service {
-      // eslint-disable-next-line
-      public async start() {}
+      public async start() {
+        return this;
+      }
     }
 
     // Init service
-    // eslint-disable-next-line
-    new MyService(app);
+    const service = new MyService(app);
 
     // Assertions
+    expect(service.app).toBe(app);
     expect(app.lifecycleHandlers).toHaveLength(1);
   });
   it('should automatically register a lifecycle handler if `service.stop()` exists', () => {
@@ -35,15 +36,16 @@ describe('instantiation', () => {
 
     // Create service class with lifecycle handlers
     class MyService extends Service {
-      // eslint-disable-next-line
-      public async stop() {}
+      public async stop() {
+        return this;
+      }
     }
 
     // Init service
-    // eslint-disable-next-line
-    new MyService(app);
+    const service = new MyService(app);
 
     // Assertions
+    expect(service.app).toBe(app);
     expect(app.lifecycleHandlers).toHaveLength(1);
   });
   it('should automatically register a lifecycle handler if both `service.start()` and `service.stop()` exists', () => {
@@ -51,17 +53,19 @@ describe('instantiation', () => {
 
     // Create service class with lifecycle handlers
     class MyService extends Service {
-      // eslint-disable-next-line
-      public async start() {}
-      // eslint-disable-next-line
-      public async stop() {}
+      public async start() {
+        return this;
+      }
+      public async stop() {
+        return this;
+      }
     }
 
     // Init service
-    // eslint-disable-next-line
-    new MyService(app);
+    const service = new MyService(app);
 
     // Assertions
+    expect(service.app).toBe(app);
     expect(app.lifecycleHandlers).toHaveLength(1);
   });
 });
