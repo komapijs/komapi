@@ -1,4 +1,3 @@
-// Imports
 import { VError } from 'botched';
 import Komapi from '../../../fixtures/Komapi';
 import Account from '../../../fixtures/services/Account';
@@ -181,7 +180,7 @@ describe('instantiation', () => {
     services.Chat.prototype.start = chatStartSpy;
     services.Chat.prototype.stop = chatStopSpy;
 
-    const app = new Komapi<{}, {}, typeof services>({ services });
+    const app = new Komapi<{}, {}, { services: typeof services }>({ services });
 
     // Assertions
     expect(app.lifecycleHandlers).toHaveLength(2);

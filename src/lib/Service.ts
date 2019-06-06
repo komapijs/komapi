@@ -1,4 +1,3 @@
-// Imports
 import Komapi from './Komapi';
 
 // Types

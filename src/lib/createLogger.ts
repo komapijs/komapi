@@ -1,4 +1,3 @@
-// Imports
 import Pino from 'pino';
 import cls from 'cls-hooked';
 import Komapi from './Komapi';

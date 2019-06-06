@@ -1,4 +1,3 @@
-// Dependencies
 import Service from '../../../src/lib/Service';
 
 // Exports

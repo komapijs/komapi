@@ -1,4 +1,3 @@
-// Dependencies
 import request from 'supertest';
 import Koa from 'koa';
 import cls from 'cls-hooked';

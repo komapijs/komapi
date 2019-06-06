@@ -1,4 +1,3 @@
-// Imports
 import Komapi from '../../src/lib/Komapi';
 import Service from '../../src/lib/Service';
 import * as ModuleExports from '../../src/index';

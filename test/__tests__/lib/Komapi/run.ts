@@ -1,4 +1,3 @@
-// Imports
 import { getNamespace } from 'cls-hooked';
 import Komapi from '../../../fixtures/Komapi';
 

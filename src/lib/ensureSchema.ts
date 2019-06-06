@@ -1,4 +1,3 @@
-// Dependencies
 import Ajv from 'ajv';
 import cloneDeep from 'lodash.clonedeep';
 import { BadRequest, VError } from 'botched';

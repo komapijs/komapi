@@ -1,4 +1,3 @@
-// Imports
 import { VError } from 'botched';
 import Komapi from '../../../fixtures/Komapi';
 
@@ -297,6 +296,121 @@ describe('app.start()', () => {
       expect.objectContaining({ metadata: { duration: expect.any(Number), hasRollbackHandler: false, name: 'start' } }),
       'Lifecycle start handler called',
     );
+
+    // Done
+    done();
+  });
+  it('should work with lifecycle handlers without start handler', async done => {
+    expect.assertions(8);
+    const app = new Komapi();
+    let counter = 0;
+
+    // Create handlers
+    const shouldBe1stHandler = {
+      name: 'first',
+      start: jest.fn(() => {
+        expect(counter).toBe(0);
+        counter += 1;
+      }),
+    };
+    const shouldBe2ndHandler = {
+      name: 'second',
+    };
+    const shouldBe3rdHandler = {
+      name: 'third',
+      start: jest.fn(() => {
+        expect(counter).toBe(1);
+        counter += 1;
+      }),
+    };
+
+    // Add handlers
+    app.addLifecycleHandler(shouldBe1stHandler);
+    app.addLifecycleHandler(shouldBe2ndHandler);
+    app.addLifecycleHandler(shouldBe3rdHandler);
+
+    // Assert initial state
+    expect(app.state).toBe(STOPPED);
+
+    // Start application
+    app.start();
+
+    // Check starting state
+    expect(app.state).toBe(STARTING);
+    const p2 = app.start();
+    expect(app.state).toBe(STARTING);
+
+    // Let application start
+    await p2;
+
+    // Assert ending state
+    expect(app.state).toBe(STARTED);
+    expect(shouldBe1stHandler.start).toHaveBeenCalledTimes(1);
+    expect(shouldBe3rdHandler.start).toHaveBeenCalledTimes(1);
+
+    // Done
+    done();
+  });
+  it('should allow `app.stop()` while in STOPPING state and not re-run handlers', async done => {
+    expect.assertions(12);
+    const app = new Komapi();
+    let counter = 0;
+
+    // Create handlers
+    const shouldBe1stHandler = {
+      name: 'first',
+      start: jest.fn(() => {
+        expect(counter).toBe(0);
+        counter += 1;
+      }),
+    };
+    const shouldBe2ndHandler = {
+      name: 'second',
+      start: jest.fn(() => {
+        expect(counter).toBe(1);
+        counter += 1;
+      }),
+    };
+    const shouldBe3rdHandler = {
+      name: 'third',
+      start: jest.fn(() => {
+        expect(counter).toBe(2);
+        counter += 1;
+      }),
+    };
+    const shouldBe4thHandler = {
+      name: 'fourth',
+      start: jest.fn(() => {
+        expect(counter).toBe(3);
+        counter += 1;
+      }),
+    };
+
+    // Add handlers
+    app.addLifecycleHandler(shouldBe4thHandler);
+    app.addLifecycleHandlerBefore(shouldBe2ndHandler, shouldBe3rdHandler);
+    app.addLifecycleHandlerBefore(shouldBe1stHandler);
+
+    // Assert initial state
+    expect(app.state).toBe(STOPPED);
+
+    // Start application
+    app.start();
+
+    // Check starting state
+    expect(app.state).toBe(STARTING);
+    const p2 = app.start();
+    expect(app.state).toBe(STARTING);
+
+    // Let application start
+    await p2;
+
+    // Assert ending state
+    expect(app.state).toBe(STARTED);
+    expect(shouldBe1stHandler.start).toHaveBeenCalledTimes(1);
+    expect(shouldBe2ndHandler.start).toHaveBeenCalledTimes(1);
+    expect(shouldBe3rdHandler.start).toHaveBeenCalledTimes(1);
+    expect(shouldBe4thHandler.start).toHaveBeenCalledTimes(1);
 
     // Done
     done();
@@ -772,7 +886,7 @@ describe('app.stop()', () => {
     // Done
     done();
   });
-  it('should allow `app.stop()` while in STOPPING state and not re-run handlers', async done => {
+  it('should work with lifecycle handlers without stop handler', async done => {
     expect.assertions(8);
     const app = new Komapi();
     let counter = 0;
@@ -818,6 +932,60 @@ describe('app.stop()', () => {
     expect(app.state).toBe(STOPPED);
     expect(shouldBe1stHandler.stop).toHaveBeenCalledTimes(1);
     expect(shouldBe2ndHandler.stop).toHaveBeenCalledTimes(1);
+
+    // Done
+    done();
+  });
+  it('should allow `app.stop()` while in STOPPING state and not re-run handlers', async done => {
+    expect.assertions(8);
+    const app = new Komapi();
+    let counter = 0;
+
+    // Create handlers
+    const shouldBe1stHandler = {
+      name: 'first',
+      stop: jest.fn(() => {
+        expect(counter).toBe(1);
+        counter += 1;
+      }),
+    };
+    const shouldBe2ndHandler = {
+      name: 'second',
+    };
+    const shouldBe3rdHandler = {
+      name: 'third',
+      stop: jest.fn(() => {
+        expect(counter).toBe(0);
+        counter += 1;
+      }),
+    };
+
+    // Add handlers
+    app.addLifecycleHandler(shouldBe1stHandler);
+    app.addLifecycleHandler(shouldBe2ndHandler);
+    app.addLifecycleHandler(shouldBe3rdHandler);
+
+    // Prepare
+    await app.start();
+
+    // Assert initial state
+    expect(app.state).toBe(STARTED);
+
+    // Start application
+    app.stop();
+
+    // Check starting state
+    expect(app.state).toBe(STOPPING);
+    const p2 = app.stop();
+    expect(app.state).toBe(STOPPING);
+
+    // Let application start
+    await p2;
+
+    // Assert ending state
+    expect(app.state).toBe(STOPPED);
+    expect(shouldBe1stHandler.stop).toHaveBeenCalledTimes(1);
+    expect(shouldBe3rdHandler.stop).toHaveBeenCalledTimes(1);
 
     // Done
     done();
@@ -1180,6 +1348,47 @@ describe('external signals', () => {
     global.process.exit = originalExit;
     global.process.on = originalOn;
     global.process.once = originalOnce;
+
+    // Done
+    done();
+  });
+  it('should ignore unknown process messages', async done => {
+    expect.assertions(4);
+    const originalOn = process.on;
+    const originalExit = process.exit;
+
+    // Listen for shutdown message
+    let listener;
+    const stopSpy = jest.fn();
+    const logSpy = jest.fn();
+    const exitSpy = jest.fn();
+    const onSpy = jest.fn((event, handler) => {
+      if (event === 'message') listener = handler;
+    });
+
+    global.process.exit = exitSpy as any;
+    global.process.on = onSpy as any;
+
+    const app = new Komapi();
+    app.stop = stopSpy;
+    app.log = new Proxy(app.log, {
+      get(obj, prop) {
+        return prop === 'fatal' ? logSpy : Reflect.get(obj, prop);
+      },
+    });
+
+    // Global assertions
+    expect(listener).not.toBe(undefined);
+
+    // Assertions - all successful
+    await (listener as any)('random');
+    expect(stopSpy).toHaveBeenCalledTimes(0);
+    expect(logSpy).toHaveBeenCalledTimes(0);
+    expect(exitSpy).toHaveBeenCalledTimes(0);
+
+    // Cleanup
+    global.process.exit = originalExit;
+    global.process.on = originalOn;
 
     // Done
     done();

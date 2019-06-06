@@ -1,4 +1,3 @@
-// Imports
 import cls from 'cls-hooked';
 import createLogger from '../../../src/lib/createLogger';
 import WritableStreamSpy from '../../fixtures/WritableStreamSpy';

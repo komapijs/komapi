@@ -1,4 +1,3 @@
-// Imports
 import Koa from 'koa';
 import os from 'os';
 import stream from 'stream';
@@ -55,8 +54,16 @@ declare module 'koa' {
  * Komapi base class
  *
  */
-interface Komapi<CustomStateT = {}, CustomContextT = {}, CustomOptionsT extends Komapi.CustomOptions = Komapi.CustomOptions> {
-  use<NewCustomStateT = {}, NewCustomContextT = {}, NewCustomOptionsT extends Komapi.CustomOptions = Komapi.CustomOptions>(
+interface Komapi<
+  CustomStateT = {},
+  CustomContextT = {},
+  CustomOptionsT extends Partial<Komapi.CustomOptions> = Komapi.CustomOptions
+> {
+  use<
+    NewCustomStateT = {},
+    NewCustomContextT = {},
+    NewCustomOptionsT extends Komapi.CustomOptions = Komapi.CustomOptions
+  >(
     middleware: Komapi.Middleware<
       CustomStateT & NewCustomStateT,
       CustomContextT & NewCustomContextT,
@@ -67,7 +74,7 @@ interface Komapi<CustomStateT = {}, CustomContextT = {}, CustomOptionsT extends 
 class Komapi<
   CustomStateT = {},
   CustomContextT = {},
-  CustomOptionsT extends Komapi.CustomOptions = Komapi.CustomOptions
+  CustomOptionsT extends Partial<Komapi.CustomOptions> = Komapi.CustomOptions
 > extends Koa<CustomStateT, CustomContextT> {
   /**
    * Export helper functions by attaching to Komapi (hack to make it work with named import and module augmentation)
@@ -75,14 +82,17 @@ class Komapi<
   public static Service = Service;
   public static ensureSchema = ensureSchema;
   public static requestLogger = requestLogger;
+  public static errorHandler = errorHandler;
 
   /**
    * Public instance properties
    */
   public readonly config: Komapi.Options['config'];
-  public readonly services: Komapi.InstantiatedServices<Komapi.Options<CustomOptionsT>['services']>;
+  public readonly services: Komapi.InstantiatedServices<
+    Komapi.Options<Komapi.CustomOptions & CustomOptionsT>['services']
+  >;
   public readonly transactionContext: cls.Namespace;
-  public locals: Komapi.Options<CustomOptionsT>['locals'] = {};
+  public locals: Komapi.Options<Komapi.CustomOptions & CustomOptionsT>['locals'] = {};
   public state: Komapi.LifecycleState = Komapi.LifecycleState.STOPPED;
   public log: Pino.Logger;
   public lifecycleHandlers: Array<Komapi.LifecycleHandlerSubscription<this>> = [];
@@ -97,7 +107,12 @@ class Komapi<
    *
    * @param {Partial<Omit<Komapi.Options, 'config'> & DeepPartial<Pick<Komapi.Options, 'config'>>>=} options
    */
-  public constructor(options?: Partial<Omit<Komapi.Options<CustomOptionsT>, 'config'> & DeepPartial<Pick<Komapi.Options<CustomOptionsT>, 'config'>>>) {
+  public constructor(
+    options?: Partial<
+      Omit<Komapi.Options<Komapi.CustomOptions & CustomOptionsT>, 'config'> &
+        DeepPartial<Pick<Komapi.Options<Komapi.CustomOptions & CustomOptionsT>, 'config'>>
+    >,
+  ) {
     super();
 
     // Set options
@@ -113,7 +128,7 @@ class Komapi<
       locals: {},
       services: {},
       logOptions: {
-        // useLevelLabels: true,
+        useLevelLabels: true,
         level: process.env.LOG_LEVEL || 'info',
         base: {
           pid: process.pid,
@@ -564,6 +579,9 @@ class Komapi<
       sendError: ctx.response.sendError.bind(ctx.response),
     });
 
+    // Set request id header
+    ctx.response.set('x-request-id', ctx.request.requestId);
+
     return ctx;
   }
 
@@ -645,7 +663,10 @@ declare namespace Komapi {
   > = Koa.Middleware<CustomStateT, ContextBridge<CustomContextT, CustomOptionsT>>;
   export type InstantiatedServices<T extends Services = Services> = { [P in keyof T]: InstanceType<T[P]> };
   export type ConstructableService<T extends Service> = new (...args: any[]) => T;
-  export type ContextBridge<CustomContextT = {}, CustomOptionsT extends CustomOptions = CustomOptions> = CustomContextT & {
+  export type ContextBridge<
+    CustomContextT = {},
+    CustomOptionsT extends CustomOptions = CustomOptions
+  > = CustomContextT & {
     app: Komapi<{}, {}, CustomOptionsT>;
   };
   export interface LifecycleActionOptions<Application = Komapi> {

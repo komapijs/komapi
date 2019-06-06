@@ -1,5 +1,5 @@
-// Imports
 import request from 'supertest';
+import { InternalServerError } from 'botched';
 import Komapi from '../../../fixtures/Komapi';
 
 // Tests
@@ -160,6 +160,50 @@ describe('app.createContext()', () => {
       // Assertions
       expect(response.status).toBe(200);
       expect(response.text).toBe('My Custom Body');
+
+      // Done
+      done();
+    });
+  });
+  describe('ctx.response.sendError', () => {
+    it('should be available on `ctx.sendError`', () => {
+      expect.assertions(1);
+      const app = new Komapi();
+
+      // Add middlewares
+      app.use((ctx, next) => {
+        // Assertions
+        expect(ctx.sendError).toBe(ctx.response.sendError);
+        return next();
+      });
+
+      // Done
+      return request(app.callback()).get('/');
+    });
+    it('should be a passthrough throw function for `botched.createHttpError`', async done => {
+      expect.assertions(3);
+      const app = new Komapi();
+
+      // Add middlewares
+      app.use(ctx => {
+        expect(() => ctx.sendError(500)).toThrowError(InternalServerError);
+        ctx.sendError(500);
+      });
+
+      const response = await request(app.callback()).get('/');
+
+      // Assertions
+      expect(response.status).toBe(500);
+      expect(response.body).toEqual({
+        errors: [
+          {
+            id: expect.stringMatching(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i),
+            status: '500',
+            code: 'InternalServerError',
+            title: 'Internal Server Error',
+          },
+        ],
+      });
 
       // Done
       done();

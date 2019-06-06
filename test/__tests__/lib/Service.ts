@@ -1,8 +1,5 @@
-// Imports
 import Komapi from '../../fixtures/Komapi';
 import Service from '../../../src/lib/Service';
-
-// tslint:disable max-classes-per-file // We create some inline classes for convenience during tests
 
 // Tests
 describe('instantiation', () => {

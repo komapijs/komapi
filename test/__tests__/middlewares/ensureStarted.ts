@@ -1,4 +1,3 @@
-// Dependencies
 import request from 'supertest';
 import Komapi from '../../fixtures/Komapi';
 import ensureReady from '../../../src/middlewares/ensureStarted';

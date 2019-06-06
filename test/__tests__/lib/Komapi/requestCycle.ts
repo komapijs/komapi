@@ -1,4 +1,3 @@
-// Imports
 import request from 'supertest';
 import Komapi from '../../../fixtures/Komapi';
 

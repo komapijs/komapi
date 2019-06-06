@@ -1,4 +1,3 @@
-// Imports
 import cls from 'cls-hooked';
 import Komapi from '../lib/Komapi';
 

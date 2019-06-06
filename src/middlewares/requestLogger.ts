@@ -1,4 +1,3 @@
-// Imports
 import Pino from 'pino';
 import defaultsDeep from 'lodash.defaultsdeep';
 import Komapi from '../lib/Komapi';

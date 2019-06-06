@@ -1,4 +1,3 @@
-// Imports
 import Komapi from '../../src/lib/Komapi';
 
 // Test Setup

@@ -1,4 +1,3 @@
-// Imports
 import { Writable } from 'stream';
 
 // Exports
