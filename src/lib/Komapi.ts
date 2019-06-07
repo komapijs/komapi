@@ -163,7 +163,7 @@ class Komapi<
       requestId: 'UNKNOWN',
     });
     Object.assign(this.response, {
-      send: function send(body) {
+      send: function send<T extends Koa.Response['body'] = Koa.Response['body']>(body: T): T {
         this.body = body;
         return this.body;
       },
