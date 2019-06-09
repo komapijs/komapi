@@ -1,4 +1,4 @@
-import { botch, HttpError, MethodNotAllowed, NotFound, NotImplemented, VError } from 'botched';
+import { botch, createHttpError, HttpError, VError } from 'botched';
 import defaultsDeep from 'lodash.defaultsdeep';
 import Komapi from '../lib/Komapi';
 
@@ -38,9 +38,7 @@ export default function createErrorHandler(options?: Partial<ErrorHandlerOptions
   return async function errorHandlerMiddleware(ctx, next) {
     try {
       await next();
-      if (ctx.status === 404) throw new NotFound();
-      else if (ctx.status === 405) throw new MethodNotAllowed();
-      else if (ctx.status === 501) throw new NotImplemented();
+      if (ctx.status >= 400) throw createHttpError(ctx.status);
     } catch (err) {
       const error = botch(err);
       const jsonApiErrors = typeof err.errors === 'function' ? (err as VError.MultiError).errors().map(botch) : [error];
