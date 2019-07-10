@@ -75,7 +75,7 @@
     "@types/jest": "^23.3.12",
     "@types/koa-compose": "^3.2.2",
     "@types/koa-passport": "^4.0.2",
-    "@types/koa-router": "7.0.33",
+    "@types/koa-router": "7.0.42",
     "@types/lodash.clonedeep": "^4.5.4",
     "@types/lodash.defaultsdeep": "^4.6.4",
     "@types/lodash.pick": "^4.4.4",
