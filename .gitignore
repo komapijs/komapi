@@ -3,9 +3,8 @@
 
 # Exceptions
 !.babelrc*
-!.circleci
 !.env.example
-!.eslintrc
+!.eslintrc*
 !.eslintignore
 !.editorconfig
 !.gitattributes
@@ -15,7 +14,10 @@
 !.prettierignore
 !.prettierrc
 !.travis.yml
+!.circleci
 !.gitlab-ci.yml
+!.dependabot
+!.github
 
 # Generated directories
 build
@@ -30,3 +32,4 @@ node_modules
 *.tmp
 *.log
 npm-debug.log*
+yarn.lock

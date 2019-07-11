@@ -1,32 +1,59 @@
-// Dependencies
+import Koa from 'koa';
 import Komapi from '../lib/Komapi';
 
-// Exports
-export default function healthReporterMiddlewareFactory(path = '/.well_known/_health'): Komapi.Middleware {
-  return async function healthReporterMiddleware(ctx, next) {
-    if (ctx.path !== path) return next();
+// Types
+export type Observation =
+  | {
+      observedValue: string | number;
+      observedUnit: string;
+    }
+  | {};
+export type CheckResult = Observation & {
+  status: 'fail' | 'warn' | 'pass';
+  output?: string;
+  componentId?: string;
+  componentType?: string;
+  node?: string | number;
+  affectedEndpoints?: string[];
+  time?: string;
+  links?: {
+    [key: string]: string;
+  };
+};
+export interface HealthReporterOptions {
+  checks: (
+    ctx: Koa.ParameterizedContext,
+  ) =>
+    | Promise<{ status: CheckResult['status']; output?: CheckResult['output']; checks?: CheckResult[] }>
+    | { status: CheckResult['status']; output?: CheckResult['output']; checks?: CheckResult[] };
+}
 
-    // See https://tools.ietf.org/html/draft-inadarei-api-health-check-02 for more information
+// Exports
+export default function createHealthReporter(options: Partial<HealthReporterOptions> = {}): Komapi.Middleware {
+  return async function healthReporterMiddleware(ctx) {
+    // See https://tools.ietf.org/html/draft-inadarei-api-health-check-03 for more information
     ctx.set('Content-Type', 'application/health+json');
 
     // Check if application is ready
-    if (ctx.app.state !== Komapi.Lifecycle.READY) {
+    if (ctx.app.state !== Komapi.LifecycleState.STARTED) {
       ctx.status = 503;
       ctx.body = {
         status: 'fail',
         output:
-          ctx.app.state === Komapi.Lifecycle.SETUP || ctx.app.state === Komapi.Lifecycle.READYING
-            ? 'Application is not ready'
-            : ctx.app.state === Komapi.Lifecycle.CLOSING || ctx.app.state === Komapi.Lifecycle.CLOSED
-            ? 'Application is shutting down'
-            : undefined,
-        serviceID: ctx.app.config.instanceId,
+          ctx.app.state === Komapi.LifecycleState.STARTING ? 'Application is not ready' : 'Application is stopping',
+        serviceID: ctx.app.config.serviceId,
       };
     } else {
+      const { status = 'pass', output = undefined, checks = undefined } = options.checks
+        ? await options.checks(ctx)
+        : {};
       ctx.body = {
-        status: 'pass',
-        serviceID: ctx.app.config.instanceId,
+        status,
+        output,
+        serviceID: ctx.app.config.serviceId,
+        checks,
       };
+      if (ctx.body.status === 'fail') ctx.status = 503;
     }
   };
 }

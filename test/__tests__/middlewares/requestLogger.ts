@@ -1,7 +1,6 @@
-// Dependencies
+import request from 'supertest';
 import Koa from 'koa';
 import requestLogger from '../../../src/middlewares/requestLogger';
-import request from 'supertest';
 
 // Tests
 it('should log requests', async done => {
@@ -23,7 +22,7 @@ it('should log requests', async done => {
   app.use((ctx, next) => {
     // Add mock data
     ctx.request.startAt = Date.now();
-    ctx.request.log = { info: spy } as any;
+    ctx.log = { info: spy } as any;
     return next();
   });
   app.use(requestLogger());
@@ -52,13 +51,13 @@ it('should log latency in milliseconds', async done => {
   app.use((ctx, next) => {
     // Add mock data
     ctx.request.startAt = Date.now();
-    ctx.request.log = { info: spy } as any;
+    ctx.log = { info: spy } as any;
     return next();
   });
   app.use(requestLogger());
   app.use((ctx, next) => new Promise(resolve => setTimeout(resolve, 125)).then(next));
 
-  const response = await request(app.callback()).get('/');
+  await request(app.callback()).get('/');
 
   // Assertions
   expect(spy).toHaveBeenCalledTimes(1);
@@ -89,7 +88,7 @@ it('should support custom log level', async done => {
   app.use((ctx, next) => {
     // Add mock data
     ctx.request.startAt = Date.now();
-    ctx.request.log = { info: infoSpy, trace: traceSpy } as any;
+    ctx.log = { info: infoSpy, trace: traceSpy } as any;
     return next();
   });
   app.use(requestLogger({ level: 'trace' }));

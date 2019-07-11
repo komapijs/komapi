@@ -1,62 +1,30 @@
-// Dependencies
+import request from 'supertest';
 import Komapi from '../../../src/lib/Komapi';
 import healthReporter from '../../../src/middlewares/healthReporter';
-import request from 'supertest';
 
 // Tests
-it('should attach to /.well_known/_health by default', async done => {
-  expect.assertions(4);
+it('should follow the spec', async done => {
+  expect.assertions(2);
   const app = new Komapi();
   app.middleware = [];
 
   // Mock ready state
-  app.state = Komapi.Lifecycle.READY;
+  app.state = Komapi.LifecycleState.STARTED;
 
   // Add middlewares
   app.use(healthReporter());
 
-  const server = request(app.callback());
-  const response404 = await server.get('/');
-  const response200 = await server.get('/.well_known/_health');
+  const response = await request(app.callback()).get('/');
 
   // Assertions
-  expect(response404.status).toBe(404);
-  expect(response404.text).toEqual('Not Found');
-  expect(response200.status).toBe(200);
-  expect(response200.body).toEqual({ status: 'pass', serviceID: app.config.instanceId });
-
-  // Done
-  done();
-});
-it('should attach to custom paths', async done => {
-  expect.assertions(6);
-  const app = new Komapi();
-  app.middleware = [];
-
-  // Mock ready state
-  app.state = Komapi.Lifecycle.READY;
-
-  // Add middlewares
-  app.use(healthReporter('/my-path'));
-
-  const server = request(app.callback());
-  const response404 = await server.get('/');
-  const response4042 = await server.get('/.well_known/_health');
-  const response200 = await server.get('/my-path');
-
-  // Assertions
-  expect(response404.status).toBe(404);
-  expect(response404.text).toEqual('Not Found');
-  expect(response4042.status).toBe(404);
-  expect(response4042.text).toEqual('Not Found');
-  expect(response200.status).toBe(200);
-  expect(response200.body).toEqual({ status: 'pass', serviceID: app.config.instanceId });
+  expect(response.status).toBe(200);
+  expect(response.body).toEqual({ status: 'pass', serviceID: app.config.serviceId });
 
   // Done
   done();
 });
 it('should use "app.state" to determine status', async done => {
-  expect.assertions(12);
+  expect.assertions(8);
   const app = new Komapi();
   app.middleware = [];
 
@@ -66,50 +34,137 @@ it('should use "app.state" to determine status', async done => {
   const server = request(app.callback());
 
   // Run tests
-  app.state = Komapi.Lifecycle.SETUP;
-  const response1 = await server.get('/.well_known/_health');
-  app.state = Komapi.Lifecycle.READYING;
-  const response2 = await server.get('/.well_known/_health');
-  app.state = Komapi.Lifecycle.READY;
-  const response3 = await server.get('/.well_known/_health');
-  app.state = Komapi.Lifecycle.CLOSING;
-  const response4 = await server.get('/.well_known/_health');
-  app.state = Komapi.Lifecycle.CLOSED;
-  const response5 = await server.get('/.well_known/_health');
-  app.state = 'UNKNOWN' as Komapi.Lifecycle.CLOSED;
-  const response6 = await server.get('/.well_known/_health');
+  app.state = Komapi.LifecycleState.STARTING;
+  const response1 = await server.get('/');
+  app.state = Komapi.LifecycleState.STARTED;
+  const response2 = await server.get('/');
+  app.state = Komapi.LifecycleState.STOPPING;
+  const response3 = await server.get('/');
+  app.state = Komapi.LifecycleState.STOPPED;
+  const response4 = await server.get('/');
 
   // Assertions
   expect(response1.status).toBe(503);
   expect(response1.body).toEqual({
     status: 'fail',
     output: 'Application is not ready',
-    serviceID: app.config.instanceId,
+    serviceID: app.config.serviceId,
   });
-  expect(response2.status).toBe(503);
-  expect(response2.body).toEqual({
+  expect(response2.status).toBe(200);
+  expect(response2.body).toEqual({ status: 'pass', serviceID: app.config.serviceId });
+  expect(response3.status).toBe(503);
+  expect(response3.body).toEqual({
     status: 'fail',
-    output: 'Application is not ready',
-    serviceID: app.config.instanceId,
+    output: 'Application is stopping',
+    serviceID: app.config.serviceId,
   });
-  expect(response3.status).toBe(200);
-  expect(response3.body).toEqual({ status: 'pass', serviceID: app.config.instanceId });
   expect(response4.status).toBe(503);
   expect(response4.body).toEqual({
     status: 'fail',
-    output: 'Application is shutting down',
-    serviceID: app.config.instanceId,
+    output: 'Application is stopping',
+    serviceID: app.config.serviceId,
   });
-  expect(response5.status).toBe(503);
-  expect(response5.body).toEqual({
-    status: 'fail',
-    output: 'Application is shutting down',
-    serviceID: app.config.instanceId,
+
+  // Done
+  done();
+});
+it('should support custom checks', async done => {
+  expect.assertions(2);
+  const app = new Komapi();
+  const checks = () => ({
+    status: 'warn' as 'warn',
+    output: 'custom output',
+    checks: [{ status: 'warn' as 'warn', output: 'custom output2' }],
   });
-  expect(response6.status).toBe(503);
-  expect(response6.body).toEqual({
+  app.middleware = [];
+
+  // Mock ready state
+  app.state = Komapi.LifecycleState.STARTED;
+
+  // Add middlewares
+  app.use(healthReporter({ checks }));
+
+  const response = await request(app.callback()).get('/');
+
+  // Assertions
+  expect(response.status).toBe(200);
+  expect(response.body).toEqual({
+    status: 'warn',
+    output: 'custom output',
+    serviceID: app.config.serviceId,
+    checks: expect.arrayContaining([
+      {
+        status: 'warn',
+        output: 'custom output2',
+      },
+    ]),
+  });
+
+  // Done
+  done();
+});
+it('should support custom asynchronous checks', async done => {
+  expect.assertions(2);
+  const app = new Komapi();
+  const checks = () =>
+    new Promise<any>(resolve =>
+      setTimeout(
+        () =>
+          resolve({
+            status: 'warn' as 'warn',
+            output: 'custom output',
+            checks: [{ status: 'warn' as 'warn', output: 'custom output2' }],
+          }),
+        100,
+      ),
+    );
+  app.middleware = [];
+
+  // Mock ready state
+  app.state = Komapi.LifecycleState.STARTED;
+
+  // Add middlewares
+  app.use(healthReporter({ checks }));
+
+  const response = await request(app.callback()).get('/');
+
+  // Assertions
+  expect(response.status).toBe(200);
+  expect(response.body).toEqual({
+    status: 'warn',
+    output: 'custom output',
+    serviceID: app.config.serviceId,
+    checks: expect.arrayContaining([
+      {
+        status: 'warn',
+        output: 'custom output2',
+      },
+    ]),
+  });
+
+  // Done
+  done();
+});
+it('should automatically respond 503 on failed checks', async done => {
+  expect.assertions(2);
+  const app = new Komapi();
+  const checks = () => ({ status: 'fail' as 'fail', output: 'failed to prove 503 status' });
+  app.middleware = [];
+
+  // Mock ready state
+  app.state = Komapi.LifecycleState.STARTED;
+
+  // Add middlewares
+  app.use(healthReporter({ checks }));
+
+  const response = await request(app.callback()).get('/');
+
+  // Assertions
+  expect(response.status).toBe(503);
+  expect(response.body).toEqual({
     status: 'fail',
-    serviceID: app.config.instanceId,
+    output: 'failed to prove 503 status',
+    serviceID: app.config.serviceId,
   });
 
   // Done
