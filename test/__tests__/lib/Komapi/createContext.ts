@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { InternalServerError } from 'botched';
 import Komapi from '../../../fixtures/Komapi';
+import errorHandler from '../../../../src/middlewares/errorHandler';
 
 // Tests
 describe('app.createContext()', () => {
@@ -138,7 +139,7 @@ describe('app.createContext()', () => {
       // Done
       return request(app.callback()).get('/');
     });
-    it('should be a passthrough setter for `ctx.response.body`', async done => {
+    it('should be a setter for `ctx.response.body`', async done => {
       expect.assertions(3);
       const app = new Komapi();
 
@@ -180,7 +181,7 @@ describe('app.createContext()', () => {
       // Done
       return request(app.callback()).get('/');
     });
-    it('should be a passthrough throw function for `botched.createHttpError`', async done => {
+    it('should be a throw function for `botched.createError`', async done => {
       expect.assertions(3);
       const app = new Komapi();
 
@@ -189,6 +190,118 @@ describe('app.createContext()', () => {
         expect(() => ctx.sendError(500)).toThrowError(InternalServerError);
         ctx.sendError(500);
       });
+
+      const response = await request(app.callback()).get('/');
+
+      // Assertions
+      expect(response.status).toBe(500);
+      expect(response.body).toEqual({
+        errors: [
+          {
+            id: expect.stringMatching(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i),
+            status: '500',
+            code: 'InternalServerError',
+            title: 'Internal Server Error',
+          },
+        ],
+      });
+
+      // Done
+      done();
+    });
+  });
+  describe('ctx.response.sendSchema', () => {
+    it('should be available on `ctx.sendSchema`', () => {
+      expect.assertions(1);
+      const app = new Komapi();
+
+      // Add middlewares
+      app.use((ctx, next) => {
+        // Assertions
+        expect(ctx.sendSchema).toBe(ctx.response.sendSchema);
+        return next();
+      });
+
+      // Done
+      return request(app.callback()).get('/');
+    });
+    it('should be a setter for `ctx.response.body` after validating json schema', async done => {
+      expect.assertions(3);
+      const app = new Komapi();
+      const schema = {
+        $schema: 'http://json-schema.org/draft-07/schema#',
+        additionalProperties: false,
+        required: ['included', 'someString'],
+        type: 'object',
+        properties: {
+          included: { type: 'boolean' },
+          someString: { type: 'string' },
+        },
+      };
+
+      // Create proxy listener
+      app.response = new Proxy(app.response, {
+        set(obj, prop, value) {
+          if (prop === 'body') {
+            expect(value).toEqual({ included: true, someString: 'hello world!' });
+          }
+          return Reflect.set(obj, prop, value);
+        },
+      });
+
+      // Add middlewares
+      app.use(ctx => ctx.sendSchema(schema, { excluded: true, included: true, someString: 'hello world!' }));
+
+      const response = await request(app.callback()).get('/');
+
+      // Assertions
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ included: true, someString: 'hello world!' });
+
+      // Done
+      done();
+    });
+    it('should create internal server errors if schema validation fails', async done => {
+      expect.assertions(1);
+      const app = new Komapi();
+      const schema = {
+        $schema: 'http://json-schema.org/draft-07/schema#',
+        additionalProperties: false,
+        required: ['included', 'someString'],
+        type: 'object',
+        properties: {
+          included: { type: 'boolean' },
+          someString: { type: 'string' },
+        },
+      };
+
+      // Add middlewares
+      app.use(ctx => {
+        expect(() => ctx.sendSchema(schema, { included: 'should be boolean' })).toThrow(InternalServerError);
+      });
+
+      await request(app.callback()).get('/');
+
+      // Done
+      done();
+    });
+    it('should not leak details when throwing', async done => {
+      expect.assertions(2);
+      const app = new Komapi();
+      const schema = {
+        $schema: 'http://json-schema.org/draft-07/schema#',
+        additionalProperties: false,
+        required: ['included', 'someString'],
+        type: 'object',
+        properties: {
+          included: { type: 'boolean' },
+          someString: { type: 'string' },
+        },
+      };
+
+      // Add middlewares
+      app.use(errorHandler());
+      app.use(ctx => ctx.sendSchema(schema, { included: 'should be boolean' }));
 
       const response = await request(app.callback()).get('/');
 

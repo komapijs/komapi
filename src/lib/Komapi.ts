@@ -7,14 +7,14 @@ import get from 'lodash.get';
 import Pino from 'pino';
 import cls from 'cls-hooked';
 import delegate from 'delegates';
-import { createHttpError, createSerializer, HttpErrorOptions, VError } from 'botched';
+import { createError, createSerializer, ErrorOptions, InternalServerError, VError } from 'botched';
 import { IncomingMessage, ServerResponse } from 'http';
 import uuidv4 from 'uuid';
 import createLogger from './createLogger';
 import Service from './Service';
 import serializeRequest from './serializeRequest';
 import serializeResponse from './serializeResponse';
-import ensureSchema from './ensureSchema';
+import ensureSchema, { createEnsureSchema } from './ensureSchema';
 import setTransactionContext from '../middlewares/setTransactionContext';
 import errorHandler from '../middlewares/errorHandler';
 import ensureStarted from '../middlewares/ensureStarted';
@@ -32,7 +32,7 @@ type DeepPartial<T> = {
     ? Array<DeepPartial<U>>
     : T[P] extends ReadonlyArray<infer SU>
     ? ReadonlyArray<DeepPartial<SU>>
-    : DeepPartial<T[P]>
+    : DeepPartial<T[P]>;
 };
 
 /**
@@ -81,6 +81,7 @@ class Komapi<
    */
   public static Service = Service;
   public static ensureSchema = ensureSchema;
+  public static createEnsureSchema = createEnsureSchema;
   public static requestLogger = requestLogger;
   public static errorHandler = errorHandler;
 
@@ -172,7 +173,15 @@ class Komapi<
       //   return this.body;
       // },
       sendError: function sendError(...args: any[]) {
-        throw createHttpError(...args);
+        throw createError(...args);
+      },
+      sendSchema: function sendSchema<T extends object = object>(jsonSchema: object, data: T | any): T {
+        try {
+          this.body = ensureSchema<T>(jsonSchema, data);
+          return this.body;
+        } catch (err) {
+          throw new InternalServerError(err);
+        }
       },
     } as Koa.Response);
     delegate<Koa.BaseContext, Koa.Request>(this.context, 'request')
@@ -181,7 +190,8 @@ class Komapi<
     delegate<Koa.BaseContext, Koa.Response>(this.context, 'response')
       .access('send')
       // .access('sendApi')
-      .access('sendError');
+      .access('sendError')
+      .access('sendSchema');
     delegate<Koa.BaseContext, Koa.Application>(this.context, 'app').access('log');
 
     /**
@@ -687,6 +697,7 @@ declare namespace Komapi {
     send: <T extends Koa.Response['body'] = Koa.Response['body']>(body: T) => T;
     // sendApi: <T extends object>(body: T) => T;
     sendError: SendErrorFn;
+    sendSchema: <T extends object = object>(jsonSchema: object, data: T | any) => T;
   }
   export interface BaseContext {
     log: Komapi['log'];
@@ -694,6 +705,7 @@ declare namespace Komapi {
     send: BaseResponse['send'];
     // sendApi: BaseResponse['sendApi'];
     sendError: BaseResponse['sendError'];
+    sendSchema: BaseResponse['sendSchema'];
     startAt: BaseRequest['startAt'];
   }
   export interface Request {}
@@ -705,7 +717,7 @@ declare namespace Komapi {
    */
   interface SendErrorFn {
     (statusCode: number, message?: string, ...params: any[]): never;
-    (statusCode: number, options?: HttpErrorOptions | Error, message?: string, ...params: any[]): never;
+    (statusCode: number, options?: ErrorOptions | Error, message?: string, ...params: any[]): never;
   }
 }
 /* eslint-enable @typescript-eslint/no-namespace */

@@ -91,9 +91,7 @@ it('should automatically invoke `app.start()` on the first request when applicat
     expect.objectContaining({
       app,
     }),
-    `Application is in \`${
-      Komapi.LifecycleState.STOPPED
-    }\` state. Invoking \`app.start()\` automatically before serving this request. It is highly recommended to run \`app.start()\` before accepting requests through e.g. \`app.listen()\``,
+    `Application is in \`${Komapi.LifecycleState.STOPPED}\` state. Invoking \`app.start()\` automatically before serving this request. It is highly recommended to run \`app.start()\` before accepting requests through e.g. \`app.listen()\``,
   );
 
   // Done

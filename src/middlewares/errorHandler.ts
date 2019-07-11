@@ -1,4 +1,4 @@
-import { botch, createHttpError, HttpError, VError } from 'botched';
+import { wrap, createError, BotchedError, VError } from 'botched';
 import defaultsDeep from 'lodash.defaultsdeep';
 import Komapi from '../lib/Komapi';
 
@@ -27,7 +27,7 @@ interface JSONAPIErrorResponse {
 const defaultOptions: ErrorHandlerOptions = {
   showDetails: true,
 };
-function createGenericError(error: HttpError) {
+function createGenericError(error: BotchedError) {
   const { id, code, status, title } = error;
   return { id, code, status, title };
 }
@@ -38,10 +38,11 @@ export default function createErrorHandler(options?: Partial<ErrorHandlerOptions
   return async function errorHandlerMiddleware(ctx, next) {
     try {
       await next();
-      if (ctx.status >= 400) throw createHttpError(ctx.status);
+      if (ctx.status >= 400) throw createError(ctx.status);
     } catch (err) {
-      const error = botch(err);
-      const jsonApiErrors = typeof err.errors === 'function' ? (err as VError.MultiError).errors().map(botch) : [error];
+      const error = wrap(err);
+      const jsonApiErrors: BotchedError[] =
+        typeof err.errors === 'function' ? (err as VError.MultiError).errors().map(wrap) : [error];
 
       // Get headers and status code from error
       const { detail, headers, isServer, statusCode, title } = error;

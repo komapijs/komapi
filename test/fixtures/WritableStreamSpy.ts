@@ -4,7 +4,6 @@ import { Writable } from 'stream';
 export default class WritableStreamSpy extends Writable {
   public constructor(cb = () => true) {
     super();
-    this.writable = true;
     this.write = cb;
   }
 }
