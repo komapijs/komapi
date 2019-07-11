@@ -36,6 +36,7 @@ For documentation on topics not covered here, please consult the official [Koa][
   - [createEnsureSchema(jsonSchema)](#api-utilities-createensureSchema)
   - [errorHandler([options])](#api-middlewares-errorhandler)
   - [requestLogger([options])](#api-middlewares-requestlogger)
+  - [healthReporter([options])](#api-middlewares-healthreporter)
 - [License](#license)
 
 <a id="installation"></a>
