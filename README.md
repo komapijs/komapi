@@ -634,6 +634,9 @@ app.use(ctx => {
 A simple, yet powerful error handling middleware.
 This takes care to serialize error responses automatically while keeping sensitive information hidden.
 Natively supports [botched][botched-url] errors.
+This middleware is added automatically by Komapi.
+
+**Note:** This middleware should be added after the [requestLogger](#api-middlewares-requestlogger) middleware, but before any other middleware.
 
 ```js
 import { errorHandler } from 'komapi';
@@ -651,6 +654,9 @@ app.use(errorHandler({ showDetails: false }));
 ##### requestLogger([options])
 
 Log each request with details as they are processed.
+This middleware is added automatically by Komapi.
+
+**Note:** This middleware should be added before any other middleware to ensure that all requests are logged.
 
 ```js
 import { requestLogger } from 'komapi';
