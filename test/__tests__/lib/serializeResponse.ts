@@ -1,4 +1,3 @@
-// Imports
 import serializeResponse from '../../../src/lib/serializeResponse';
 import mockRequest from '../../fixtures/mockRequest';
 

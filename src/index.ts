@@ -1,4 +1,3 @@
-// Dependencies
 import Komapi from './lib/Komapi';
 
 // Exports

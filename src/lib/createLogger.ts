@@ -1,4 +1,3 @@
-// Dependencies
 import Pino from 'pino';
 import cls from 'cls-hooked';
 import Komapi from './Komapi';
@@ -6,15 +5,17 @@ import Komapi from './Komapi';
 // Helpers
 function wrapLogger(baseLogger: Pino.Logger, transactionContext?: cls.Namespace): Pino.Logger {
   const levels = baseLogger.levels.values;
-  const levelProxies = (Object.keys(levels) as Pino.Level[]).reduce(
+  const levelProxies = (Object.keys(levels) as Pino.Level[]).reduce<Partial<{ [key in Pino.Level]: Pino.LogFn }>>(
     (acc, level: Pino.Level) => {
       acc[level] = new Proxy(baseLogger[level], {
         apply(target, thisArg, argumentsList) {
           const loggerContext = argumentsList[0];
+          /* eslint-disable */
           const { _ns_name, id, ...currentTransactionContext } = thisArg.transactionContext.active || {
             _ns_name: null,
             id: null,
           };
+          /* eslint-enable */
           const logContext = { context: currentTransactionContext };
           let args;
           if (typeof loggerContext !== 'object') args = argumentsList;
@@ -22,12 +23,12 @@ function wrapLogger(baseLogger: Pino.Logger, transactionContext?: cls.Namespace)
             Object.assign(logContext, loggerContext);
             args = argumentsList.slice(1);
           }
-          return target.apply(thisArg, [logContext, args]);
+          return target.apply(thisArg, [logContext, ...args]);
         },
       });
       return acc;
     },
-    {} as { [key in Pino.Level]: Pino.LogFn },
+    {},
   );
   Object.assign(baseLogger, {
     transactionContext,

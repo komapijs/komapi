@@ -1,21 +1,11 @@
-// Imports
-import createLogger from '../../../src/lib/createLogger';
 import cls from 'cls-hooked';
-import { Writable } from 'stream';
-
-// Init
-class DummyStream extends Writable {
-  constructor(cb = () => true) {
-    super();
-    this.writable = true;
-    this.write = cb;
-  }
-}
+import createLogger from '../../../src/lib/createLogger';
+import WritableStreamSpy from '../../fixtures/WritableStreamSpy';
 
 // Tests
 it('should create a Pino compatible logger', () => {
   const ns = cls.createNamespace('my-logging-namespace');
-  const logger = createLogger(ns, {}, new DummyStream());
+  const logger = createLogger(ns, {}, new WritableStreamSpy());
 
   // Assertions
   expect(typeof logger.trace).toBe('function');
@@ -26,11 +16,38 @@ it('should create a Pino compatible logger', () => {
   expect(typeof logger.fatal).toBe('function');
   expect(typeof logger.child).toBe('function');
 });
+it('should work without additional data', () => {
+  const ns = cls.createNamespace('my-basic-logging-namespace');
+  const spy = jest.fn();
+  const logger = createLogger(ns, {}, new WritableStreamSpy(spy));
+
+  // Log something
+  logger.info('my logtext');
+
+  // Assertions
+  expect(spy).toHaveBeenCalledTimes(1);
+  expect(spy).toHaveBeenCalledWith(expect.stringContaining('"level":30'));
+  expect(spy).toHaveBeenCalledWith(expect.stringContaining('"msg":"my logtext"'));
+});
+it('should work with additional data', () => {
+  const ns = cls.createNamespace('my-basic-logging-namespace');
+  const spy = jest.fn();
+  const logger = createLogger(ns, {}, new WritableStreamSpy(spy));
+
+  // Log something
+  logger.info({ myKey: 1, myOtherKey: 'withString' }, 'my logtext');
+
+  // Assertions
+  expect(spy).toHaveBeenCalledTimes(1);
+  expect(spy).toHaveBeenCalledWith(expect.stringContaining('"level":30'));
+  expect(spy).toHaveBeenCalledWith(expect.stringContaining('"msg":"my logtext"'));
+  expect(spy).toHaveBeenCalledWith(expect.stringContaining('"myKey":1,"myOtherKey":"withString"'));
+});
 it('should include all context variables', async done => {
   expect.assertions(4);
   const ns = cls.createNamespace('my-logging-namespace2');
   const spy = jest.fn();
-  const logger = createLogger(ns, {}, new DummyStream(spy));
+  const logger = createLogger(ns, {}, new WritableStreamSpy(spy));
 
   // Run in context
   ns.run(() => {
@@ -52,7 +69,7 @@ it('should support child loggers with all context variables from parent', async 
   expect.assertions(5);
   const ns = cls.createNamespace('my-logging-namespace3');
   const spy = jest.fn();
-  const logger = createLogger(ns, {}, new DummyStream(spy));
+  const logger = createLogger(ns, {}, new WritableStreamSpy(spy));
 
   // Run in context
   ns.run(() => {

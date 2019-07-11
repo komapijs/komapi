@@ -1,89 +1,78 @@
-// Dependencies
+import { wrap, createError, BotchedError, VError } from 'botched';
+import defaultsDeep from 'lodash.defaultsdeep';
 import Komapi from '../lib/Komapi';
-import Boom from 'boom';
 
 // Types
-declare module 'boom' {
-  function boomify(error: Error, options?: Boom.Options<object>): Boom<Error>;
-  interface Payload {
-    code?: number | string;
-    errors?: object[];
-    additionalDevelopmentData?: {
-      data?: object;
-      stack?: string;
-    };
-  }
+export interface ErrorHandlerOptions {
+  showDetails: boolean;
 }
-interface ApplicationError extends Error {
-  status?: number;
-  statusCode?: number;
-  data?: object;
+export interface JSONAPIError {
+  id?: string;
+  code?: string;
+  status?: string;
+  title?: string;
+  detail?: string;
+  source?: {
+    pointer?: string;
+    parameter?: string;
+  };
+  links?: { about: string | { href: string; meta?: object } };
+  meta?: object;
+}
+interface JSONAPIErrorResponse {
+  errors: JSONAPIError[];
+}
+
+// Init
+const defaultOptions: ErrorHandlerOptions = {
+  showDetails: true,
+};
+function createGenericError(error: BotchedError) {
+  const { id, code, status, title } = error;
+  return { id, code, status, title };
 }
 
 // Exports
-export default function errorHandlerMiddlewareFactory(): Komapi.Middleware {
+export default function createErrorHandler(options?: Partial<ErrorHandlerOptions>): Komapi.Middleware {
+  const opts = defaultsDeep({}, options, defaultOptions);
   return async function errorHandlerMiddleware(ctx, next) {
     try {
       await next();
-      if (ctx.status === 404) throw Boom.notFound();
-    } catch (applicationError) {
-      const err: ApplicationError = applicationError;
-      let error: Boom<any>;
+      if (ctx.status >= 400) throw createError(ctx.status);
+    } catch (err) {
+      const error = wrap(err);
+      const jsonApiErrors: BotchedError[] =
+        typeof err.errors === 'function' ? (err as VError.MultiError).errors().map(wrap) : [error];
 
-      // Normalize error object
-      try {
-        if (!(applicationError instanceof Error)) throw new Error('Cannot handle non-errors as errors');
-        error = Boom.isBoom(err)
-          ? err
-          : Boom.boomify(err, {
-              statusCode: err.status || err.statusCode || undefined,
-              decorate: err.data,
-            });
-      } catch (subError) {
-        error = Boom.boomify(subError);
-      }
+      // Get headers and status code from error
+      const { detail, headers, isServer, statusCode, title } = error;
 
-      // Set defaults
-      let status = Boom.notAcceptable().output.statusCode;
-      let headers = {};
-      let body: string | object = Boom.notAcceptable().output.payload.message;
-
-      // Check for dev and include dev stuff
-      if (ctx.app.env !== 'production') {
-        error.output.payload.additionalDevelopmentData = {
-          data: error.data || undefined,
-          stack: error.isServer && error.stack ? error.stack : undefined,
-        };
-      }
-
-      // Convert boom response to proper format
-      const payload = {
-        error: {
-          code: error.output.payload.code || '',
-          status: error.output.payload.statusCode,
-          error: error.output.payload.error,
-          message: error.output.payload.message,
-          errors: error.output.payload.errors,
-          additionalDevelopmentData: error.output.payload.additionalDevelopmentData,
-        },
+      // Set default response (we assume JSON:API by default)
+      let body: JSONAPIErrorResponse | string = {
+        errors: jsonApiErrors.map(!opts.showDetails ? createGenericError : e => e.toJSON()),
       };
 
-      // Respond with the proper format
-      const format = ctx.accepts(['json', 'text']);
-      if (format === 'json') {
-        status = error.output.statusCode;
-        headers = error.output.headers;
-        body = payload;
-      } else if (format === 'text') {
-        status = error.output.statusCode;
-        headers = error.output.headers;
-        body = payload.error.message;
+      // Let figure out what content type we should respond with, but don't spend to much energy on
+      // supporting multiple content types and always default to JSON
+      const contentType = ctx.accepts(['application/vnd.api+json', 'json', 'html', 'text']);
+
+      // HTML?
+      if (contentType === 'html') {
+        body = `<!doctype html><html lang=en><head><meta charset=utf-8><title>${title}</title></head><body><h1>${detail ||
+          title}</h1><pre>${JSON.stringify(body, undefined, 2)}</pre></body></html>`;
+      }
+      // Text?
+      else if (contentType === 'text') {
+        body = JSON.stringify(body, undefined, 2);
       }
 
-      // Respond with the error
+      // Respond
       ctx.set(headers);
-      ctx.status = status;
+      ctx.status = statusCode;
       ctx.body = body;
+
+      // Emit errors for server errors
+      if (isServer) ctx.app.emit('error', error, ctx);
     }
   };
 }

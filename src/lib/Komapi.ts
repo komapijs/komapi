@@ -1,96 +1,124 @@
-// Imports
-import stream from 'stream';
-import os from 'os';
 import Koa from 'koa';
-import Pino from 'pino';
+import os from 'os';
+import stream from 'stream';
 import defaultsDeep from 'lodash.defaultsdeep';
-import delegate from 'delegates';
+import assign from 'lodash.assign';
+import get from 'lodash.get';
+import Pino from 'pino';
 import cls from 'cls-hooked';
-import http from 'http';
+import delegate from 'delegates';
+import { createError, createSerializer, ErrorOptions, InternalServerError, VError } from 'botched';
+import { IncomingMessage, ServerResponse } from 'http';
 import uuidv4 from 'uuid';
-import Router from 'koa-router';
-import compose from 'koa-compose';
 import createLogger from './createLogger';
-import setTransactionContext from '../middlewares/setTransactionContext';
-import ensureReady from '../middlewares/ensureReady';
-import requestLogger from '../middlewares/requestLogger';
-import errorHandler from '../middlewares/errorHandler';
-import ensureSchema from '../middlewares/ensureSchema';
-import healthReporter from '../middlewares/healthReporter';
+import Service from './Service';
 import serializeRequest from './serializeRequest';
 import serializeResponse from './serializeResponse';
-import Schema from './Schema';
-import ensureModel from './ensureModel';
-import BaseService from './Service';
+import ensureSchema, { createEnsureSchema } from './ensureSchema';
+import setTransactionContext from '../middlewares/setTransactionContext';
+import errorHandler from '../middlewares/errorHandler';
+import ensureStarted from '../middlewares/ensureStarted';
+import requestLogger from '../middlewares/requestLogger';
+import healthReporter from '../middlewares/healthReporter';
+
+// eslint-disable-next-line no-undef
 import Signals = NodeJS.Signals;
 
-const pkg = require('../../package.json'); // tslint:disable-line no-var-requires
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { name } = require('../../package.json');
 
-/**
- * Overload Koa by extending Komapi for simple module augmentation
- */
-declare module 'koa' {
-  interface Application extends Komapi {}
-  interface BaseRequest extends Komapi.BaseRequest {}
-  interface Request extends Komapi.Request {}
-  interface BaseResponse extends Komapi.BaseResponse {}
-  interface Response extends Komapi.Response {}
-  interface BaseContext extends Komapi.BaseContext {}
-  interface Context extends Komapi.Context {}
-}
-
-/**
- * Types
- */
+// Types
 type DeepPartial<T> = {
   [P in keyof T]?: T[P] extends Array<infer U>
     ? Array<DeepPartial<U>>
     : T[P] extends ReadonlyArray<infer SU>
     ? ReadonlyArray<DeepPartial<SU>>
-    : DeepPartial<T[P]>
+    : DeepPartial<T[P]>;
 };
 
 /**
- * Komapi class
+ * Overload Koa by extending Komapi for simple module augmentation
  */
-declare interface Komapi extends Komapi.Application {}
-class Komapi extends Koa {
+declare module 'koa' {
+  interface Application<CustomStateT = any, CustomContextT = {}> extends Komapi<CustomStateT, CustomContextT> {}
+  interface BaseRequest extends Komapi.BaseRequest {}
+  interface BaseResponse extends Komapi.BaseResponse {}
+  interface ExtendableContext extends Komapi.BaseContext {}
+
+  // Add augmentation helpers
+  interface Request extends Komapi.Request {}
+  interface Response extends Komapi.Response {}
+  interface Context extends Komapi.Context {}
+}
+
+/**
+ * Komapi base class
+ *
+ */
+interface Komapi<
+  CustomStateT = {},
+  CustomContextT = {},
+  CustomOptionsT extends Partial<Komapi.CustomOptions> = Komapi.CustomOptions
+> {
+  use<
+    NewCustomStateT = {},
+    NewCustomContextT = {},
+    NewCustomOptionsT extends Komapi.CustomOptions = Komapi.CustomOptions
+  >(
+    middleware: Komapi.Middleware<
+      CustomStateT & NewCustomStateT,
+      CustomContextT & NewCustomContextT,
+      CustomOptionsT & NewCustomOptionsT
+    >,
+  ): Komapi<CustomStateT & NewCustomStateT, CustomContextT & NewCustomContextT, CustomOptionsT & NewCustomOptionsT>;
+}
+class Komapi<
+  CustomStateT = {},
+  CustomContextT = {},
+  CustomOptionsT extends Partial<Komapi.CustomOptions> = Komapi.CustomOptions
+> extends Koa<CustomStateT, CustomContextT> {
   /**
    * Export helper functions by attaching to Komapi (hack to make it work with named import and module augmentation)
    */
-  public static Service = BaseService;
-  public static Schema = Schema;
+  public static Service = Service;
   public static ensureSchema = ensureSchema;
-  public static ensureModel = ensureModel;
+  public static createEnsureSchema = createEnsureSchema;
   public static requestLogger = requestLogger;
   public static errorHandler = errorHandler;
   public static healthReporter = healthReporter;
 
   /**
-   * Setup Komapi properties
+   * Public instance properties
    */
   public readonly config: Komapi.Options['config'];
+  public readonly services: Komapi.InstantiatedServices<
+    Komapi.Options<Komapi.CustomOptions & CustomOptionsT>['services']
+  >;
   public readonly transactionContext: cls.Namespace;
-  public readonly services: Komapi.InstantiatedServices;
-  public locals: Komapi.Locals = {};
+  public locals: Komapi.Options<Komapi.CustomOptions & CustomOptionsT>['locals'] = {};
+  public state: Komapi.LifecycleState = Komapi.LifecycleState.STOPPED;
   public log: Pino.Logger;
-  public state: Komapi.Lifecycle = Komapi.Lifecycle.SETUP;
-  public readonly waitForReadyState: Promise<Komapi.Lifecycle.READY> = new Promise(
-    resolve => (this._setReadyState = resolve),
-  );
-  protected initHandlers: Komapi.LifecycleHandler[] = [];
-  protected closeHandlers: Komapi.LifecycleHandler[] = [];
-  private _setReadyState!: () => void;
+  public lifecycleHandlers: Array<Komapi.LifecycleHandlerSubscription<this>> = [];
 
   /**
-   * Create new Komapi instance
-   *
-   * @param {DeepPartial<Komapi.Options>} options
+   * Internal instance properties
    */
-  constructor(options: DeepPartial<Komapi.Options> = {}) {
+  protected waitForState: Promise<void> = Promise.resolve();
+
+  /**
+   * Create a new Komapi instance
+   *
+   * @param {Partial<Omit<Komapi.Options, 'config'> & DeepPartial<Pick<Komapi.Options, 'config'>>>=} options
+   */
+  public constructor(
+    options?: Partial<
+      Omit<Komapi.Options<Komapi.CustomOptions & CustomOptionsT>, 'config'> &
+        DeepPartial<Pick<Komapi.Options<Komapi.CustomOptions & CustomOptionsT>, 'config'>>
+    >,
+  ) {
     super();
 
-    // Create default options
+    // Set options
     const opts = defaultsDeep({}, options, {
       config: {
         env: this.env,
@@ -98,349 +126,459 @@ class Komapi extends Koa {
         silent: this.silent,
         keys: this.keys,
         subdomainOffset: this.subdomainOffset,
-        instanceId: pkg.name,
-        errorHandler: errorHandler(),
-        requestLogger: requestLogger(),
-        healthReporter: healthReporter('/.well_known/_health'),
+        instanceId: process.env.HEROKU_DYNO_ID || uuidv4(),
+        serviceId: process.env.HEROKU_APP_ID || name,
       },
-      services: {},
       locals: {},
+      services: {},
       logOptions: {
         useLevelLabels: true,
         level: process.env.LOG_LEVEL || 'info',
         base: {
           pid: process.pid,
           hostname: os.hostname(),
-          env: this.env,
+          env: get(options, 'config.env', this.env),
         },
         serializers: {
-          err: Pino.stdSerializers.err,
+          err: createSerializer(),
           request: serializeRequest(),
           response: serializeResponse(),
         },
         redact: {
-          paths: ['request.header.authorization', 'request.header.cookie'],
+          paths: ['request.header.authorization', 'request.header["x-api-key"]', 'request.header.cookie'],
           censor: '[REDACTED]',
         },
       },
-      logStream: (Pino as any).destination(),
+      logStream: Pino.destination(),
     });
-
-    /**
-     * Initialization
-     */
-    {
-      // Create namespace
-      this.transactionContext = cls.createNamespace(opts.config.instanceId);
-
-      // Set config
-      this.config = opts.config;
-      this.locals = opts.locals;
-      this.log = createLogger(this.transactionContext, opts.logOptions, opts.logStream);
-      this.services = Object.entries(opts.services).reduce(
-        (acc, [k, v]: [string, any]) => {
-          acc[k] = new v(this);
-          return acc;
-        },
-        {} as any,
-      );
-    }
 
     /**
      * Integrate with Koa
      */
-    {
-      ['env', 'subdomainOffset', 'proxy', 'silent', 'keys'].forEach(prop => {
-        Object.defineProperty(this, prop, {
-          get: () => (this.config as { [key: string]: any })[prop],
-          set: v => {
-            (this.config as { [key: string]: any })[prop] = v;
-          },
-        });
-      });
-      Object.assign(this.context, {
-        auth: {},
-        services: this.services,
-      });
-      Object.assign(this.request, {
-        requestId: null,
-        log: this.log,
-      });
-      Object.assign(this.response, {
-        send: function send<T>(body: T): ReturnType<Koa.Response['send']> {
-          this.body = body;
-          return this.body;
+    ['env', 'subdomainOffset', 'proxy', 'silent', 'keys'].forEach(prop => {
+      Object.defineProperty(this, prop, {
+        get: () => (this.config as { [key: string]: any })[prop],
+        set: v => {
+          (this.config as { [key: string]: any })[prop] = v;
         },
-        sendAPI: function sendAPI<T, U>(body: T, metadata?: U): ReturnType<Koa.Response['sendAPI']> {
-          this.body = { metadata, data: body };
+      });
+    });
+    Object.assign(this.request, {
+      requestId: 'UNKNOWN',
+    });
+    Object.assign(this.response, {
+      send: function send<T extends Koa.Response['body'] = Koa.Response['body']>(body: T): T {
+        this.body = body;
+        return this.body;
+      },
+      // sendApi: function sendApi(body) {
+      //   this.body = body ? { data: body } : null;
+      //   return this.body;
+      // },
+      sendError: function sendError(...args: any[]) {
+        throw createError(...args);
+      },
+      sendSchema: function sendSchema<T extends object = object>(jsonSchema: object, data: T | any): T {
+        try {
+          this.body = ensureSchema<T>(jsonSchema, data);
           return this.body;
-        },
-      } as Koa.Response);
-      delegate<Koa.BaseContext, Koa.Request>(this.context, 'request')
-        .access('startAt')
-        .access('requestId')
-        .access('log');
-      delegate<Koa.BaseContext, Koa.Response>(this.context, 'response')
-        .access('send')
-        .access('sendAPI');
-    }
+        } catch (err) {
+          throw new InternalServerError(err);
+        }
+      },
+    } as Koa.Response);
+    delegate<Koa.BaseContext, Koa.Request>(this.context, 'request')
+      .access('startAt')
+      .access('requestId');
+    delegate<Koa.BaseContext, Koa.Response>(this.context, 'response')
+      .access('send')
+      // .access('sendApi')
+      .access('sendError')
+      .access('sendSchema');
+    delegate<Koa.BaseContext, Koa.Application>(this.context, 'app').access('log');
+
+    /**
+     * Initialization
+     */
+    // Set config
+    this.config = opts.config;
+    this.locals = opts.locals;
+
+    // Create namespace
+    this.transactionContext = cls.createNamespace(this.config.instanceId);
+
+    // Create logger
+    this.log = createLogger(this.transactionContext, opts.logOptions, opts.logStream);
+
+    // Instantiate services
+    this.services = Object.entries(opts.services).reduce(
+      (acc, [k, V]: [string, any]) => {
+        acc[k] = new V(this);
+        return acc;
+      },
+      {} as any,
+    );
 
     /**
      * Set up event handlers
      */
-    {
-      // Log emitted errors
-      this.on('error', (err, ctx) => {
-        (ctx || this).log.error({ err, app: this }, 'Application Error Event');
-      });
+    // Log emitted errors
+    this.on('error', (err, { request, response }) => {
+      this.log.error({ request, response, err, app: this }, 'Application Error Event');
+    });
 
-      // Graceful shutdown
-      (['SIGTERM', 'SIGINT', 'SIGHUP'] as Signals[]).forEach((signal: Signals) =>
-        process.once(signal, async () => {
-          try {
-            // @ts-ignore
-            this.log = Pino.final(this.log);
-            await this.close();
-            process.exit(0);
-          } catch (err) {
-            this.log.fatal(
-              { err, app: this, metadata: { signal } },
-              `Failed to handle \`${signal}\` gracefully. Exiting with status code 1`,
-            );
-            process.exit(1);
-          }
-        }),
+    // Graceful shutdown
+    Object.entries({
+      SIGHUP: 128 + 1,
+      SIGINT: 128 + 2,
+      SIGTERM: 128 + 15,
+      SIGBREAK: 128 + 21,
+    }).forEach(([signal, code]) =>
+      process.once(signal as Signals, async () => {
+        try {
+          this.log = Pino.final(this.log);
+          await this.stop();
+          process.exit(code);
+        } catch (err) {
+          this.log.fatal(
+            { err, app: this, metadata: { signal } },
+            `Failed to handle \`${signal}\` gracefully. Exiting with status code 1`,
+          );
+          process.exit(1);
+        }
+      }),
+    );
+
+    // PM2 Graceful shutdown
+    process.on('message', async msg => {
+      if (msg === 'shutdown') {
+        try {
+          this.log = Pino.final(this.log);
+          await this.stop();
+          process.exit(0);
+        } catch (err) {
+          this.log.fatal(
+            { err, app: this, metadata: { msg } },
+            `Failed to handle message \`${msg}\` gracefully. Exiting with status code 1`,
+          );
+          process.exit(1);
+        }
+      }
+    });
+
+    // Handle application state inconsistencies
+    process.once('uncaughtException', async err => {
+      this.log = Pino.final(this.log);
+      this.log.fatal({ err, app: this }, 'Uncaught Exception Error - Stopping application to prevent instability');
+      await this.stop();
+      process.exit(1);
+    });
+    process.once('unhandledRejection', async (err, promise) => {
+      this.log = Pino.final(this.log);
+      this.log.fatal(
+        { err, app: this, metadata: { promise } },
+        'Unhandled Rejected Promise - Stopping application to prevent instability',
       );
+      await this.stop();
+      process.exit(1);
+    });
+    process.once('multipleResolves', async (type, promise, value) => {
+      this.log = Pino.final(this.log);
+      this.log.fatal(
+        { app: this, metadata: { type, promise, value } },
+        'Promise resolved or rejected more than once - Stopping application to prevent instability',
+      );
+      await this.stop();
+      process.exit(1);
+    });
 
-      // Handle application state inconsistencies
-      process.once('uncaughtException', async err => {
-        // @ts-ignore
-        this.log = Pino.final(this.log);
-        this.log.fatal({ err, app: this }, 'Uncaught Exception Error - Stopping application to prevent instability');
-        await this.close();
-        process.exit(1);
-      });
-      process.once('unhandledRejection', async (err, promise) => {
-        // @ts-ignore
-        this.log = Pino.final(this.log);
-        this.log.fatal(
-          { err, app: this, metadata: { promise } },
-          'Unhandled Rejected Promise - Stopping application to prevent instability',
-        );
-        await this.close();
-        process.exit(1);
-      });
-      process.once('multipleResolves', async (type, promise, value) => {
-        // @ts-ignore
-        this.log = Pino.final(this.log);
-        this.log.fatal(
-          { app: this, metadata: { type, promise, value } },
-          'Promise resolved or rejected more than once - Stopping application to prevent instability',
-        );
-        await this.close();
-        process.exit(1);
-      });
+    // Listen for warnings
+    process.on('warning', warning => {
+      this.log.warn(
+        { app: this, stack: warning.stack, metadata: { message: warning.message } },
+        'NodeJS warning detected - see metadata and stack property for more information',
+      );
+    });
 
-      // Listen for warnings
-      process.on('warning', warning => {
-        this.log.warn(
-          { app: this, stack: warning.stack, metadata: { message: warning.message } },
-          'NodeJS warning detected - see metadata and stack property for more information',
-        );
-      });
+    // Add close handler for graceful exits
+    process.once('beforeExit', async () => {
+      this.log = Pino.final(this.log);
+      this.log.debug({ app: this }, 'Before exit event triggered - ensuring graceful shutdown');
 
-      // Add close handler for graceful exits
-      process.once('beforeExit', async () => {
-        this.log.debug({ app: this }, 'Before exit event triggered - ensuring graceful shutdown');
-        if (this.state !== Komapi.Lifecycle.CLOSING && this.state !== Komapi.Lifecycle.CLOSED) await this.close();
-      });
-    }
+      // Stop application
+      await this.stop();
+    });
 
     /**
      * Wire it all up
      */
-    {
-      // Add service handlers
-      Object.entries(this.services).forEach(([name, service]) => {
-        const serviceInitializer: Komapi.LifecycleHandler = async (...args) => service.init(...args);
-        const serviceCloser: Komapi.LifecycleHandler = async (...args) => service.close(...args);
-        Object.defineProperty(serviceInitializer, 'name', { value: `service:${name}.init` });
-        Object.defineProperty(serviceCloser, 'name', { value: `service:${name}.close` });
-        this.onInit(serviceInitializer);
-        this.onClose(serviceCloser);
+    // Add default middlewares
+    this.middleware.push(setTransactionContext(this.transactionContext));
+    this.middleware.push(requestLogger());
+    this.middleware.push(errorHandler());
+    this.middleware.push(ensureStarted());
+  }
+
+  /**
+   * Add handlers after other handlers
+   * Returns a function to remove the added handlers
+   *
+   * @returns {() => void}
+   */
+  public addLifecycleHandler(...handlers: Array<Komapi.LifecycleHandlerSubscription<this>>): () => void {
+    handlers.forEach(handler => this.lifecycleHandlers.push(handler));
+    return () => {
+      this.lifecycleHandlers = this.lifecycleHandlers.filter(handler => !handlers.includes(handler));
+    };
+  }
+
+  /**
+   * Add handlers before other handlers
+   * Returns a function to remove the added handlers
+   *
+   * @returns {() => void}
+   */
+  public addLifecycleHandlerBefore(...handlers: Array<Komapi.LifecycleHandlerSubscription<this>>): () => void {
+    handlers
+      .slice(0)
+      .reverse()
+      .forEach(handler => this.lifecycleHandlers.unshift(handler));
+    return () => {
+      this.lifecycleHandlers = this.lifecycleHandlers.filter(handler => !handlers.includes(handler));
+    };
+  }
+
+  /**
+   * Start the application - safe to be called multiple times to ensure STARTED state
+   *
+   * @params {Partial<Komapi.LifecycleActionOptions<Komapi<CustomStateT, CustomContextT, CustomServicesT>>>=} options
+   * @returns {Promise<void>}
+   */
+  public async start(options?: Partial<Komapi.LifecycleActionOptions<this>>) {
+    // Init
+    const opts: Komapi.LifecycleActionOptions<this> = assign(
+      { handlers: this.lifecycleHandlers, force: false },
+      options,
+    );
+
+    // Check if we should short circuit early or wait for application to stop
+    if (!opts.force) {
+      if (this.state === Komapi.LifecycleState.STOPPING) await this.stop();
+      else if (this.state !== Komapi.LifecycleState.STOPPED) return this.waitForState;
+    }
+
+    // Fetch start time
+    const preStartTime = Date.now();
+
+    // Fetch lifecycle handlers
+    const { handlers } = opts;
+
+    // Log it
+    this.log.debug({ metadata: { startHandlers: handlers.length } }, 'Starting application');
+
+    // Set STARTING state
+    this.state = Komapi.LifecycleState.STARTING;
+
+    // Run handlers
+    this.waitForState = new Promise(async (resolve, reject) => {
+      // Call handlers
+      for (const [index, handler] of handlers.entries()) {
+        // Ensure start handler exists
+        if (handler.start) {
+          const startTime = Date.now();
+          const startHandler = handler.start;
+          const handlerName = handler.name || startHandler.name;
+
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            const output = await startHandler(this);
+
+            // Log it
+            this.log.trace(
+              {
+                metadata: {
+                  output,
+                  name: handlerName,
+                  hasRollbackHandler: !!handler.stop,
+                  duration: Date.now() - startTime,
+                },
+              },
+              'Lifecycle start handler called',
+            );
+          } catch (err) {
+            // Log the error
+            this.log.error(
+              {
+                err,
+                metadata: { name: handlerName, duration: Date.now() - startTime },
+              },
+              'Lifecycle start handler failed - rolling back entire start sequence by stopping the application with stop handlers only for completed lifecycle handlers',
+            );
+
+            // Fetch rollback handlers
+            const rollbackHandlers = handlers.slice(0, index).reverse();
+
+            // Stop application
+            // eslint-disable-next-line no-await-in-loop
+            await this.stop({ handlers: rollbackHandlers, force: true });
+
+            // Reject
+            return reject(err);
+          }
+        }
+      }
+
+      // Done
+      return resolve();
+    })
+      .then(() => {
+        // Log it
+        this.log.debug(
+          { metadata: { startHandlers: handlers.length, duration: Date.now() - preStartTime } },
+          'Application started',
+        );
+        this.state = Komapi.LifecycleState.STARTED;
+      })
+      .catch(err => {
+        // Log it
+        this.log.error(
+          { err, metadata: { startHandlers: handlers.length, duration: Date.now() - preStartTime } },
+          'Application failed to start',
+        );
+        throw err;
       });
 
-      // Add middlewares
-      this.use(setTransactionContext(this.transactionContext));
-      if (this.config.requestLogger) this.use(this.config.requestLogger);
-      if (this.config.errorHandler) this.use(this.config.errorHandler);
-      if (this.config.healthReporter) this.use(this.config.healthReporter);
-      this.use(ensureReady());
-    }
+    // Return starting promise
+    return this.waitForState;
   }
 
   /**
-   * Add init handlers before services - e.g. connect to database
+   * Stop the application - safe to be called multiple times to ensure STOPPED state.
+   * Note that lifecycle handlers must be sent in the order to be called.
+   * This is usually reverse of what you send to the start method.
    *
-   * @returns {Promise<this>}
+   * @params {Partial<Komapi.LifecycleActionOptions<Komapi<CustomStateT, CustomContextT, CustomServicesT>>>=} options
+   * @returns {Promise<void>}
    */
-  public onBeforeInit(...handlers: Komapi.LifecycleHandler[]): this {
-    if (this.state !== Komapi.Lifecycle.SETUP) {
-      throw new Error(`Cannot add init lifecycle handlers when application is in \`${this.state}\` state`);
-    }
-    handlers
-      .slice(0)
-      .reverse()
-      .forEach(handler => this.initHandlers.unshift(handler));
-    return this;
-  }
-
-  /**
-   * Add init handlers after services - e.g. pre-warm cache
-   *
-   * @returns {Promise<this>}
-   */
-  public onInit(...handlers: Komapi.LifecycleHandler[]): this {
-    if (this.state !== Komapi.Lifecycle.SETUP) {
-      throw new Error(`Cannot add init lifecycle handlers when application is in \`${this.state}\` state`);
-    }
-    handlers.forEach(handler => this.initHandlers.push(handler));
-    return this;
-  }
-
-  /**
-   * Add close handlers before services - e.g. close connections
-   *
-   * @returns {Promise<this>}
-   */
-  public onClose(...handlers: Komapi.LifecycleHandler[]): this {
-    if (this.state === Komapi.Lifecycle.CLOSING || this.state === Komapi.Lifecycle.CLOSED) {
-      throw new Error(`Cannot add close lifecycle handlers when application is in \`${this.state}\` state`);
-    }
-    handlers
-      .slice(0)
-      .reverse()
-      .forEach(handler => this.closeHandlers.unshift(handler));
-    return this;
-  }
-
-  /**
-   * Add close handlers after services close - e.g. clean up temp files
-   *
-   * @returns {Promise<this>}
-   */
-  public onAfterClose(...handlers: Komapi.LifecycleHandler[]): this {
-    if (this.state === Komapi.Lifecycle.CLOSING || this.state === Komapi.Lifecycle.CLOSED) {
-      throw new Error(`Cannot add close lifecycle handlers when application is in \`${this.state}\` state`);
-    }
-    handlers.forEach(handler => this.closeHandlers.push(handler));
-    return this;
-  }
-
-  /**
-   * Set state of application
-   *
-   * @returns {Promise<this>}
-   */
-  public setState(newState: Komapi.Lifecycle): this {
-    const prevState = this.state;
-    switch (newState) {
-      case Komapi.Lifecycle.READYING:
-        if (this.state !== Komapi.Lifecycle.SETUP) {
-          throw new Error(`Cannot change state from \`${this.state}\` => \`${Komapi.Lifecycle.READYING}\``);
-        }
-        this.state = Komapi.Lifecycle.READYING;
-        break;
-      case Komapi.Lifecycle.READY:
-        if (this.state !== Komapi.Lifecycle.READYING) {
-          throw new Error(`Cannot change state from \`${this.state}\` => \`${Komapi.Lifecycle.READY}\``);
-        }
-        this.state = Komapi.Lifecycle.READY;
-
-        // Resolve ready promise
-        this._setReadyState();
-        break;
-      case Komapi.Lifecycle.CLOSING:
-        if (this.state === Komapi.Lifecycle.CLOSING || this.state === Komapi.Lifecycle.CLOSED) {
-          throw new Error(`Cannot change state from \`${this.state}\` => \`${Komapi.Lifecycle.CLOSING}\``);
-        }
-        this.state = Komapi.Lifecycle.CLOSING;
-        break;
-      case Komapi.Lifecycle.CLOSED:
-        if (this.state !== Komapi.Lifecycle.CLOSING) {
-          throw new Error(`Cannot change state from \`${this.state}\` => \`${Komapi.Lifecycle.CLOSED}\``);
-        }
-        this.state = Komapi.Lifecycle.CLOSED;
-        break;
-      default:
-        throw new Error(`Cannot set state to unknown state \`${newState}\``);
-    }
-    // Emit new state?
-    this.log.debug(
-      { metadata: { prevState, newState } },
-      `Application state changed from \`${prevState}\` to \`${newState}\``,
+  public async stop(options?: Partial<Komapi.LifecycleActionOptions<this>>) {
+    // Init
+    const opts: Komapi.LifecycleActionOptions<this> = assign(
+      { handlers: this.lifecycleHandlers.slice(0).reverse(), force: false },
+      options,
     );
-    return this;
-  }
 
-  /**
-   * Initiate asynchronous init actions (e.g. services) one-by-one
-   *
-   * @returns {Promise<this>}
-   */
-  public async init(): Promise<this> {
-    this.setState(Komapi.Lifecycle.READYING);
-    for (const handler of this.initHandlers) {
-      const startDate = Date.now();
-      await handler(this);
-      this.log.trace(
-        { metadata: { name: handler.name || 'UNKNOWN', duration: Date.now() - startDate } },
-        'Init lifecycle handler called',
-      );
+    // Check if we should short circuit early or wait for application to stop
+    if (!opts.force) {
+      if (this.state === Komapi.LifecycleState.STARTING) await this.start();
+      else if (this.state !== Komapi.LifecycleState.STARTED) return this.waitForState;
     }
-    this.setState(Komapi.Lifecycle.READY);
-    return this;
+    // Fetch start time
+    const preStopTime = Date.now();
+
+    // Fetch lifecycle handlers
+    const { handlers } = opts;
+
+    // Log it
+    this.log.debug({ metadata: { stopHandlers: handlers.length } }, 'Stopping application');
+
+    // Set STARTING state
+    this.state = Komapi.LifecycleState.STOPPING;
+
+    // Run handlers
+    this.waitForState = new Promise(async (resolve, reject) => {
+      try {
+        // Capture errors - but do not fail to ensure that cleanup is done where possible
+        const errors = [];
+
+        // Call handlers
+        for (const handler of handlers) {
+          // Ensure stop handler exists
+          if (handler.stop) {
+            const startTime = Date.now();
+            const stopHandler = handler.stop;
+            const handlerName = handler.name || stopHandler.name;
+
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              const output = await stopHandler(this);
+
+              // Log it
+              this.log.trace(
+                { metadata: { output, name: handlerName, duration: Date.now() - startTime } },
+                'Lifecycle stop handler called',
+              );
+            } catch (err) {
+              errors.push(err);
+
+              // Log the error
+              this.log.warn(
+                {
+                  err,
+                  metadata: { name: handlerName, duration: Date.now() - startTime },
+                },
+                'Lifecycle stop handler failed - ignoring error to ensure cleanup of remaining resources',
+              );
+            }
+          }
+        }
+
+        // Did we encounter any errors?
+        if (errors.length === 0) {
+          // Log it
+          this.log.debug(
+            { metadata: { stopHandlers: handlers.length, duration: Date.now() - preStopTime } },
+            'Application stopped',
+          );
+          return resolve();
+        }
+
+        // Capture all errors
+        const err = new VError.MultiError(errors);
+
+        // Log it
+        this.log.error(
+          {
+            err,
+            metadata: { numErrors: errors.length, stopHandlers: handlers.length, duration: Date.now() - preStopTime },
+          },
+          'Application failed to stop gracefully - encountered errors while stopping application',
+        );
+
+        // Reject
+        return reject(err);
+      } finally {
+        this.state = Komapi.LifecycleState.STOPPED;
+      }
+    });
+
+    // Return starting promise
+    return this.waitForState;
   }
 
   /**
-   * Close asynchronous init actions (e.g. services) one-by-one
-   * @returns {Promise<this>}
+   * Run a function with transaction context and ensuring the correct lifecycle state
+   *
+   * @param {() => any} func
    */
-  public async close(): Promise<this> {
-    this.setState(Komapi.Lifecycle.CLOSING);
-    for (const handler of this.closeHandlers) {
-      const startDate = Date.now();
-      await handler(this);
-      this.log.trace(
-        { metadata: { name: handler.name || 'UNKNOWN', duration: Date.now() - startDate } },
-        'Close lifecycle handler called',
-      );
-    }
-    this.setState(Komapi.Lifecycle.CLOSED);
-    return this;
-  }
+  public async run<ReturnValue = any>(func: () => any): Promise<ReturnValue> {
+    // Ensure application is ready
+    await this.start();
 
-  /**
-   * Create a unique request id. This is used to set ctx.requestId in the createContext method.
-   *
-   * The following logic is used to generate a request id:
-   * 1. Use ctx.requestId if set
-   * 2. If app.proxy is true, use "x-request-id" request header (ctx.request.headers['x-request-id']) if set
-   * 3. Generate a unique uuid v4
-   *
-   * @param {Koa.Context} ctx - The request context
-   * @returns {string}
-   */
-  public createRequestId(ctx: Koa.Context): string {
-    return (this.proxy && ctx.request.get('x-request-id')) || uuidv4();
+    // Run the function with context
+    return new Promise(resolve => {
+      this.transactionContext.run(async () => {
+        const res = await func();
+        resolve(res);
+      });
+    });
   }
 
   /**
    * @override
    */
-  public createContext(req: http.IncomingMessage, res: http.ServerResponse) {
+  public createContext(req: IncomingMessage, res: ServerResponse) {
     const ctx = super.createContext(req, res);
-    const requestId = this.createRequestId(ctx);
+    const requestId = (this.proxy && ctx.request.get('x-request-id')) || uuidv4();
 
     // Update request
     Object.assign(ctx.request, {
@@ -448,39 +586,15 @@ class Komapi extends Koa {
       startAt: Date.now(),
     });
 
-    // Integrate with passport
-    (ctx.auth as any).__defineGetter__('user', () => {
-      const maybePassport = ctx as Koa.Context & {
-        state: {
-          _passport?: {
-            instance?: {
-              _userProperty: string;
-            };
-          };
-        };
-        request: {
-          _passport?: {
-            instance?: {
-              _userProperty: string;
-            };
-          };
-        };
-      };
-      if (maybePassport.request._passport && maybePassport.request._passport.instance) {
-        return ctx.state[maybePassport.request._passport.instance._userProperty];
-      }
-      if (maybePassport.state._passport && maybePassport.state._passport.instance) {
-        return ctx.state[maybePassport.state._passport.instance._userProperty];
-      }
-      return null;
-    });
-    (ctx.auth as any).__defineGetter__('info', () => ctx.authInfo || {});
-
     // Update response
     Object.assign(ctx.response, {
       send: ctx.response.send.bind(ctx.response),
-      sendAPI: ctx.response.sendAPI.bind(ctx.response),
+      // sendApi: ctx.response.sendApi.bind(ctx.response),
+      sendError: ctx.response.sendError.bind(ctx.response),
     });
+
+    // Set request id header
+    ctx.response.set('x-request-id', ctx.request.requestId);
 
     return ctx;
   }
@@ -488,46 +602,19 @@ class Komapi extends Koa {
   /**
    * @override
    */
-  public use(path: string | string[] | RegExp, ...middlewares: Komapi.Middleware[]): this;
-  public use(...middlewares: Komapi.Middleware[]): this;
-  public use(...middlewares: [string | string[] | RegExp | Komapi.Middleware, ...Komapi.Middleware[]]): this {
-    const [routePath, ...rest] = middlewares;
-    let mw: Komapi.Middleware;
-
-    if (middlewares.length === 0) throw new Error('No middlewares provided to `app.use()`');
-    else if (typeof routePath === 'string' || Array.isArray(routePath) || routePath instanceof RegExp) {
-      if (rest.length === 0) throw new Error('No middlewares provided to `app.use()`');
-      const router = new Router();
-      router.use(routePath, ...rest);
-      mw = router.routes();
-      this.log.debug(
-        { metadata: { path: routePath, middlewares: rest.map(v => v.name || 'UNKNOWN') } },
-        'Added middlewares',
-      );
-    } else {
-      const mwList = [routePath, ...rest];
-      if (mwList.length > 1) {
-        mw = compose(mwList);
-        Object.defineProperty(mw, 'name', { value: `composed(${mwList.map(v => v.name || 'UNKNOWN').join(',')})` });
-      } else {
-        mw = mwList[0];
-      }
-      this.log.debug({ metadata: { middlewares: mwList.map(v => v.name || 'UNKNOWN') } }, 'Added middlewares');
-    }
-    return super.use(mw);
-  }
-
-  /**
-   * @override
-   */
-  public listen(...args: any[]): ReturnType<Koa['listen']> {
+  public listen(...args: any[]) {
     const server = super.listen(...args);
 
     // TODO: Ensure that connections are cleared up within a reasonable time (track sockets and forcefully close them)
-    // tslint:disable-next-line ter-prefer-arrow-callback
-    this.onClose(function closeHttpServer() {
-      return new Promise(resolve => server.close(resolve));
+    this.addLifecycleHandler({
+      name: 'closeHttpServer',
+      stop: () => new Promise(resolve => server.close(resolve)),
     });
+
+    // Start the application in the background
+    this.start();
+
+    // Return the http server
     return server;
   }
 }
@@ -535,18 +622,25 @@ class Komapi extends Koa {
 /**
  * Namespace
  */
+/* eslint-disable @typescript-eslint/no-namespace */
+/* eslint-disable no-redeclare */
 declare namespace Komapi {
-  export type Middleware = Koa.Middleware;
-  export type LifecycleHandler = (app: Komapi) => Promise<any>;
-  export const enum Lifecycle {
-    SETUP = 'SETUP',
-    READYING = 'READYING',
-    READY = 'READY',
-    CLOSING = 'CLOSING',
-    CLOSED = 'CLOSED',
+  /**
+   * User customizable types
+   */
+  export interface Locals {}
+  export interface Services {
+    [name: string]: ConstructableService<Service>;
   }
-  export interface Application {}
-  export interface Options {
+
+  /**
+   * Komapi native types
+   */
+  export interface CustomOptions {
+    services: Services;
+    locals: Locals;
+  }
+  export interface Options<CustomOptionsT extends CustomOptions = CustomOptions> {
     config: {
       env: Koa['env'];
       proxy: Koa['proxy'];
@@ -554,64 +648,85 @@ declare namespace Komapi {
       silent: Koa['silent'];
       keys: Koa['keys'];
       instanceId: string;
-      errorHandler: Komapi.Middleware | false | null;
-      requestLogger: Komapi.Middleware | false | null;
-      healthReporter: Komapi.Middleware | false | null;
-      locals: Locals;
+      serviceId: string;
+
+      // errorHandler: Komapi.Middleware<CustomStateT, CustomContextT> | false | null;
+      // requestLogger: Komapi.Middleware<CustomStateT, CustomContextT> | false | null;
+      // healthReporter: Komapi.Middleware<CustomStateT, CustomContextT> | false | null;
     };
-    services: Services;
-    locals: Options['config']['locals'];
+    locals: CustomOptionsT['locals'];
+    services: CustomOptionsT['services'];
     logOptions: Pino.LoggerOptions;
     logStream: stream.Writable | stream.Duplex | stream.Transform;
   }
-  export type InstantiatedServices = { [P in keyof Services]: InstanceType<Services[P]> };
+  export const enum LifecycleState {
+    STARTING = 'STARTING',
+    STARTED = 'STARTED',
+    STOPPING = 'STOPPING',
+    STOPPED = 'STOPPED',
+  }
+  export type LifecycleHandler<Application = Komapi> = (app: Application) => any;
+  export interface LifecycleHandlerSubscription<Application = Komapi> {
+    name?: string;
+    start?: LifecycleHandler<Application>;
+    stop?: LifecycleHandler<Application>;
+  }
+  export type Middleware<
+    CustomStateT = {},
+    CustomContextT = {},
+    CustomOptionsT extends CustomOptions = CustomOptions
+  > = Koa.Middleware<CustomStateT, ContextBridge<CustomContextT, CustomOptionsT>>;
+  export type InstantiatedServices<T extends Services = Services> = { [P in keyof T]: InstanceType<T[P]> };
   export type ConstructableService<T extends Service> = new (...args: any[]) => T;
-
-  // User customizable types
-  export interface Services {
-    [name: string]: ConstructableService<Service>;
-  }
-  export interface Locals {}
-  export interface Authentication {
-    user: {} | null;
-    info: {};
-  }
-  export interface Service extends BaseService {}
-
-  // Generic types
-  export interface APIResponse<T, U> {
-    metadata?: U;
-    data: T;
+  export type ContextBridge<
+    CustomContextT = {},
+    CustomOptionsT extends CustomOptions = CustomOptions
+  > = CustomContextT & {
+    app: Komapi<{}, {}, CustomOptionsT>;
+  };
+  export interface LifecycleActionOptions<Application = Komapi> {
+    force: boolean;
+    handlers: Array<LifecycleHandlerSubscription<Application>>;
   }
 
-  // Available Koa overloads
-  export interface BaseRequest {}
-  export interface Request {
+  /**
+   * Komapi Koa extensions
+   */
+  export interface BaseRequest {
     requestId: string;
-    log: Komapi['log'];
     startAt: number;
   }
-  export interface BaseResponse {}
-  export interface Response {
+  export interface BaseResponse {
+    requestId: string;
+    startAt: number;
     send: <T extends Koa.Response['body'] = Koa.Response['body']>(body: T) => T;
-    sendAPI: <T extends Koa.Response['body'] = Koa.Response['body'], U extends object | undefined = undefined>(
-      body: T,
-      metadata?: U,
-    ) => APIResponse<T, U>;
+    // sendApi: <T extends object>(body: T) => T;
+    sendError: SendErrorFn;
+    sendSchema: <T extends object = object>(jsonSchema: object, data: T | any) => T;
   }
   export interface BaseContext {
-    auth: Authentication;
-    services: Komapi['services'];
+    log: Komapi['log'];
+    requestId: BaseRequest['requestId'];
+    send: BaseResponse['send'];
+    // sendApi: BaseResponse['sendApi'];
+    sendError: BaseResponse['sendError'];
+    sendSchema: BaseResponse['sendSchema'];
+    startAt: BaseRequest['startAt'];
   }
-  export interface Context {
-    authInfo?: {};
-    log: Request['log'];
-    requestId: Request['requestId'];
-    send: Response['send'];
-    sendAPI: Response['sendAPI'];
-    startAt: Request['startAt'];
+  export interface Request {}
+  export interface Response {}
+  export interface Context {}
+
+  /**
+   * Sub interfaces
+   */
+  interface SendErrorFn {
+    (statusCode: number, message?: string, ...params: any[]): never;
+    (statusCode: number, options?: ErrorOptions | Error, message?: string, ...params: any[]): never;
   }
 }
+/* eslint-enable @typescript-eslint/no-namespace */
+/* eslint-enable no-redeclare */
 
 // Exports
 export = Komapi;

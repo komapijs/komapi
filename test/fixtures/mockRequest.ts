@@ -1,6 +1,5 @@
-// Imports
 import Koa from 'koa';
-import { defaultsDeep } from 'lodash';
+import defaultsDeep from 'lodash.defaultsdeep';
 
 // Exports
 export default function mockRequest(

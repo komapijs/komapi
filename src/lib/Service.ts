@@ -1,27 +1,40 @@
-// Imports
 import Komapi from './Komapi';
 
+// Types
+interface Service<Application extends Komapi = Komapi<any, any, Komapi.CustomOptions>> {}
+
 // Exports
-class Service {
-  public app: Komapi;
+class Service<Application extends Komapi = Komapi<any, any, Komapi.CustomOptions>> {
+  public app: Application;
 
   /**
-   * Create service
+   * Create service and automatically register start and stop lifecycle handlers
    * @param {Application} app
    */
-  constructor(app: Komapi) {
+  public constructor(app: Application) {
     this.app = app;
+
+    // Automatically add service lifecycle handlers
+    if (this.start || this.stop) {
+      app.addLifecycleHandler({
+        name: `service:${this.constructor.name}`,
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        start: (this.start && ((...args) => this.start!(...args))) || undefined,
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        stop: (this.stop && ((...args) => this.stop!(...args))) || undefined,
+      });
+    }
   }
 
   /**
-   * Initialization
+   * Service start lifecycle handler
    */
-  public async init(app: Komapi) {}
+  public async start?(app: Application): Promise<any>;
 
   /**
-   * Graceful shutdown
+   * Service stop lifecycle handler
    */
-  public async close(app: Komapi) {}
+  public async stop?(app: Application): Promise<any>;
 }
 
 // Exports
