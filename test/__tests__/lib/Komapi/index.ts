@@ -21,6 +21,9 @@ describe('instantiation', () => {
     expect(app.keys).toBe(undefined);
     expect(app.log.level).toBe('info');
     expect(app.services).toEqual({});
+    expect(app.config.instanceId).toMatch(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i);
+    expect(app.config.serviceId).toBe('komapi');
+    expect(app.services).toEqual({});
 
     // Cleanup
     process.env.LOG_LEVEL = originalLogLevel;
@@ -43,13 +46,16 @@ describe('instantiation', () => {
   });
   it('should use heroku environment variables if present', () => {
     process.env.HEROKU_DYNO_ID = 'HEROKU_DYNO_ID';
+    process.env.HEROKU_APP_ID = 'HEROKU_APP_ID';
     const app = new Komapi();
 
     // Assertions
     expect(app.config.instanceId).toBe('HEROKU_DYNO_ID');
+    expect(app.config.serviceId).toBe('HEROKU_APP_ID');
 
     // Cleanup
     delete process.env.HEROKU_DYNO_ID;
+    delete process.env.HEROKU_APP_ID;
   });
   it('should be configurable', () => {
     const originalLogLevel = process.env.LOG_LEVEL;
@@ -64,6 +70,7 @@ describe('instantiation', () => {
         silent: true,
         keys: ['asd'],
         instanceId: 'my-instance-id',
+        serviceId: 'my-service-id',
         // errorHandler: false,
         // requestLogger: false,
         // healthReporter: false,
@@ -84,6 +91,7 @@ describe('instantiation', () => {
     expect(app.silent).toBe(true);
     expect(app.keys).toEqual(['asd']);
     expect(app.config.instanceId).toBe('my-instance-id');
+    expect(app.config.serviceId).toBe('my-service-id');
     expect(app.log.level).toBe('error');
     expect(app.services).toEqual({});
 

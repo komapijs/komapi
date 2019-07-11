@@ -1,6 +1,6 @@
 # Komapi
 
-Komapi is an opinionated Node.js framework with official typescript support built on top of [Koa][koa-url] and requires Node.js v8.11.1 or higher.
+Komapi is an opinionated Node.js framework with official typescript support built on top of [Koa][koa-url].
 
 _Disclaimer: There will be breaking changes and outdated documentation during the pre-v1.0.0 cycles._
 
@@ -533,7 +533,8 @@ const app = new Komapi();
   - `config` (object): Core configuration
     - `env` (string): Environment setting - it is **highly** recommended to set this to `NODE_ENV`. Default: `development`
     - `name` (string): The name of the application. Default: `Komapi application`
-    - `instanceId` (string): The unique identifier of this instance - useful to identify the application instance in heavily distributed systems. Default: `process.env.HEROKU_DYNO_ID || 'komapi'`
+    - `instanceId` (string): The unique identifier of this instance - useful to identify the application/service instance in heavily distributed systems. Default: `process.env.HEROKU_DYNO_ID || *auto generated uuid*`
+    - `serviceId` (string): The unique identifier of this instance - useful to identify the application/service type in heavily distributed systems. Default: `process.env.HEROKU_APP_ID || 'komapi'`
     - `subdomainOffset` (number): Offset of .subdomains to ignore. See [Koa documentation][koa-documentation-url] for more information. Default: `2`
     - `proxy` (boolean): Trust proxy headers (includes `x-request-id` and `x-forwarded-for`). See [Koa documentation][koa-documentation-url] for more information. Default: `false`
   - `logOptions` (object): Options to pass down to the [Pino][pino-url] logger instance. See [Pino documentation][pino-url] for more information
@@ -668,6 +669,27 @@ app.use(requestLogger({ level: 'debug' }));
 
 - `options` (object): Object with options
   - `level` (string): What log level to use for request logs? Choose between `fatal`, `error`, `warn`, `info`, `debug` and `trace`. Default: `info`
+
+<a id="api-middlewares-healthreporter"></a>
+
+##### healthReporter([options])
+
+Komapi provides a useful health reporter middleware that conforms to the [Health Check Response Format for HTTP API spec](https://tools.ietf.org/html/draft-inadarei-api-health-check-03).
+This can be used to easily add a useful and comprehensive health reporting endpoint.
+By default it respects `app.state` when reporting health, but can be extended to also provide health reporting for downstream components and add more complex logic (e.g. is the database up? available capacity? system load?).
+This middleware must be added manually and should be added to a specific path.
+The recommended path is `/.well_known/_health` - but is application specific.
+
+```js
+import { healthReporter } from 'komapi';
+
+router.get('/.well_known/_health', healthReporter());
+```
+
+###### Parameters:
+
+- `options` (object): Object with options
+  - `checks` (function): A function that receives the `ctx` parameter and should return an object, or a Promise that resolves to an object with a required `status` (valid values: `pass`, `fail` `warn`) property, optional `output` (string) property and optional `checks` (array) property with any valid property from the spec. See the link above.
 
 <a id="roadmap"></a>
 

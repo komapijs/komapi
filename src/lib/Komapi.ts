@@ -19,6 +19,7 @@ import setTransactionContext from '../middlewares/setTransactionContext';
 import errorHandler from '../middlewares/errorHandler';
 import ensureStarted from '../middlewares/ensureStarted';
 import requestLogger from '../middlewares/requestLogger';
+import healthReporter from '../middlewares/healthReporter';
 
 // eslint-disable-next-line no-undef
 import Signals = NodeJS.Signals;
@@ -84,6 +85,7 @@ class Komapi<
   public static createEnsureSchema = createEnsureSchema;
   public static requestLogger = requestLogger;
   public static errorHandler = errorHandler;
+  public static healthReporter = healthReporter;
 
   /**
    * Public instance properties
@@ -124,7 +126,8 @@ class Komapi<
         silent: this.silent,
         keys: this.keys,
         subdomainOffset: this.subdomainOffset,
-        instanceId: process.env.HEROKU_DYNO_ID || name,
+        instanceId: process.env.HEROKU_DYNO_ID || uuidv4(),
+        serviceId: process.env.HEROKU_APP_ID || name,
       },
       locals: {},
       services: {},
@@ -645,6 +648,7 @@ declare namespace Komapi {
       silent: Koa['silent'];
       keys: Koa['keys'];
       instanceId: string;
+      serviceId: string;
 
       // errorHandler: Komapi.Middleware<CustomStateT, CustomContextT> | false | null;
       // requestLogger: Komapi.Middleware<CustomStateT, CustomContextT> | false | null;
