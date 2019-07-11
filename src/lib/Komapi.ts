@@ -42,7 +42,7 @@ declare module 'koa' {
   interface Application<CustomStateT = any, CustomContextT = {}> extends Komapi<CustomStateT, CustomContextT> {}
   interface BaseRequest extends Komapi.BaseRequest {}
   interface BaseResponse extends Komapi.BaseResponse {}
-  interface BaseContext extends Komapi.BaseContext {}
+  interface ExtendableContext extends Komapi.BaseContext {}
 
   // Add augmentation helpers
   interface Request extends Komapi.Request {}
@@ -482,70 +482,71 @@ class Komapi<
     this.state = Komapi.LifecycleState.STOPPING;
 
     // Run handlers
-    this.waitForState = new Promise<void>(async (resolve, reject) => {
-      // Capture errors - but do not fail to ensure that cleanup is done where possible
-      const errors = [];
+    this.waitForState = new Promise(async (resolve, reject) => {
+      try {
+        // Capture errors - but do not fail to ensure that cleanup is done where possible
+        const errors = [];
 
-      // Call handlers
-      for (const handler of handlers) {
-        // Ensure stop handler exists
-        if (handler.stop) {
-          const startTime = Date.now();
-          const stopHandler = handler.stop;
-          const handlerName = handler.name || stopHandler.name;
+        // Call handlers
+        for (const handler of handlers) {
+          // Ensure stop handler exists
+          if (handler.stop) {
+            const startTime = Date.now();
+            const stopHandler = handler.stop;
+            const handlerName = handler.name || stopHandler.name;
 
-          try {
-            // eslint-disable-next-line no-await-in-loop
-            const output = await stopHandler(this);
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              const output = await stopHandler(this);
 
-            // Log it
-            this.log.trace(
-              { metadata: { output, name: handlerName, duration: Date.now() - startTime } },
-              'Lifecycle stop handler called',
-            );
-          } catch (err) {
-            errors.push(err);
+              // Log it
+              this.log.trace(
+                { metadata: { output, name: handlerName, duration: Date.now() - startTime } },
+                'Lifecycle stop handler called',
+              );
+            } catch (err) {
+              errors.push(err);
 
-            // Log the error
-            this.log.warn(
-              {
-                err,
-                metadata: { name: handlerName, duration: Date.now() - startTime },
-              },
-              'Lifecycle stop handler failed - ignoring error to ensure cleanup of remaining resources',
-            );
+              // Log the error
+              this.log.warn(
+                {
+                  err,
+                  metadata: { name: handlerName, duration: Date.now() - startTime },
+                },
+                'Lifecycle stop handler failed - ignoring error to ensure cleanup of remaining resources',
+              );
+            }
           }
         }
-      }
 
-      // Did we encounter any errors?
-      if (errors.length === 0) return resolve();
-      const err = new VError.MultiError(errors);
+        // Did we encounter any errors?
+        if (errors.length === 0) {
+          // Log it
+          this.log.debug(
+            { metadata: { stopHandlers: handlers.length, duration: Date.now() - preStopTime } },
+            'Application stopped',
+          );
+          return resolve();
+        }
 
-      // Log the error
-      this.log.error({ err, numErrors: errors.length }, 'Encountered errors while stopping application');
+        // Capture all errors
+        const err = new VError.MultiError(errors);
 
-      // Reject
-      return reject(err);
-    })
-      .then(() => {
-        // Log it
-        this.log.debug(
-          { metadata: { stopHandlers: handlers.length, duration: Date.now() - preStopTime } },
-          'Application stopped',
-        );
-      })
-      .catch(err => {
         // Log it
         this.log.error(
-          { err, metadata: { stopHandlers: handlers.length, duration: Date.now() - preStopTime } },
-          'Application failed to stop gracefully',
+          {
+            err,
+            metadata: { numErrors: errors.length, stopHandlers: handlers.length, duration: Date.now() - preStopTime },
+          },
+          'Application failed to stop gracefully - encountered errors while stopping application',
         );
-        throw err;
-      })
-      .finally(() => {
+
+        // Reject
+        return reject(err);
+      } finally {
         this.state = Komapi.LifecycleState.STOPPED;
-      });
+      }
+    });
 
     // Return starting promise
     return this.waitForState;
