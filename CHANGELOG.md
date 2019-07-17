@@ -1,3 +1,7 @@
+<a name="0.7.1"></a>
+
+## [0.7.1](https://github.com/komapijs/komapi/compare/v0.7.0...v0.7.1) (2019-07-17)
+
 <a name="0.7.0"></a>
 
 # [0.7.0](https://github.com/komapijs/komapi/compare/v0.7.0-4...v0.7.0) (2019-07-11)
