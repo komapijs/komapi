@@ -1,3 +1,4 @@
+// eslint-disable-next-line max-classes-per-file
 import Komapi from '../../fixtures/Komapi';
 import Service from '../../../src/lib/Service';
 

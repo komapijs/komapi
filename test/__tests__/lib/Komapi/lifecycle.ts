@@ -252,7 +252,9 @@ describe('app.start()', () => {
       start: () => {},
     };
     const shouldBe5thHandler = {
-      start() {},
+      start() {
+        // Empty
+      },
     };
 
     // Add handlers
@@ -841,7 +843,9 @@ describe('app.stop()', () => {
       stop: () => {},
     };
     const shouldBe5thHandler = {
-      stop() {},
+      stop() {
+        // Empty
+      },
     };
 
     // Add handlers

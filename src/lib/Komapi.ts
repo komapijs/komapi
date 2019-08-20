@@ -380,6 +380,7 @@ class Komapi<
     this.state = Komapi.LifecycleState.STARTING;
 
     // Run handlers
+    // eslint-disable-next-line no-async-promise-executor
     this.waitForState = new Promise(async (resolve, reject) => {
       // Call handlers
       for (const [index, handler] of handlers.entries()) {
@@ -485,6 +486,7 @@ class Komapi<
     this.state = Komapi.LifecycleState.STOPPING;
 
     // Run handlers
+    // eslint-disable-next-line no-async-promise-executor
     this.waitForState = new Promise(async (resolve, reject) => {
       try {
         // Capture errors - but do not fail to ensure that cleanup is done where possible
