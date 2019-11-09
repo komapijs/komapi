@@ -6,7 +6,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        node_version: [8, 10, 12]
+        node_version: [8, 10, 12, 13]
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
@@ -20,8 +20,11 @@ jobs:
       - name: npm install
         run: npm install
 
-      - name: npm -v && node -v
-        run: npm -v && node -v
+      - name: npm -v
+        run: npm -v
+
+      - name: node -v
+        run: node -v
 
       - name: npm run build
         run: npm run build
