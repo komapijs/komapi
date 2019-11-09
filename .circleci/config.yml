@@ -61,6 +61,19 @@ jobs:
       - *run-tests
       - *coverage
 
+  test-node13:
+    docker:
+      - image: circleci/node:13
+    working_directory: ~/repo
+    steps:
+      - *checkout
+      - *restore-cache
+      - *version-check
+      - *install-dependencies
+      - *save-cache
+      - *run-tests
+      - *coverage
+
 workflows:
   version: 2
   test:
@@ -68,3 +81,4 @@ workflows:
       - test-node8
       - test-node10
       - test-node12
+      - test-node13
