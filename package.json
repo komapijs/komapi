@@ -70,7 +70,7 @@
     "lodash.defaultsdeep": "^4.6.1",
     "lodash.get": "^4.4.2",
     "pino": "^5.13.2",
-    "uuid": "^3.3.3"
+    "uuid": "^8.0.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^8.0.0",
@@ -83,7 +83,7 @@
     "@types/lodash.get": "^4.4.6",
     "@types/node": "^12.7.2",
     "@types/supertest": "^2.0.8",
-    "@types/uuid": "^3.4.5",
+    "@types/uuid": "^8.0.0",
     "@typescript-eslint/eslint-plugin": "^2.0.0",
     "@typescript-eslint/parser": "^2.0.0",
     "conventional-changelog-cli": "^2.0.23",
