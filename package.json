@@ -64,7 +64,7 @@
     "cls-hooked": "^4.2.2",
     "delegates": "^1.0.0",
     "koa": "^2.8.1",
-    "koa-router": "^7.4.0",
+    "koa-router": "^9.0.0",
     "lodash.assign": "^4.2.0",
     "lodash.clonedeep": "^4.5.0",
     "lodash.defaultsdeep": "^4.6.1",
